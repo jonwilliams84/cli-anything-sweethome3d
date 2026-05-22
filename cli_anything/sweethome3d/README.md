@@ -48,6 +48,46 @@ cli-anything-sweethome3d --project /tmp/house.sh3d export svg /tmp/house.svg
 cli-anything-sweethome3d --project /tmp/house.sh3d render open
 ```
 
+## SVG-import workflow (the high-throughput path)
+
+For real homes you don't want to add walls one at a time — you want to
+**trace a scanned floor plan**. The harness ships an SVG importer that
+turns colour-coded SVGs into a multi-level `.sh3d` in one pass.
+
+Draw your plan in Inkscape (or any SVG editor) using these conventions:
+
+| SVG element | Meaning |
+|-------------|---------|
+| Wall rectangles | Black/grey filled rects = walls (thickness inferred) |
+| `#ff0000` (red) rect | External door |
+| `#ff00ff` (magenta) rect | Internal door |
+| `#00ff00` (bright green) rect | Patio door |
+| `#0000ff` (blue) rect | Window |
+| `#00ffff` (cyan) rect | Skylight (ceiling-mounted) |
+| `#ffff00` (yellow) circle | Pendant light |
+| `#55d400` (anchor green) square | Cross-floor alignment marker |
+| `<text>` inside a polygon | Room name (drives floor/ceiling colour overrides) |
+
+Drop the SVGs next to a YAML spec describing wall thickness, door
+catalog choices, per-room floor colours, and environment settings, then
+run a one-liner:
+
+```python
+from cli_anything.sweethome3d.core.svg_import import svg_to_home_multi
+svg_to_home_multi(spec="bungalow-spec.yaml")
+```
+
+A complete worked spec ships in the package:
+**[`cli_anything/sweethome3d/examples/bungalow-spec.yaml`](examples/bungalow-spec.yaml)**.
+It covers every section: marker-based Procrustes alignment across floors,
+width-driven catalog variants (e.g. `if_width_cm_gte: 200 →
+doubleWindow126x163`), per-level / per-room floor-colour overrides, and
+environment tuning.
+
+Once the project is built you can refine it interactively (recolour a
+material, drop in a stored camera, attach a calibrated background
+image) via the rest of the CLI.
+
 ## REPL mode
 
 Run with no subcommand to enter an interactive session:
@@ -73,7 +113,7 @@ commands auto-save unless `--dry-run` is passed.
 | `wall` | list / add / rectangle / move / delete / set / **baseboard** |
 | `room` | list / rectangle / add / delete / **set** / **recompute-points** |
 | `furniture` | list / add / add-door / add-window / add-light / move / delete / set |
-| `catalog` | browse the stock furniture catalog |
+| `catalog` | browse the stock catalog + **`scan`** installed `.sh3f` libraries + **`from-project`** for ids already in the loaded `.sh3d` |
 | `textures` | **list / search / info** of the 26 stock SH3D textures |
 | `find` | **rooms / walls / pieces / doors / lights** — read-only spatial queries |
 | `camera` | top / observer view positioning, **save / list / delete / go** stored viewpoints |
@@ -132,6 +172,28 @@ HomeXMLExporter format), so they render in SH3D 7.x. Older project files
 written with a nested `<leftSideTexture>` wrapper still parse correctly via
 a backward-compatibility path in the reader.
 
+### Discovering catalog ids
+
+The curated `catalog list` view covers ~60 stock eTeks pieces. Real
+homes drawn in SH3D lean on community libraries (`.sh3f` plugins).
+Two commands reach the real universe:
+
+```bash
+# Read every installed .sh3f + bundled Furniture.jar, show counts by source
+cli-anything-sweethome3d --json catalog scan --summary
+
+# All windows in any installed catalog
+cli-anything-sweethome3d --json catalog scan --kind doorOrWindow --query window
+
+# Every catalogId already used in this project (community ids too)
+cli-anything-sweethome3d --project house.sh3d --json catalog from-project
+```
+
+`catalog scan` reads `~/.eteks/sweethome3d/furniture/*.sh3f` on Linux,
+`~/Library/Application Support/eTeks/Sweet Home 3D/furniture/*.sh3f`
+on macOS, plus the bundled `Furniture.jar` (locatable via
+`SWEETHOME3D_FURNITURE_JAR` or auto-detected next to the SH3D binary).
+
 ### Spatial / semantic find queries
 
 `find` is the agent's primary introspection surface — pure read-only queries
@@ -149,6 +211,9 @@ cli-anything-sweethome3d --project house.sh3d --json find lights --in-room Kitch
 
 # Doors near the front of the house
 cli-anything-sweethome3d --project house.sh3d --json find doors --near 250,0
+
+# Walls the importer failed to fuse (no wallAtStart / wallAtEnd)
+cli-anything-sweethome3d --project house.sh3d --json find walls --unlinked
 ```
 
 ### Furniture groups, materials & sashes

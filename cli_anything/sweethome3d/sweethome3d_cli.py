@@ -21,6 +21,7 @@ from cli_anything.sweethome3d.core import (
     background_image as bg_core,
     cameras as cam_core,
     catalog as catalog_core,
+    catalog_scan as catalog_scan_core,
     environment as env_core,
     export as export_core,
     find as find_core,
@@ -1116,6 +1117,76 @@ def catalog_info(ctx, catalog_id):
     _emit(ctx, entry)
 
 
+@catalog.command("from-project")
+@click.option("--kind", type=click.Choice(furn_core.KINDS),
+                help="Filter by kind (doorOrWindow / pieceOfFurniture / light)")
+@_json_flag
+@click.pass_context
+def catalog_from_project(ctx, kind):
+    """List every catalogId actually used in the loaded project.
+
+    Surfaces community / non-eTeks catalog ids — the curated `catalog
+    list` view is eTeks-only, but real homes lean on contributed
+    libraries. Each entry includes the `model` and `icon` ZIP-entry
+    paths the project ships with.
+    """
+    sess = _load_session(ctx)
+    entries = catalog_scan_core.from_project(sess.home)
+    if kind is not None:
+        entries = [e for e in entries if e.kind == kind]
+    _emit(ctx, entries)
+
+
+@catalog.command("scan")
+@click.option("--query", "-q",
+                help="Substring filter on catalogId or name (case-insensitive)")
+@click.option("--kind", type=click.Choice(furn_core.KINDS))
+@click.option("--category", "-c", help="Filter by category")
+@click.option("--source", help="Filter by source archive filename (substring)")
+@click.option("--summary", is_flag=True,
+                help="Emit one-row-per-source counts instead of every entry")
+@_json_flag
+@click.pass_context
+def catalog_scan_cmd(ctx, query, kind, category, source, summary):
+    """Scan SH3D's Furniture.jar + user .sh3f libraries.
+
+    Reads every catalog properties file on disk and emits one row per
+    entry. Use this to discover the real catalogId universe (community
+    contributions live in `~/.eteks/sweethome3d/furniture/*.sh3f` and
+    aren't visible to `catalog list`).
+    """
+    entries = catalog_scan_core.scan_all()
+    if not entries:
+        raise click.ClickException(
+            "no catalog archives found. Set SWEETHOME3D_FURNITURE_JAR to "
+            "your SH3D Furniture.jar, or install .sh3f libraries under "
+            "~/.eteks/sweethome3d/furniture/"
+        )
+    if kind is not None:
+        entries = [e for e in entries if e.kind == kind]
+    if category is not None:
+        c = category.lower()
+        entries = [e for e in entries
+                    if e.category and e.category.lower() == c]
+    if query is not None:
+        q = query.lower()
+        entries = [e for e in entries
+                    if q in e.catalogId.lower()
+                    or (e.name and q in e.name.lower())]
+    if source is not None:
+        s = source.lower()
+        entries = [e for e in entries
+                    if e.source and s in e.source.lower()]
+    if summary:
+        import collections
+        by_source = collections.Counter(e.source or "(unknown)" for e in entries)
+        rows = [{"source": src, "entries": n}
+                 for src, n in by_source.most_common()]
+        _emit(ctx, rows)
+        return
+    _emit(ctx, entries)
+
+
 # ─────────────────────────────────────────────────────── camera group
 
 @cli.group()
@@ -1664,15 +1735,19 @@ def find_rooms_cmd(ctx, name, level, contains):
 @click.option("--vertical", is_flag=True, help="Only walls aligned to the Y axis")
 @click.option("--thickness", type=float,
                 help="Only walls matching this thickness (±0.5 cm)")
+@click.option("--unlinked", is_flag=True,
+                help="Only walls with no wallAtStart and no wallAtEnd "
+                     "(surfaces import-corner-fuse failures)")
 @click.option("--max-distance", type=float, default=25.0, show_default=True,
                 help="Max distance from --near point in cm")
 @_json_flag
 @click.pass_context
 def find_walls_cmd(ctx, near, level, horizontal, vertical, thickness,
-                    max_distance):
+                    unlinked, max_distance):
     sess = _load_session(ctx)
     h_flag: Optional[bool] = True if horizontal else None
     v_flag: Optional[bool] = True if vertical else None
+    u_flag: Optional[bool] = True if unlinked else None
     if near is not None:
         np = _parse_xy(near)
         w = find_core.find_wall(sess.home, near_point=np, level=level,
@@ -1683,7 +1758,8 @@ def find_walls_cmd(ctx, near, level, horizontal, vertical, thickness,
         return
     _emit(ctx, find_core.find_walls(sess.home, level=level,
                                        horizontal=h_flag, vertical=v_flag,
-                                       thickness=thickness))
+                                       thickness=thickness,
+                                       unlinked=u_flag))
 
 
 @find.command("pieces")

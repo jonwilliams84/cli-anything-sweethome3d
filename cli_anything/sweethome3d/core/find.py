@@ -118,10 +118,13 @@ def find_walls(home: Home, *,
                 level=None,
                 thickness: Optional[float] = None,
                 horizontal: Optional[bool] = None,
-                vertical: Optional[bool] = None) -> list[Wall]:
+                vertical: Optional[bool] = None,
+                unlinked: Optional[bool] = None) -> list[Wall]:
     """List walls passing all supplied filters. ``horizontal=True``
     keeps walls whose endpoints share the same y (within 1 cm); same
-    for ``vertical=True`` with x."""
+    for ``vertical=True`` with x. ``unlinked=True`` keeps only walls
+    whose endpoints are NOT joined to another wall (no ``wallAtStart``
+    and no ``wallAtEnd``) — surfaces import-corner-fuse failures."""
     lvl_id = _level_id_filter(home, level)
     out = []
     for w in home.walls:
@@ -136,6 +139,10 @@ def find_walls(home: Home, *,
         if vertical is True and abs(w.xStart - w.xEnd) >= 1.0:
             continue
         if vertical is False and abs(w.xStart - w.xEnd) < 1.0:
+            continue
+        if unlinked is True and (w.wallAtStart or w.wallAtEnd):
+            continue
+        if unlinked is False and not (w.wallAtStart or w.wallAtEnd):
             continue
         out.append(w)
     return out

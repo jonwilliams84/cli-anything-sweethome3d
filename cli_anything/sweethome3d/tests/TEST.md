@@ -188,8 +188,10 @@ corrected semantics.
 
 ## Test Results
 
-**398 / 398 passed in ~34s** (329 baseline + 69 refine-v2; 6 skipped
-SH3D-binary-only render tests). Includes ~50 CLI subprocess tests.
+**407 / 407 passed in ~40s** (329 baseline + 69 refine-v2 + 9
+example-driven follow-ups for `find walls --unlinked`, `catalog
+scan`/`from-project`, and slash-bearing camera names; 6 skipped
+SH3D-binary-only render tests). Includes ~55 CLI subprocess tests.
 
 ```
 cli_anything/sweethome3d/tests/test_core.py::TestModel (5 tests) PASSED

@@ -30,6 +30,8 @@ import pytest
 
 from cli_anything.sweethome3d.core import (
     background_image as bg_core,
+    catalog_scan as catalog_scan_core,
+    find as find_core,
     furniture as furn_core,
     furniture_groups as group_core,
     light_emitters as light_core,
@@ -38,6 +40,7 @@ from cli_anything.sweethome3d.core import (
     project as proj_core,
     sashes as sash_core,
     shelves as shelf_core,
+    walls as walls_core,
 )
 from cli_anything.sweethome3d.core.model import (
     Camera,
@@ -931,6 +934,173 @@ class TestStoredCameraKindFix:
         top_view = next(c for c in sess.home.storedCameras
                          if c.name == "overview")
         assert top_view.kind == "topCamera"
+
+    def test_camera_name_with_slashes(self, tmp_path):
+        # SH3D auto-names stored cameras with a DD/MM/YY HH:MM:SS timestamp
+        # (slashes and spaces). Verify save/list/go/delete all handle them.
+        sh3d = str(tmp_path / "slash.sh3d")
+        weird_name = "15/05/26 14:21:43"
+        _run(["project", "new", "-o", sh3d])
+        _run(["--project", sh3d, "camera", "set",
+               "--kind", "observerCamera",
+               "--x", "200", "--y", "300", "--z", "175"])
+        _run(["--project", sh3d, "camera", "save", weird_name])
+
+        r = _run(["--project", sh3d, "--json", "camera", "list"])
+        names = [c["name"] for c in json.loads(r.stdout)]
+        assert names == [weird_name]
+
+        # Roundtrip preserves the slash-bearing name byte-for-byte
+        sess = Session.open(sh3d)
+        assert sess.home.storedCameras[0].name == weird_name
+
+        # `camera go` and `camera delete` round-trip the same name
+        _run(["--project", sh3d, "camera", "set", "--kind", "observerCamera",
+               "--x", "0", "--y", "0", "--z", "0"])
+        _run(["--project", sh3d, "camera", "go", weird_name])
+        sess = Session.open(sh3d)
+        assert sess.home.observerCamera.x == 200
+
+        _run(["--project", sh3d, "camera", "delete", weird_name])
+        r = _run(["--project", sh3d, "--json", "camera", "list"])
+        assert json.loads(r.stdout) == []
+
+
+# ──────────────────────────────────────────────────── find walls --unlinked
+
+class TestFindWallsUnlinked:
+    """A wall is `unlinked` when neither endpoint connects to another wall
+    (no wallAtStart and no wallAtEnd). Useful for surfacing import failures."""
+
+    def test_core_filter(self):
+        h = proj_core.new_home("U")
+        # Connected rectangle (4 walls all link)
+        walls_core.rectangle(h, 0, 0, 500, 400)
+        # Plus one free-floating wall
+        free = walls_core.add_wall(h, 800, 800, 1000, 800)
+        all_walls = find_core.find_walls(h)
+        assert len(all_walls) == 5
+        unlinked = find_core.find_walls(h, unlinked=True)
+        assert len(unlinked) == 1
+        assert unlinked[0].id == free.id
+        linked = find_core.find_walls(h, unlinked=False)
+        assert {w.id for w in linked} == {w.id for w in all_walls if w.id != free.id}
+
+    def test_cli_unlinked_filter(self, tmp_path):
+        sh3d = str(tmp_path / "u.sh3d")
+        _run(["project", "new", "-o", sh3d])
+        _run(["--project", sh3d, "wall", "rectangle", "0", "0", "500", "400"])
+        # Single floating wall — won't auto-link to the rectangle's walls
+        _run(["--project", sh3d, "wall", "add", "800", "800", "1000", "800"])
+        r = _run(["--project", sh3d, "--json", "find", "walls", "--unlinked"])
+        walls = json.loads(r.stdout)
+        assert len(walls) == 1
+        assert walls[0]["xStart"] == 800
+
+
+# ──────────────────────────────────────────────────── catalog scan + from-project
+
+class TestCatalogScan:
+    def test_parse_properties_basic(self):
+        text = """
+# header comment ignored
+id=PluginCatalog
+name=Test plugin
+
+id#1=acme#chairThing
+name#1=Acme chair
+category#1=Lounge
+width#1=45
+depth#1=50
+height#1=90
+creator#1=Acme
+tags#1=Office, Adjustable
+
+id#2=acme#sliderDoor
+name#2=Slider
+doorOrWindow#2=true
+width#2=200
+depth#2=6
+height#2=210
+
+id#3=acme#deskLamp
+name#3=Desk lamp
+light#3=true
+width#3=15
+depth#3=15
+height#3=40
+"""
+        entries = catalog_scan_core.parse_catalog_properties(text)
+        assert len(entries) == 3
+        by_id = {e.catalogId: e for e in entries}
+        assert by_id["acme#chairThing"].kind == "pieceOfFurniture"
+        assert by_id["acme#chairThing"].tags == ["Office", "Adjustable"]
+        assert by_id["acme#sliderDoor"].kind == "doorOrWindow"
+        assert by_id["acme#deskLamp"].kind == "light"
+
+    def test_parse_skips_comment_lines(self):
+        # `#` at column 0 (no embedded index) is a comment
+        text = "# Real comment\nid#1=x\nname#1=X\n"
+        entries = catalog_scan_core.parse_catalog_properties(text)
+        assert [e.catalogId for e in entries] == ["x"]
+
+    def test_from_project_dedupes(self):
+        h = proj_core.new_home("P")
+        furn_core.add_piece(h, "Sofa", 0, 0,
+                              width=200, depth=90, height=80,
+                              catalogId="eTeks#sofa")
+        furn_core.add_piece(h, "Sofa2", 300, 0,
+                              width=200, depth=90, height=80,
+                              catalogId="eTeks#sofa")  # duplicate id
+        furn_core.add_piece(h, "Chair", 0, 200,
+                              width=45, depth=50, height=90,
+                              catalogId="eTeks#chair")
+        entries = catalog_scan_core.from_project(h)
+        ids = sorted(e.catalogId for e in entries)
+        assert ids == ["eTeks#chair", "eTeks#sofa"]
+        assert all(e.source == "project" for e in entries)
+
+    def test_from_project_walks_groups(self):
+        h = proj_core.new_home("P")
+        furn_core.add_piece(h, "Sofa", 0, 0,
+                              width=200, depth=90, height=80,
+                              catalogId="eTeks#sofa")
+        furn_core.add_piece(h, "Chair", 300, 0,
+                              width=45, depth=50, height=90,
+                              catalogId="eTeks#chair")
+        from cli_anything.sweethome3d.core import furniture_groups as group_core
+        group_core.create_group(h, "Set", piece_idents=["Sofa", "Chair"])
+        # Both Sofa and Chair now live inside the group, not top-level
+        assert h.furniture == []
+        entries = catalog_scan_core.from_project(h)
+        ids = sorted(e.catalogId for e in entries)
+        assert ids == ["eTeks#chair", "eTeks#sofa"]
+
+    def test_cli_from_project(self, tmp_path):
+        sh3d = str(tmp_path / "cf.sh3d")
+        _run(["project", "new", "-o", sh3d])
+        _run(["--project", sh3d, "furniture", "add", "Sofa",
+               "0", "0", "--width", "200", "--depth", "90", "--height", "80",
+               "--catalog-id", "eTeks#sofa"])
+        _run(["--project", sh3d, "furniture", "add-door", "Door", "100", "0"])
+        r = _run(["--project", sh3d, "--json", "catalog", "from-project"])
+        entries = json.loads(r.stdout)
+        ids = sorted(e["catalogId"] for e in entries)
+        assert "eTeks#sofa" in ids
+        assert "eTeks#doorFrame" in ids   # default door catalog id
+
+    def test_cli_from_project_kind_filter(self, tmp_path):
+        sh3d = str(tmp_path / "cfk.sh3d")
+        _run(["project", "new", "-o", sh3d])
+        _run(["--project", sh3d, "furniture", "add", "Sofa",
+               "0", "0", "--width", "200", "--depth", "90", "--height", "80",
+               "--catalog-id", "eTeks#sofa"])
+        _run(["--project", sh3d, "furniture", "add-door", "Door", "100", "0"])
+        r = _run(["--project", sh3d, "--json", "catalog", "from-project",
+                   "--kind", "doorOrWindow"])
+        entries = json.loads(r.stdout)
+        assert all(e["kind"] == "doorOrWindow" for e in entries)
+        assert {e["catalogId"] for e in entries} == {"eTeks#doorFrame"}
 
 
 # ──────────────────────────────────────────────────── multi-domain workflow

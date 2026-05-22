@@ -205,10 +205,32 @@ Tests live in `cli_anything/sweethome3d/tests/test_refine2.py` (69 tests).
 Total suite: **398 / 398 pass** in ~34s, 6 skipped (render-runtime,
 SH3D-binary-only).
 
+## Refine pass v2.1 — 2026-05-22 (driven by example-file analysis)
+
+Inspecting the bundled `examples/Home-Clean-Base-RAL.sh3d` (a real
+3-level UK house: 86 walls, 20 rooms, 40 doors/windows across 10
+distinct catalog ids — most community, not eTeks) surfaced four
+follow-ups that v2.0 missed:
+
+- **`find walls --unlinked`** — surfaces walls whose endpoints didn't
+  fuse to neighbours (12 of 86 in the example). Pairs with `wall set
+  --wall-at-start/end` for manual repair.
+- **`catalog from-project`** — enumerates every `catalogId` actually
+  used in the open project with its `model`/`icon` ZIP paths. Closes
+  the day-one "which id do I write?" blocker for community catalogs.
+- **`catalog scan` (+`--summary`/`--kind`/`--query`)** — reads SH3D's
+  bundled `Furniture.jar` plus every `.sh3f` plugin under
+  `~/.eteks/sweethome3d/furniture/` (and the macOS/Windows equivalents)
+  to expose the full catalog universe, not just the curated ~60 eTeks
+  entries in `core/catalog.py`.
+- **Slash-bearing camera names** — SH3D auto-names stored cameras as
+  `DD/MM/YY HH:MM:SS`. Regression-tested through save/list/go/delete.
+
+Tests for these are appended to `tests/test_refine2.py`; total suite
+now 407 / 407 pass.
+
 ## Known Gaps
 
-- **Catalog browsing**: agents must supply `catalogId` / `model` strings
-  directly; we don't enumerate `.sh3f` libraries
 - **Photo render**: requires launching the GUI; no headless path yet
 - **PDF export**: SH3D's built-in PDF export is GUI-only
 - **Video render**: same constraint as photo
