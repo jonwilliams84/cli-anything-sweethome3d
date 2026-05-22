@@ -1,0 +1,183 @@
+# SVG import spec for Bungalow
+#
+# Paths in input.floors are RELATIVE to this spec file's directory.
+# Place Ground Floor.svg and First Floor.svg in the same folder as this file.
+
+meta:
+  name: Bungalow              # home name written into Home.xml
+  output: Bungalow-from-svg.sh3d
+  units: cm                   # importer expects SVG coords in cm
+
+# ─────────────────────── input ─────────────────────────────
+# One floor per SVG. Order matters: the first SVG is the canonical
+# floor; later SVGs get Procrustes-fitted onto its green markers.
+input:
+  floors:
+    - level: Ground
+      svg: Ground Floor.svg
+    - level: 1st Floor
+      svg: First Floor.svg
+
+# ─────────────────────── alignment ─────────────────────────
+# Green markers in each SVG share physical positions across floors.
+# We fit a uniform scale + translation that aligns each floor's
+# markers to the canonical (first floor's) set.
+alignment:
+  marker_color: '#55d400'     # bright green corner squares
+  anchor: wall_se_corner      # wall_se_corner | marker_max
+  # Per-SVG fallback unit scale when no markers are present.
+  # 'auto' = px when width has no unit; ×5 when width is in mm
+  # (architectural 1:50). Override per floor here if needed.
+  unit_scale: auto
+
+# ─────────────────────── walls ─────────────────────────────
+walls:
+  # The 2D plan-view pattern that paints walls in the floor plan.
+  pattern: hatchUp            # SH3D pattern keyword
+  # 3D wall height. Used as level height unless overridden per floor.
+  height_cm: 240
+
+  # Classification — a wall is "external" if BOTH endpoints lie on
+  # the building outer-envelope polygon within `envelope_tol_cm`.
+  classify:
+    envelope_tol_cm: 25       # within this distance of the envelope
+    external_min_raw_thick_cm: 18   # raw extracted thickness gate
+
+  external:
+    thickness_cm: 35
+    color_outside: '#A0522D'  # brick / sienna
+    color_inside:  '#FFFFFF'  # internal face matches internal walls
+    # Optional 3D textures (catalog id). If unset, plain colour is used.
+    texture_outside: null     # e.g. eTeks#brickWallTexture
+    texture_inside:  null
+
+  internal:
+    thickness_cm: 14
+    color: '#FFFFFF'          # white plaster (both sides)
+    texture: null
+
+  # Edge-pair extraction tuning. Walls shorter than min_wall_length or
+  # thinner than thickness_range[0] are dropped.
+  extraction:
+    min_wall_length_cm: 8
+    axis_tol_cm: 6            # how parallel "parallel" must be
+    thickness_range_cm: [6, 60]
+    # Direction angles to extract walls at (degrees). 0 = horizontal,
+    # 90 = vertical, 45/135 = airing-cupboard chamfers.
+    angles_deg: [0, 90, 45, 135]
+    diagonal_angle_tol_deg: 15
+    snap_diagonal_endpoints_cm: 40   # snap diag corners to nearby H/V
+
+  join:
+    tolerance_cm: 35          # max endpoint gap to fuse into one corner
+    external_priority: true   # externals dominate the joined corner
+
+  grid_snap:
+    row_tol_cm: 18            # cluster H walls' y-midpoints within tol
+    col_tol_cm: 18            # cluster V walls' x-midpoints within tol
+
+  link_endpoints:
+    tolerance_cm: 6           # set wallAtStart/wallAtEnd within tol
+
+# ─────────────────────── openings (doors / windows) ────────
+# Each opening rect in the SVG is identified by its fill colour.
+openings:
+  # ── colour → kind mapping ──
+  kinds:
+    '#ff0000': external_door  # red
+    '#ff00ff': internal_door  # magenta
+    '#00ff00': patio_door     # bright green
+    '#0000ff': window         # blue
+    '#00ffff': skylight       # cyan (sits in the ceiling)
+
+  # ── catalog id selection by kind + width ──
+  catalogs:
+    external_door:
+      default: eTeks#frontDoor
+      variants:
+        - if_width_cm_gte: 120
+          catalog: eTeks#garageDoor
+    internal_door:
+      default: eTeks#doorFrame
+    patio_door:
+      default: eTeks#slidingDoors   # 4-pane sliding glass
+    window:
+      default: eTeks#fixedWindow85x123
+      variants:
+        - if_width_cm_gte: 200
+          catalog: eTeks#doubleWindow126x163
+    skylight:
+      # Skylights are rendered as a flat texturable box at ceiling level.
+      default: eTeks#texturableBox
+      height_cm: 4
+      color: '#80CCEEFF'     # pale cyan glass tint (ARGB)
+      ceiling_offset_cm: 5    # gap below ceiling soffit
+
+  # ── piece colour by kind ──
+  colors:
+    external_door: '#4D4F47' # RAL 7019 grey-brown
+    internal_door: null      # keep catalog default
+    patio_door:   '#4D4F47'
+    window:        '#4D4F47'
+    skylight:      '#80CCEEFF'
+
+  # ── wall-snap behaviour ──
+  snap:
+    max_perp_distance_cm: 60      # how far from a wall a piece may sit
+    drop_inside_opening: true     # remove false walls inside an opening
+    drop_margin_cm: 10            # extra padding on the bbox check
+
+  # ── height conventions ──
+  defaults:
+    door_height_cm: 200
+    window_height_cm: 120
+    window_elevation_cm: 100      # sill height
+    bound_to_wall: true           # explicit attribute on snapped pieces
+    wall_distance_cm: 0           # flush against the wall
+
+# ─────────────────────── lights ────────────────────────────
+lights:
+  fill_color: '#ffff00'        # yellow circles in the SVG
+  catalog: eTeks#pendantLamp
+  width_cm: 40
+  depth_cm: 40
+  height_cm: 20
+  elevation_below_ceiling_cm: 30
+  default_color: '#FFFFE0'     # warm-white
+
+# ─────────────────────── floors / ceilings ────────────────
+# Per-level + per-room-name floor + ceiling colour rules. Room names
+# are picked up from `<text>` labels inside each detected polygon.
+rooms:
+  ceiling_color: '#F8F8F4'    # off-white throughout
+  detection:
+    min_area_cm2: 5000
+    max_vertices: 200         # door swings inflate vertex counts
+    dedupe_centroid_cm: 10
+
+  by_level:
+    Ground:
+      default_floor: '#9C7A4D'      # warm oak floorboards
+      overrides: {}                  # name → floor colour
+
+    1st Floor:
+      default_floor: '#D8C6A4'      # neutral beige carpet (stairs / landing)
+      overrides:
+        Master:         '#3A3A3D'   # dark grey carpet
+        'Master ensuite': '#3A3A3D'
+        wardrobe:       '#3A3A3D'
+
+# ─────────────────────── environment ──────────────────────
+environment:
+  sky_color:    '#CEEDFD'     # pale daytime blue
+  ground_color: '#7CB342'     # grass green
+  walls_alpha:  0             # 0 = opaque walls in 3D view
+  # Optional sky/ground textures (catalog id). Override colours when set.
+  sky_texture:    null
+  ground_texture: null
+
+# ─────────────────────── level stacking ───────────────────
+levels:
+  thickness_cm: 12            # floor slab thickness
+  height_cm: 240              # vertical separation between floors
+  ceiling_height_cm: 240
