@@ -108,15 +108,15 @@ commands auto-save unless `--dry-run` is passed.
 
 | Group | What it does |
 |-------|--------------|
-| `project` | new / open / info / save |
-| `level` | list / add / delete / **set** / **select** (multi-floor support) |
-| `wall` | list / add / rectangle / move / delete / set / **baseboard** |
-| `room` | list / rectangle / add / delete / **set** / **recompute-points** |
-| `furniture` | list / add / add-door / add-window / add-light / move / delete / set |
+| `project` | new / open / info / save / **validate** / **bounds** |
+| `level` | list / add / delete / set / select / **duplicate** (multi-floor support) |
+| `wall` | list / add / rectangle / move / delete / set / baseboard / **length** / **info** |
+| `room` | list / rectangle / add / delete / set / recompute-points / **area** / **info** |
+| `furniture` | list / add / add-door / add-window / add-light / move / delete / set / **info** |
 | `catalog` | browse the stock catalog + **`scan`** installed `.sh3f` libraries + **`from-project`** for ids already in the loaded `.sh3d` |
 | `textures` | **list / search / info** of the 26 stock SH3D textures |
 | `find` | **rooms / walls / pieces / doors / lights** — read-only spatial queries |
-| `camera` | top / observer view positioning, **save / list / delete / go** stored viewpoints |
+| `camera` | top / observer view positioning, save / list / delete / go stored viewpoints, **time** (natural sun-position setter) |
 | `dimension` | dimension lines (add / list / delete / **set**) |
 | `label` | text annotations (add / list / delete / **set**) |
 | `polyline` | **add / list / set / delete** open/closed paths |
@@ -171,6 +171,95 @@ Textures emit `<texture attribute="leftSideTexture" .../>` (the canonical SH3D
 HomeXMLExporter format), so they render in SH3D 7.x. Older project files
 written with a nested `<leftSideTexture>` wrapper still parse correctly via
 a backward-compatibility path in the reader.
+
+### Verifying a project (`project validate`)
+
+After a batch of mutations, run `project validate` to catch errors
+before rendering:
+
+```bash
+cli-anything-sweethome3d --project house.sh3d project validate
+# ✓ project is clean (no findings)
+#
+# or, on a problem project:
+# ✗ error   wall.zero_length [wall-a3b9]: wall endpoints coincide
+# ⚠ warning furniture.unknown_catalog [Acme Sofa]: catalogId 'acme#sofa'
+#   is not in the bundled Furniture.jar and the piece has no embedded
+#   model — will render as 'damaged' in SH3D
+# ● info    wall.unlinked [wall-c104]: wall has no neighbours
+```
+
+Exits **1** on any error, **2** on `--strict` for any finding. `--json`
+emits structured `{ok, summary, findings}` for CI / agent pipelines.
+
+Checks performed: zero-length walls, dangling level references,
+degenerate rooms (<3 points / near-zero area), tiny rooms (< 0.5 m² —
+likely importer fragments), unnamed rooms, doors/windows that aren't
+adjacent to any wall, lights with no power, and pieces with `catalogId`
+that won't resolve to a model.
+
+### Measuring things
+
+Agents shouldn't have to do their own geometry. Each entity has an
+info/measurement command:
+
+```bash
+cli-anything-sweethome3d --project house.sh3d --json project bounds
+# {"width_cm": 1180, "depth_cm": 1334, "width_m": 11.8, "depth_m": 13.3}
+
+cli-anything-sweethome3d --project house.sh3d --json room area "Bedroom 2" --units m2
+# {"area": 11.8, "units": "m2", ...}
+
+cli-anything-sweethome3d --project house.sh3d --json room info "Bedroom 2"
+# bounds, centroid, perimeter, bounding-walls count, furniture inside, …
+
+cli-anything-sweethome3d --project house.sh3d --json wall info wall-7f3a
+# midpoint, length, angle, neighbours, baseboards, textures
+
+cli-anything-sweethome3d --project house.sh3d --json furniture info Sofa
+# every field including materials/sashes/sources in one blob
+```
+
+`find rooms` also gained `--unnamed`, `--area-min`, `--area-max` for
+surfacing importer fragments.
+
+### Sun position (`camera time`)
+
+SH3D renders sunlight from an explicit moment in time. The setter
+hides millis-since-epoch:
+
+```bash
+# Afternoon sun in summer (default kind: observerCamera)
+cli-anything-sweethome3d --project house.sh3d camera time \
+    --year 2024 --month 7 --day 21 --hour 14
+
+# Winter morning, UTC-anchored for reproducible renders
+cli-anything-sweethome3d --project house.sh3d camera time \
+    --kind topCamera --year 2024 --month 12 --day 21 --hour 8 --utc
+```
+
+### Duplicating a floor (`level duplicate`)
+
+UK semis often repeat the same footprint upstairs/downstairs. Copy a
+level's walls + rooms + furniture + annotations to a new floor in one
+command:
+
+```bash
+# Stack a copy of Ground onto a new floor at elevation = Ground.height + slab
+cli-anything-sweethome3d --project house.sh3d level duplicate Ground --name Upper
+
+# Put the duplicate in a basement instead
+cli-anything-sweethome3d --project house.sh3d level duplicate Ground \
+    --name Basement --elevation -250
+
+# Translate the copy by (10m, 0) — useful for a side extension on the same level
+cli-anything-sweethome3d --project house.sh3d level duplicate Ground \
+    --name Annexe --offset-x 1000 --offset-y 0 --no-furniture
+```
+
+Wall-to-wall neighbour links (`wallAtStart` / `wallAtEnd`) are remapped
+to the cloned wall ids so the new floor's geometry stays internally
+consistent.
 
 ### Discovering catalog ids
 

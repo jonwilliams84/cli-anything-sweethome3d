@@ -205,6 +205,31 @@ Tests live in `cli_anything/sweethome3d/tests/test_refine2.py` (69 tests).
 Total suite: **398 / 398 pass** in ~34s, 6 skipped (render-runtime,
 SH3D-binary-only).
 
+## Refine pass v2.2 — 2026-05-22 (introspection + measurement + duplication)
+
+Five surfaces that the example file showed agents would want but no
+existing command exposed:
+
+- **`project validate`** — one command runs every health check (zero-length
+  walls, dangling level refs, degenerate rooms, doors not on walls, lights
+  with no power, unknown catalogIds, …) and emits findings with severity.
+  JSON mode returns `{ok, summary, findings}`; exits 1 on any error.
+- **Measurement helpers** — `project bounds`, `room area`, `room info`,
+  `wall length`, `wall info`, `furniture info`. Agents no longer have to
+  do their own arithmetic / dataclass walking.
+- **`find rooms --unnamed --area-min --area-max`** — surfaces importer
+  fragments. The example has 7 unnamed rooms ≤ 3.4 m².
+- **`camera time`** — natural calendar setter. Wraps `datetime →
+  millis-since-epoch` so agents render "afternoon in July" instead of
+  computing `1721566800000`.
+- **`level duplicate`** — deep-copy a level's walls/rooms/furniture/
+  annotations to a new floor at a different elevation. Wall-to-wall
+  `wallAtStart`/`wallAtEnd` links are remapped to the cloned wall ids so
+  the new floor's geometry stays internally consistent.
+
+Tests for these live in `tests/test_refine2.py`. Total suite: 438 / 438
+pass in ~40s.
+
 ## Refine pass v2.1 — 2026-05-22 (driven by example-file analysis)
 
 Inspecting the bundled `examples/Home-Clean-Base-RAL.sh3d` (a real

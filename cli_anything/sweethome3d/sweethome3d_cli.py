@@ -23,6 +23,7 @@ from cli_anything.sweethome3d.core import (
     catalog as catalog_core,
     catalog_scan as catalog_scan_core,
     environment as env_core,
+    validate as validate_core,
     export as export_core,
     find as find_core,
     furniture as furn_core,
@@ -255,6 +256,91 @@ def project_save(ctx, as_path):
     _emit(ctx, {"saved": out})
 
 
+@project.command("validate")
+@click.option("--strict", is_flag=True,
+                help="Exit non-zero on any finding (default: only on errors)")
+@click.option("--no-info", is_flag=True,
+                help="Suppress purely informational findings")
+@_json_flag
+@click.pass_context
+def project_validate(ctx, strict, no_info):
+    """Run every health check (unlinked walls, unknown catalogs,
+    degenerate rooms, dangling level refs, doors not on walls,
+    lights with no power, …) and emit findings."""
+    sess = _load_session(ctx)
+    report = validate_core.validate(sess.home, include_info=not no_info)
+    if ctx.obj.get("json"):
+        out = {
+            "ok": report.ok,
+            "summary": {
+                "errors": len(report.errors),
+                "warnings": len(report.warnings),
+                "infos": len(report.infos),
+                "by_code": report.by_code(),
+            },
+            "findings": [vars(f) for f in report.findings],
+        }
+        click.echo(json.dumps(out, indent=2, default=str))
+    else:
+        if not report.findings:
+            click.echo("✓ project is clean (no findings)")
+        else:
+            for f in report.findings:
+                tag = {"error":"✗", "warning":"⚠", "info":"●"}[f.severity]
+                tgt = ""
+                if f.target_name:
+                    tgt = f" [{f.target_name}]"
+                elif f.target_id:
+                    tgt = f" [{f.target_id[:12]}]"
+                click.echo(f"{tag} {f.severity:7s} {f.code}{tgt}: {f.message}")
+            click.echo()
+            click.echo(
+                f"summary: {len(report.errors)} error(s), "
+                f"{len(report.warnings)} warning(s), "
+                f"{len(report.infos)} info(s)"
+            )
+    if report.errors:
+        ctx.exit(1)
+    if strict and report.findings:
+        ctx.exit(2)
+
+
+@project.command("bounds")
+@click.option("--level", "-l", help="Restrict to one level")
+@_json_flag
+@click.pass_context
+def project_bounds(ctx, level):
+    """Overall x/y extent of every wall + room on the project."""
+    sess = _load_session(ctx)
+    lvl_id = None
+    if level is not None:
+        lvl = sess.home.find_level(level)
+        lvl_id = lvl.id if lvl else level
+    xs, ys = [], []
+    for w in sess.home.walls:
+        if lvl_id and w.level != lvl_id:
+            continue
+        xs += [w.xStart, w.xEnd]
+        ys += [w.yStart, w.yEnd]
+    for r in sess.home.rooms:
+        if lvl_id and r.level != lvl_id:
+            continue
+        for p in r.points:
+            xs.append(p.x)
+            ys.append(p.y)
+    if not xs:
+        raise click.ClickException("project has no geometry to bound")
+    out = {
+        "x_min": min(xs), "x_max": max(xs),
+        "y_min": min(ys), "y_max": max(ys),
+        "width_cm":  max(xs) - min(xs),
+        "depth_cm":  max(ys) - min(ys),
+        "width_m":   (max(xs) - min(xs)) / 100,
+        "depth_m":   (max(ys) - min(ys)) / 100,
+    }
+    _emit(ctx, out)
+
+
 # ─────────────────────────────────────────────────────── level group
 
 @cli.group()
@@ -373,6 +459,51 @@ def level_select(ctx, ident, clear):
         raise click.ClickException(f"level not found: {ident}")
     _autosave(ctx)
     _emit(ctx, {"selected": lvl.id, "name": lvl.name})
+
+
+@level.command("duplicate")
+@click.argument("src")
+@click.option("--name", "new_name", required=True,
+                help="Name for the new level")
+@click.option("--elevation", type=float,
+                help="Z-elevation for the duplicate (default: stack on top of src)")
+@click.option("--offset-x", type=float, default=0, show_default=True,
+                help="Translate every duplicated object by this much in X")
+@click.option("--offset-y", type=float, default=0, show_default=True)
+@click.option("--no-walls", is_flag=True)
+@click.option("--no-rooms", is_flag=True)
+@click.option("--no-furniture", is_flag=True)
+@click.option("--no-annotations", is_flag=True,
+                help="Skip dimension lines, labels, and polylines")
+@_json_flag
+@click.pass_context
+def level_duplicate(ctx, src, new_name, elevation, offset_x, offset_y,
+                      no_walls, no_rooms, no_furniture, no_annotations):
+    """Deep-copy a level's geometry to a new level.
+
+    Walls keep their relative neighbour links (wallAtStart/wallAtEnd are
+    remapped to the cloned wall ids). Furniture inside groups is NOT
+    duplicated.
+    """
+    sess = _load_session(ctx)
+    sess.checkpoint()
+    try:
+        new_lvl = lvl_core.duplicate_level(
+            sess.home, src,
+            new_name=new_name,
+            elevation=elevation,
+            offset_x=offset_x,
+            offset_y=offset_y,
+            include_walls=not no_walls,
+            include_rooms=not no_rooms,
+            include_furniture=not no_furniture,
+            include_annotations=not no_annotations,
+        )
+    except (KeyError, ValueError) as e:
+        sess.undo()
+        raise click.ClickException(str(e))
+    _autosave(ctx)
+    _emit(ctx, new_lvl)
 
 
 # ─────────────────────────────────────────────────────── wall group
@@ -608,6 +739,65 @@ def wall_baseboard(ctx, ident, side, thickness, height, color, texture_id,
     _emit(ctx, w)
 
 
+@wall.command("length")
+@click.argument("ident")
+@click.option("--units", type=click.Choice(["cm", "m", "in", "ft"]),
+                default="cm", show_default=True)
+@_json_flag
+@click.pass_context
+def wall_length_cmd(ctx, ident, units):
+    """Print a wall's length in cm / m / in / ft."""
+    sess = _load_session(ctx)
+    w = sess.home.find_wall(ident)
+    if w is None:
+        raise click.ClickException(f"wall not found: {ident}")
+    cm = walls_core.length(w)
+    converted = {"cm": cm, "m": cm / 100,
+                  "in": cm / 2.54, "ft": cm / 30.48}[units]
+    _emit(ctx, {"id": w.id, "length": converted, "units": units,
+                 "length_cm": cm})
+
+
+@wall.command("info")
+@click.argument("ident")
+@_json_flag
+@click.pass_context
+def wall_info(ctx, ident):
+    """Detailed view of a single wall — length, angle, midpoint,
+    neighbours, baseboards, textures."""
+    sess = _load_session(ctx)
+    w = sess.home.find_wall(ident)
+    if w is None:
+        raise click.ClickException(f"wall not found: {ident}")
+    cm = walls_core.length(w)
+    angle_rad = math.atan2(w.yEnd - w.yStart, w.xEnd - w.xStart)
+    midx = (w.xStart + w.xEnd) / 2
+    midy = (w.yStart + w.yEnd) / 2
+    _emit(ctx, {
+        "id": w.id, "level": w.level,
+        "start": {"x": w.xStart, "y": w.yStart},
+        "end": {"x": w.xEnd, "y": w.yEnd},
+        "midpoint": {"x": midx, "y": midy},
+        "length_cm": cm,
+        "length_m": cm / 100,
+        "angle_rad": angle_rad,
+        "angle_deg": math.degrees(angle_rad),
+        "thickness": w.thickness,
+        "height": w.height,
+        "linked": {
+            "wall_at_start": w.wallAtStart,
+            "wall_at_end": w.wallAtEnd,
+            "is_unlinked": not (w.wallAtStart or w.wallAtEnd),
+        },
+        "left_texture": w.leftSideTexture.catalogId if w.leftSideTexture else None,
+        "right_texture": w.rightSideTexture.catalogId if w.rightSideTexture else None,
+        "left_color": w.leftSideColor,
+        "right_color": w.rightSideColor,
+        "left_baseboard": vars(w.leftSideBaseboard) if w.leftSideBaseboard else None,
+        "right_baseboard": vars(w.rightSideBaseboard) if w.rightSideBaseboard else None,
+    })
+
+
 # ─────────────────────────────────────────────────────── room group
 
 @cli.group()
@@ -807,6 +997,80 @@ def room_recompute(ctx, ident, tol):
         raise click.ClickException(str(e))
     _autosave(ctx)
     _emit(ctx, r)
+
+
+@room.command("area")
+@click.argument("ident")
+@click.option("--units", type=click.Choice(["m2", "ft2", "cm2"]),
+                default="m2", show_default=True)
+@_json_flag
+@click.pass_context
+def room_area_cmd(ctx, ident, units):
+    """Print a room's polygon area in m² / ft² / cm²."""
+    sess = _load_session(ctx)
+    r = sess.home.find_room(ident)
+    if r is None:
+        raise click.ClickException(f"room not found: {ident}")
+    cm2 = rooms_core.area(r)
+    converted = {
+        "m2":  cm2 / 10000,
+        "cm2": cm2,
+        "ft2": cm2 / 929.0304,
+    }[units]
+    _emit(ctx, {
+        "id": r.id, "name": r.name, "level": r.level,
+        "area": converted, "units": units, "area_cm2": cm2,
+    })
+
+
+@room.command("info")
+@click.argument("ident")
+@_json_flag
+@click.pass_context
+def room_info(ctx, ident):
+    """Detailed view of a single room — area, perimeter, bounding box,
+    attached walls, furniture count inside, level."""
+    sess = _load_session(ctx)
+    r = sess.home.find_room(ident)
+    if r is None:
+        raise click.ClickException(f"room not found: {ident}")
+    pts = r.points
+    cm2 = rooms_core.area(r)
+    perimeter_cm = 0.0
+    for i in range(len(pts)):
+        j = (i + 1) % len(pts)
+        perimeter_cm += math.hypot(pts[j].x - pts[i].x, pts[j].y - pts[i].y)
+    xs = [p.x for p in pts]
+    ys = [p.y for p in pts]
+    # Centroid (for inside-room piece detection)
+    cx = sum(xs) / len(xs)
+    cy = sum(ys) / len(ys)
+    # Furniture inside this room's polygon
+    from cli_anything.sweethome3d.core.svg.geometry import point_in_polygon
+    poly = [(p.x, p.y) for p in pts]
+    inside = sum(1 for f in sess.home.furniture
+                  if f.level == r.level and point_in_polygon(f.x, f.y, poly))
+    # Bounding walls (within 25 cm of the polygon perimeter)
+    walls_on_perim = len(find_core.find_room_walls(sess.home, r))
+    _emit(ctx, {
+        "id": r.id, "name": r.name, "level": r.level,
+        "points": len(pts),
+        "area_m2": cm2 / 10000,
+        "area_cm2": cm2,
+        "perimeter_cm": perimeter_cm,
+        "perimeter_m": perimeter_cm / 100,
+        "bounds": {"x_min": min(xs), "x_max": max(xs),
+                    "y_min": min(ys), "y_max": max(ys),
+                    "width_cm": max(xs)-min(xs),
+                    "depth_cm": max(ys)-min(ys)},
+        "centroid": {"x": cx, "y": cy},
+        "bounding_walls": walls_on_perim,
+        "furniture_inside": inside,
+        "floor_color": r.floorColor,
+        "floor_texture": r.floorTexture.catalogId if r.floorTexture else None,
+        "ceiling_color": r.ceilingColor,
+        "ceiling_texture": r.ceilingTexture.catalogId if r.ceilingTexture else None,
+    })
 
 
 # ─────────────────────────────────────────────────────── furniture group
@@ -1068,6 +1332,36 @@ def furniture_set(ctx, ident, name, width, depth, height, angle, elevation,
     _emit(ctx, f)
 
 
+@furniture.command("info")
+@click.argument("ident")
+@_json_flag
+@click.pass_context
+def furniture_info(ctx, ident):
+    """One-shot detail view of a piece — materials, sashes, light
+    sources, properties, position, all in one JSON blob.
+
+    Resolves the piece through `Home.find_furniture`, so grouped pieces
+    are reachable by name or id.
+    """
+    sess = _load_session(ctx)
+    f = sess.home.find_furniture(ident)
+    if f is None:
+        raise click.ClickException(f"furniture not found: {ident}")
+    out = vars(f).copy()
+    # Convert nested dataclasses for clean JSON output
+    out["materials"] = [vars(m) for m in f.materials]
+    out["sashes"] = [vars(s) for s in f.sashes]
+    out["lightSources"] = [vars(ls) for ls in f.lightSources]
+    out["lightSourceMaterials"] = [vars(m) for m in f.lightSourceMaterials]
+    out["shelves"] = [vars(sh) for sh in f.shelves]
+    out["modelTransformations"] = [vars(t) for t in f.modelTransformations]
+    if f.texture:
+        out["texture"] = vars(f.texture)
+    if f.nameStyle:
+        out["nameStyle"] = vars(f.nameStyle)
+    _emit(ctx, out)
+
+
 # ─────────────────────────────────────────────────────── catalog group
 
 @cli.group()
@@ -1318,6 +1612,54 @@ def camera_go(ctx, name, target_kind):
     sess.home.camera = target_kind
     _autosave(ctx)
     _emit(ctx, cam)
+
+
+@camera.command("time")
+@click.option("--kind", type=click.Choice(["topCamera", "observerCamera"]),
+                default="observerCamera", show_default=True)
+@click.option("--year", type=int, default=2024, show_default=True)
+@click.option("--month", type=int, default=6, show_default=True,
+                help="1=Jan, 12=Dec")
+@click.option("--day", type=int, default=21, show_default=True)
+@click.option("--hour", type=int, default=12, show_default=True,
+                help="0–23")
+@click.option("--minute", type=int, default=0, show_default=True)
+@click.option("--utc", is_flag=True,
+                help="Interpret the date/time as UTC (default: local naive)")
+@_json_flag
+@click.pass_context
+def camera_time(ctx, kind, year, month, day, hour, minute, utc):
+    """Set the camera's sun-position time using a natural calendar date.
+
+    SH3D stores `time` as milliseconds-since-epoch (UTC). This command
+    hides the encoding so agents can render "afternoon in summer"
+    instead of `1719144000000`. Pair with `render photo` to get a
+    sunlight angle matching the chosen moment.
+    """
+    import datetime
+    if not 1 <= month <= 12 or not 1 <= day <= 31 or not 0 <= hour <= 23:
+        raise click.UsageError(
+            "month/day/hour out of range (month 1-12, day 1-31, hour 0-23)"
+        )
+    try:
+        if utc:
+            dt = datetime.datetime(year, month, day, hour, minute,
+                                     tzinfo=datetime.timezone.utc)
+        else:
+            dt = datetime.datetime(year, month, day, hour, minute).astimezone()
+    except ValueError as e:
+        raise click.UsageError(f"invalid date/time: {e}")
+    millis = int(dt.timestamp() * 1000)
+    sess = _load_session(ctx)
+    sess.checkpoint()
+    cam = cam_core.set_camera(sess.home, kind=kind, time=millis)
+    _autosave(ctx)
+    _emit(ctx, {
+        "kind": kind,
+        "time_ms": millis,
+        "iso": dt.isoformat(),
+        "summary": dt.strftime("%a %d %b %Y %H:%M %Z").strip(),
+    })
 
 
 # ─────────────────────────────────────────────────────── annotation group
@@ -1715,11 +2057,25 @@ def _parse_xy(s: str) -> tuple[float, float]:
 @click.option("--name", help="Substring match against room name")
 @click.option("--level", "-l", help="Level name or id")
 @click.option("--contains", help="Keep only rooms whose polygon contains X,Y")
+@click.option("--unnamed", is_flag=True,
+                help="Only rooms with no name (importer fragments)")
+@click.option("--area-min", type=float,
+                help="Only rooms with area >= this many m²")
+@click.option("--area-max", type=float,
+                help="Only rooms with area <= this many m²")
 @_json_flag
 @click.pass_context
-def find_rooms_cmd(ctx, name, level, contains):
+def find_rooms_cmd(ctx, name, level, contains, unnamed, area_min, area_max):
     sess = _load_session(ctx)
     rooms = find_core.find_rooms(sess.home, name=name, level=level)
+    if unnamed:
+        rooms = [r for r in rooms if not r.name]
+    if area_min is not None or area_max is not None:
+        rooms = [
+            r for r in rooms
+            if (area_min is None or rooms_core.area(r) / 10000 >= area_min)
+            and (area_max is None or rooms_core.area(r) / 10000 <= area_max)
+        ]
     if contains is not None:
         from cli_anything.sweethome3d.core.svg.geometry import point_in_polygon
         cx, cy = _parse_xy(contains)

@@ -34,12 +34,15 @@ from cli_anything.sweethome3d.core import (
     find as find_core,
     furniture as furn_core,
     furniture_groups as group_core,
+    levels as lvl_core,
     light_emitters as light_core,
     materials as mat_core,
     print_settings as print_core,
     project as proj_core,
+    rooms as rooms_core,
     sashes as sash_core,
     shelves as shelf_core,
+    validate as validate_core,
     walls as walls_core,
 )
 from cli_anything.sweethome3d.core.model import (
@@ -1101,6 +1104,360 @@ height#3=40
         entries = json.loads(r.stdout)
         assert all(e["kind"] == "doorOrWindow" for e in entries)
         assert {e["catalogId"] for e in entries} == {"eTeks#doorFrame"}
+
+
+# ──────────────────────────────────────────────────── project validate
+
+class TestValidateCore:
+    def test_clean_project_is_clean(self):
+        h = proj_core.new_home("V")
+        walls_core.rectangle(h, 0, 0, 500, 400)
+        rooms_core.add_rectangle_room(h, 5, 5, 490, 390, name="Room")
+        report = validate_core.validate(h, include_info=False)
+        assert report.ok
+        assert report.errors == []
+        assert report.warnings == []
+
+    def test_unlinked_walls_are_info(self):
+        h = proj_core.new_home("V")
+        walls_core.add_wall(h, 0, 0, 500, 0)   # free-floating
+        report = validate_core.validate(h)
+        codes = report.by_code()
+        assert codes.get("wall.unlinked", 0) == 1
+
+    def test_tiny_room_warning(self):
+        h = proj_core.new_home("V")
+        # 10cm × 10cm = 100 cm² = 0.01 m²
+        rooms_core.add_rectangle_room(h, 0, 0, 10, 10, name="speck")
+        report = validate_core.validate(h)
+        codes = report.by_code()
+        assert codes.get("room.tiny", 0) == 1
+
+    def test_degenerate_room_is_error(self):
+        h = proj_core.new_home("V")
+        # Bypass add_room's validation by constructing directly
+        from cli_anything.sweethome3d.core.model import Point, Room
+        h.rooms.append(Room(points=[Point(0, 0), Point(10, 0)], name="line"))
+        report = validate_core.validate(h)
+        assert any(f.code == "room.degenerate" for f in report.errors)
+        assert not report.ok
+
+    def test_unknown_catalog_warning(self):
+        h = proj_core.new_home("V")
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            furn_core.add_piece(h, "Mystery", 0, 0,
+                                  width=50, depth=50, height=50,
+                                  catalogId="madeup#widget")
+        report = validate_core.validate(h)
+        assert any(f.code == "furniture.unknown_catalog"
+                    for f in report.warnings)
+
+    def test_light_no_power_warning(self):
+        h = proj_core.new_home("V")
+        furn_core.add_light(h, "Dark", 0, 0, power=0)  # explicitly zero
+        report = validate_core.validate(h)
+        assert any(f.code == "light.no_power" for f in report.warnings)
+
+    def test_dangling_level_error(self):
+        h = proj_core.new_home("V")
+        lvl_core.add_level(h, "Ground")
+        w = walls_core.add_wall(h, 0, 0, 100, 0)
+        w.level = "ghost-level-id"
+        report = validate_core.validate(h)
+        assert any(f.code == "wall.dangling_level" for f in report.errors)
+
+    def test_real_example_validates_clean(self):
+        """The bundled example .sh3d should validate clean (errors=0, warnings=0)."""
+        ex_path = os.path.join(os.path.dirname(__file__),
+                                 "..", "..", "..", "examples",
+                                 "Home-Clean-Base-RAL.sh3d")
+        ex_path = os.path.abspath(ex_path)
+        if not os.path.isfile(ex_path):
+            pytest.skip("example file not present")
+        h = proj_core.open_home(ex_path)
+        report = validate_core.validate(h, include_info=False)
+        assert report.ok, f"unexpected findings: {report.findings}"
+
+
+class TestValidateCLI:
+    def test_clean_human_output(self, tmp_path):
+        sh3d = str(tmp_path / "v.sh3d")
+        _run(["project", "new", "-o", sh3d])
+        _run(["--project", sh3d, "wall", "rectangle", "0", "0", "500", "400"])
+        r = _run(["--project", sh3d, "project", "validate", "--no-info"])
+        assert "✓" in r.stdout
+        assert "clean" in r.stdout
+
+    def test_json_summary(self, tmp_path):
+        sh3d = str(tmp_path / "vj.sh3d")
+        _run(["project", "new", "-o", sh3d])
+        _run(["--project", sh3d, "wall", "add", "0", "0", "500", "0"])
+        r = _run(["--project", sh3d, "--json", "project", "validate"])
+        report = json.loads(r.stdout)
+        assert report["ok"] is True
+        assert report["summary"]["infos"] >= 1
+
+    def test_exit_code_on_error(self, tmp_path):
+        sh3d = str(tmp_path / "ve.sh3d")
+        _run(["project", "new", "-o", sh3d])
+        # Inject a degenerate room directly via Session to bypass CLI guards
+        sess = Session.open(sh3d)
+        from cli_anything.sweethome3d.core.model import Point, Room
+        sess.home.rooms.append(Room(points=[Point(0, 0)], name="bad"))
+        sess.save()
+        r = _run(["--project", sh3d, "project", "validate"], check=False)
+        assert r.returncode != 0
+
+
+# ──────────────────────────────────────────────────── measurement helpers
+
+class TestProjectBounds:
+    def test_bounds_calculation(self, tmp_path):
+        sh3d = str(tmp_path / "b.sh3d")
+        _run(["project", "new", "-o", sh3d])
+        _run(["--project", sh3d, "wall", "add", "0", "0", "500", "0"])
+        _run(["--project", sh3d, "wall", "add", "500", "0", "500", "400"])
+        r = _run(["--project", sh3d, "--json", "project", "bounds"])
+        b = json.loads(r.stdout)
+        assert b["width_cm"] == 500
+        assert b["depth_cm"] == 400
+        assert b["width_m"] == 5.0
+        assert b["depth_m"] == 4.0
+
+
+class TestRoomAreaAndInfo:
+    def test_area_cli_m2(self, tmp_path):
+        sh3d = str(tmp_path / "a.sh3d")
+        _run(["project", "new", "-o", sh3d])
+        _run(["--project", sh3d, "room", "rectangle",
+               "0", "0", "500", "400", "--name", "R"])
+        r = _run(["--project", sh3d, "--json", "room", "area", "R"])
+        out = json.loads(r.stdout)
+        assert out["area"] == pytest.approx(20.0)  # 5m × 4m = 20 m²
+        assert out["units"] == "m2"
+
+    def test_area_cli_ft2(self, tmp_path):
+        sh3d = str(tmp_path / "af.sh3d")
+        _run(["project", "new", "-o", sh3d])
+        _run(["--project", sh3d, "room", "rectangle",
+               "0", "0", "500", "400", "--name", "R"])
+        r = _run(["--project", sh3d, "--json", "room", "area", "R", "--units", "ft2"])
+        out = json.loads(r.stdout)
+        # 20 m² ≈ 215.28 ft²
+        assert out["area"] == pytest.approx(215.28, abs=0.5)
+
+    def test_info_aggregates(self, tmp_path):
+        sh3d = str(tmp_path / "i.sh3d")
+        _run(["project", "new", "-o", sh3d])
+        _run(["--project", sh3d, "wall", "rectangle", "0", "0", "500", "400"])
+        _run(["--project", sh3d, "room", "rectangle",
+               "0", "0", "500", "400", "--name", "R"])
+        _run(["--project", sh3d, "furniture", "add", "Sofa",
+               "250", "200", "--width", "100", "--depth", "50", "--height", "80"])
+        r = _run(["--project", sh3d, "--json", "room", "info", "R"])
+        info = json.loads(r.stdout)
+        assert info["area_m2"] == pytest.approx(20.0)
+        assert info["perimeter_m"] == pytest.approx(18.0)
+        assert info["furniture_inside"] == 1
+        assert info["bounding_walls"] == 4
+
+
+class TestWallLengthAndInfo:
+    def test_length_units(self, tmp_path):
+        sh3d = str(tmp_path / "wl.sh3d")
+        _run(["project", "new", "-o", sh3d])
+        r = _run(["--project", sh3d, "--json", "wall", "add",
+                   "0", "0", "300", "400"])  # 3-4-5 triangle: length 500
+        wid = json.loads(r.stdout)["id"]
+        r = _run(["--project", sh3d, "--json", "wall", "length", wid])
+        assert json.loads(r.stdout)["length"] == pytest.approx(500.0)
+        r = _run(["--project", sh3d, "--json", "wall", "length", wid, "--units", "m"])
+        assert json.loads(r.stdout)["length"] == pytest.approx(5.0)
+
+    def test_info_angle(self, tmp_path):
+        sh3d = str(tmp_path / "wi.sh3d")
+        _run(["project", "new", "-o", sh3d])
+        r = _run(["--project", sh3d, "--json", "wall", "add",
+                   "0", "0", "100", "100"])
+        wid = json.loads(r.stdout)["id"]
+        r = _run(["--project", sh3d, "--json", "wall", "info", wid])
+        info = json.loads(r.stdout)
+        assert info["angle_deg"] == pytest.approx(45.0)
+        assert info["midpoint"]["x"] == pytest.approx(50)
+        assert info["linked"]["is_unlinked"] is True
+
+
+class TestFurnitureInfo:
+    def test_info_includes_materials(self, tmp_path):
+        sh3d = str(tmp_path / "fi.sh3d")
+        _run(["project", "new", "-o", sh3d])
+        _run(["--project", sh3d, "furniture", "add", "Sofa",
+               "0", "0", "--width", "200", "--depth", "90", "--height", "80",
+               "--catalog-id", "eTeks#sofa"])
+        _run(["--project", sh3d, "material", "set", "Sofa", "Cushion",
+               "--color", "#AABBCC"])
+        r = _run(["--project", sh3d, "--json", "furniture", "info", "Sofa"])
+        info = json.loads(r.stdout)
+        assert info["name"] == "Sofa"
+        assert len(info["materials"]) == 1
+        assert info["materials"][0]["name"] == "Cushion"
+
+
+class TestFindRoomsExtensions:
+    def test_unnamed_filter(self, tmp_path):
+        sh3d = str(tmp_path / "fr.sh3d")
+        _run(["project", "new", "-o", sh3d])
+        _run(["--project", sh3d, "room", "rectangle",
+               "0", "0", "500", "400", "--name", "Named"])
+        _run(["--project", sh3d, "room", "rectangle", "600", "0", "200", "200"])
+        r = _run(["--project", sh3d, "--json", "find", "rooms", "--unnamed"])
+        rooms = json.loads(r.stdout)
+        assert len(rooms) == 1
+        assert rooms[0]["name"] is None
+
+    def test_area_range_filter(self, tmp_path):
+        sh3d = str(tmp_path / "ar.sh3d")
+        _run(["project", "new", "-o", sh3d])
+        _run(["--project", sh3d, "room", "rectangle",
+               "0", "0", "100", "100", "--name", "Tiny"])     # 1 m²
+        _run(["--project", sh3d, "room", "rectangle",
+               "0", "200", "500", "400", "--name", "Big"])    # 20 m²
+        r = _run(["--project", sh3d, "--json", "find", "rooms",
+                   "--area-max", "5"])
+        rooms = json.loads(r.stdout)
+        assert [r["name"] for r in rooms] == ["Tiny"]
+        r = _run(["--project", sh3d, "--json", "find", "rooms",
+                   "--area-min", "10"])
+        rooms = json.loads(r.stdout)
+        assert [r["name"] for r in rooms] == ["Big"]
+
+
+# ──────────────────────────────────────────────────── camera time
+
+class TestCameraTime:
+    def test_natural_date_converts_to_millis(self, tmp_path):
+        sh3d = str(tmp_path / "ct.sh3d")
+        _run(["project", "new", "-o", sh3d])
+        r = _run(["--project", sh3d, "--json", "camera", "time",
+                   "--year", "2024", "--month", "7", "--day", "21",
+                   "--hour", "14", "--utc"])
+        out = json.loads(r.stdout)
+        # 2024-07-21 14:00 UTC → 1721570400000 ms
+        assert out["time_ms"] == 1721570400000
+        assert "2024-07-21T14:00:00+00:00" in out["iso"]
+
+        # And the camera now carries that time
+        sess = Session.open(sh3d)
+        assert sess.home.observerCamera.time == 1721570400000
+
+    def test_topcamera_kind(self, tmp_path):
+        sh3d = str(tmp_path / "ctt.sh3d")
+        _run(["project", "new", "-o", sh3d])
+        _run(["--project", sh3d, "camera", "time", "--kind", "topCamera",
+               "--year", "2024", "--month", "12", "--day", "21",
+               "--hour", "8", "--utc"])
+        sess = Session.open(sh3d)
+        assert sess.home.topCamera.time is not None
+        assert sess.home.observerCamera.time is None
+
+    def test_rejects_invalid_date(self, tmp_path):
+        sh3d = str(tmp_path / "ctb.sh3d")
+        _run(["project", "new", "-o", sh3d])
+        r = _run(["--project", sh3d, "camera", "time",
+                   "--month", "13", "--day", "1", "--hour", "12"],
+                  check=False)
+        assert r.returncode != 0
+
+
+# ──────────────────────────────────────────────────── level duplicate
+
+class TestLevelDuplicateCore:
+    def test_walls_duplicate_with_links(self):
+        h = proj_core.new_home("L")
+        src = lvl_core.add_level(h, "Ground")
+        walls_created = walls_core.rectangle(h, 0, 0, 500, 400, level=src.id)
+        # Confirm 4 walls all linked
+        assert all(w.wallAtStart and w.wallAtEnd for w in walls_created)
+        new_lvl = lvl_core.duplicate_level(h, "Ground", new_name="Upper")
+        on_upper = [w for w in h.walls if w.level == new_lvl.id]
+        assert len(on_upper) == 4
+        # All neighbour links should point to OTHER walls on Upper (not Ground)
+        upper_ids = {w.id for w in on_upper}
+        for w in on_upper:
+            if w.wallAtStart:
+                assert w.wallAtStart in upper_ids
+            if w.wallAtEnd:
+                assert w.wallAtEnd in upper_ids
+
+    def test_elevation_defaults_to_stacking(self):
+        h = proj_core.new_home("L")
+        src = lvl_core.add_level(h, "Ground")  # elevation=0, height=250, floor=12
+        new_lvl = lvl_core.duplicate_level(h, "Ground", new_name="Upper")
+        assert new_lvl.elevation == pytest.approx(262)  # 0 + 250 + 12
+
+    def test_offset_translates_geometry(self):
+        h = proj_core.new_home("L")
+        src = lvl_core.add_level(h, "Ground")
+        walls_core.add_wall(h, 0, 0, 100, 0, level=src.id)
+        new_lvl = lvl_core.duplicate_level(h, "Ground",
+                                              new_name="Annexe",
+                                              offset_x=1000, offset_y=500)
+        upper_walls = [w for w in h.walls if w.level == new_lvl.id]
+        assert upper_walls[0].xStart == 1000
+        assert upper_walls[0].yStart == 500
+
+    def test_skip_furniture_flag(self):
+        h = proj_core.new_home("L")
+        src = lvl_core.add_level(h, "Ground")
+        furn_core.add_piece(h, "Sofa", 100, 100,
+                              width=200, depth=90, height=80,
+                              level=src.id)
+        new_lvl = lvl_core.duplicate_level(h, "Ground", new_name="Upper",
+                                              include_furniture=False)
+        upper_furn = [f for f in h.furniture if f.level == new_lvl.id]
+        assert upper_furn == []
+
+    def test_rejects_duplicate_name(self):
+        h = proj_core.new_home("L")
+        lvl_core.add_level(h, "Ground")
+        with pytest.raises(ValueError):
+            lvl_core.duplicate_level(h, "Ground", new_name="Ground")
+
+    def test_rejects_unknown_source(self):
+        h = proj_core.new_home("L")
+        with pytest.raises(KeyError):
+            lvl_core.duplicate_level(h, "Phantom", new_name="X")
+
+
+class TestLevelDuplicateCLI:
+    def test_duplicate_cli(self, tmp_path):
+        sh3d = str(tmp_path / "ld.sh3d")
+        _run(["project", "new", "-o", sh3d])
+        _run(["--project", sh3d, "level", "add", "Ground"])
+        _run(["--project", sh3d, "wall", "rectangle",
+               "0", "0", "500", "400", "--level", "Ground"])
+        r = _run(["--project", sh3d, "--json", "level", "duplicate",
+                   "Ground", "--name", "Upper"])
+        new_lvl = json.loads(r.stdout)
+        assert new_lvl["name"] == "Upper"
+
+        # Find walls on Upper
+        r = _run(["--project", sh3d, "--json", "find", "walls",
+                   "--level", "Upper"])
+        upper = json.loads(r.stdout)
+        assert len(upper) == 4
+
+    def test_duplicate_with_explicit_elevation(self, tmp_path):
+        sh3d = str(tmp_path / "lde.sh3d")
+        _run(["project", "new", "-o", sh3d])
+        _run(["--project", sh3d, "level", "add", "Ground"])
+        _run(["--project", sh3d, "wall", "add", "0", "0", "100", "0",
+               "--level", "Ground"])
+        r = _run(["--project", sh3d, "--json", "level", "duplicate",
+                   "Ground", "--name", "Basement", "--elevation", "-250"])
+        assert json.loads(r.stdout)["elevation"] == -250
 
 
 # ──────────────────────────────────────────────────── multi-domain workflow
