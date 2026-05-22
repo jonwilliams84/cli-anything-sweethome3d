@@ -126,6 +126,60 @@ skip_no_sh3d_v19 = pytest.mark.skipif(
 )
 
 
+# Bundled example .sh3d that ships with the harness — preferred over the
+# user-specific Windows-mount paths above because it works on any machine
+# that has the harness installed.
+_EXAMPLE_SH3D = (
+    Path(__file__).resolve().parent.parent.parent.parent
+    / "examples" / "Home-Clean-Base-RAL.sh3d"
+)
+EXAMPLE_AVAILABLE = _EXAMPLE_SH3D.is_file()
+skip_no_example = pytest.mark.skipif(
+    not EXAMPLE_AVAILABLE,
+    reason=f"bundled example .sh3d not found at {_EXAMPLE_SH3D}",
+)
+
+
+@skip_no_blender
+@skip_no_sh3d
+@skip_no_example
+@pytest.mark.slow
+def test_gpu_photo_renders_bundled_example(tmp_path):
+    """gpu_photo end-to-end smoke test against the bundled example .sh3d.
+
+    Compiles ExportObj.java (or reuses the cached .class), exports the
+    project to OBJ via SH3D's bundled JRE, then renders it in Blender
+    Cycles. Output must be a valid PNG > 5 KB.
+    """
+    from cli_anything.sweethome3d.core.render_runtime import render  # noqa: PLC0415
+
+    out = tmp_path / "example.png"
+    r = render(
+        str(_EXAMPLE_SH3D),
+        str(out),
+        engine="gpu_photo",
+        samples=8,        # quick smoke render
+        width=320,
+        height=200,
+        timeout_s=300,
+    )
+
+    assert out.exists(), f"Output PNG not created at {out}"
+    assert out.stat().st_size > 5_000, (
+        f"Output PNG is suspiciously small ({out.stat().st_size} bytes)"
+    )
+    # PNG magic bytes
+    with open(out, "rb") as f:
+        assert f.read(8) == b"\x89PNG\r\n\x1a\n", (
+            "Output is not a valid PNG file"
+        )
+    assert r["engine"] == "BlenderCycles-OptiX"
+    assert r["elapsed_s"] > 0
+    assert r["width"] == 320
+    assert r["height"] == 200
+    assert r["samples"] == 8
+
+
 @skip_no_blender
 @skip_no_sh3d
 @skip_no_sh3d_v19

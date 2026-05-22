@@ -434,32 +434,52 @@ try:
 
     cam_obj.location = cam_loc
 
-    # The SH3D-yaw/pitch → Blender-Euler conversion is fragile (XYZ
-    # order + Y-flip + base-tilt all conspire). Use `track_quat` to
-    # aim the camera at the scene centroid instead — robust and gives
-    # the user what they actually wanted ("see the building"). The
-    # SH3D camera position is still respected; only its orientation
-    # is recomputed.
+    # Camera framing policy:
+    #
+    # - When --camera-json supplies an explicit camera with non-zero yaw or
+    #   pitch (i.e. the user picked a viewpoint via `render --from-camera`
+    #   or `camera set`), trust the SH3D angles. The Euler conversion in
+    #   sh3d_to_blender_euler() is approximate but matches the convention
+    #   the rest of the harness uses, so users who tune `camera set` get
+    #   what they're tuning.
+    #
+    # - Otherwise (no camera JSON, or yaw/pitch both 0 = default), fall
+    #   back to track_quat(centroid) so a no-config render still produces
+    #   a usable "see the building" framing.
     import mathutils  # local import — bpy guarantees this is available
-    centroid_verts = []
-    for ob in bpy.context.scene.objects:
-        if ob.type == 'MESH' and not ob.name.startswith(('Sun', 'Ground', 'RenderCamera')):
-            for v in ob.data.vertices:
-                wv = ob.matrix_world @ v.co
-                centroid_verts.append(wv)
-    if centroid_verts:
-        scx = sum(v.x for v in centroid_verts) / len(centroid_verts)
-        scy = sum(v.y for v in centroid_verts) / len(centroid_verts)
-        scz = sum(v.z for v in centroid_verts) / len(centroid_verts)
-        target = mathutils.Vector((scx, scy, scz))
-        direction = target - mathutils.Vector(cam_loc)
-        cam_obj.rotation_mode = 'QUATERNION'
-        cam_obj.rotation_quaternion = direction.to_track_quat('-Z', 'Y')
-        print(f"BLENDER-RENDER: camera placed at {cam_loc} aiming at centroid {tuple(target)} fov={math.degrees(fov):.1f}°")
-    else:
+    explicit_angles = (
+        cam_info is not None
+        and 'camera' in cam_info
+        and (float(cam_info['camera'].get('yaw', 0.0)) != 0.0
+              or float(cam_info['camera'].get('pitch', 0.0)) != 0.0)
+    )
+    if explicit_angles:
         cam_obj.rotation_mode  = 'XYZ'
         cam_obj.rotation_euler = cam_rot
-        print(f"BLENDER-RENDER: camera placed at {cam_loc} rot={cam_rot} (no geometry to track) fov={math.degrees(fov):.1f}°")
+        print(f"BLENDER-RENDER: camera placed at {cam_loc} rot={cam_rot} "
+               f"(honoring explicit SH3D yaw/pitch) fov={math.degrees(fov):.1f}°")
+    else:
+        centroid_verts = []
+        for ob in bpy.context.scene.objects:
+            if ob.type == 'MESH' and not ob.name.startswith(('Sun', 'Ground', 'RenderCamera')):
+                for v in ob.data.vertices:
+                    wv = ob.matrix_world @ v.co
+                    centroid_verts.append(wv)
+        if centroid_verts:
+            scx = sum(v.x for v in centroid_verts) / len(centroid_verts)
+            scy = sum(v.y for v in centroid_verts) / len(centroid_verts)
+            scz = sum(v.z for v in centroid_verts) / len(centroid_verts)
+            target = mathutils.Vector((scx, scy, scz))
+            direction = target - mathutils.Vector(cam_loc)
+            cam_obj.rotation_mode = 'QUATERNION'
+            cam_obj.rotation_quaternion = direction.to_track_quat('-Z', 'Y')
+            print(f"BLENDER-RENDER: camera placed at {cam_loc} aiming at centroid {tuple(target)} "
+                   f"(no explicit angles in camera JSON) fov={math.degrees(fov):.1f}°")
+        else:
+            cam_obj.rotation_mode  = 'XYZ'
+            cam_obj.rotation_euler = cam_rot
+            print(f"BLENDER-RENDER: camera placed at {cam_loc} rot={cam_rot} "
+                   f"(no geometry to track) fov={math.degrees(fov):.1f}°")
 
     scene.camera = cam_obj
 except Exception as exc:

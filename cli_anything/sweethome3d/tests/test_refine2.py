@@ -1460,6 +1460,170 @@ class TestLevelDuplicateCLI:
         assert json.loads(r.stdout)["elevation"] == -250
 
 
+# ──────────────────────────────────────────────────── wall split / join
+
+class TestWallSplitCore:
+    def test_split_at_midpoint(self):
+        h = proj_core.new_home("S")
+        w = walls_core.add_wall(h, 0, 0, 500, 0)
+        h1, h2 = walls_core.split_wall(h, w.id, at_x=250, at_y=0)
+        assert (h1.xStart, h1.yStart, h1.xEnd, h1.yEnd) == (0, 0, 250, 0)
+        assert (h2.xStart, h2.yStart, h2.xEnd, h2.yEnd) == (250, 0, 500, 0)
+        assert h1.wallAtEnd == h2.id
+        assert h2.wallAtStart == h1.id
+        # Original wall is gone
+        assert w not in h.walls
+
+    def test_split_preserves_properties(self):
+        h = proj_core.new_home("S")
+        from cli_anything.sweethome3d.core.model import Baseboard
+        w = walls_core.add_wall(h, 0, 0, 500, 0,
+                                  thickness=14, height=300,
+                                  leftSideColor=0xFFAABBCC)
+        w.leftSideBaseboard = Baseboard(thickness=1.5, height=12,
+                                          color=0xFFFFFFFF)
+        h1, h2 = walls_core.split_wall(h, w.id, at_x=250, at_y=0)
+        for half in (h1, h2):
+            assert half.thickness == 14
+            assert half.height == 300
+            assert half.leftSideColor == 0xFFAABBCC
+            assert half.leftSideBaseboard is not None
+            assert half.leftSideBaseboard.thickness == 1.5
+
+    def test_split_preserves_outer_links(self):
+        h = proj_core.new_home("S")
+        # Two connected walls; split the second
+        a = walls_core.add_wall(h, 0, 0, 0, 500)
+        b = walls_core.add_wall(h, 0, 500, 500, 500)
+        walls_core.connect_walls(h, a.id, b.id, at="end-start")
+        h1, h2 = walls_core.split_wall(h, b.id, at_x=250, at_y=500)
+        # `a` previously pointed to b via wallAtEnd; should now point to h1
+        assert a.wallAtEnd == h1.id
+        assert h1.wallAtStart == a.id
+
+    def test_split_rejects_endpoint(self):
+        h = proj_core.new_home("S")
+        w = walls_core.add_wall(h, 0, 0, 500, 0)
+        with pytest.raises(ValueError):
+            walls_core.split_wall(h, w.id, at_x=0.5, at_y=0)
+
+    def test_split_rejects_far_point(self):
+        h = proj_core.new_home("S")
+        w = walls_core.add_wall(h, 0, 0, 500, 0)
+        with pytest.raises(ValueError):
+            walls_core.split_wall(h, w.id, at_x=250, at_y=200)
+
+    def test_split_projects_off_centerline(self):
+        # A point slightly off the wall's centerline should still split
+        # at the perpendicular projection.
+        h = proj_core.new_home("S")
+        w = walls_core.add_wall(h, 0, 0, 500, 0)
+        h1, h2 = walls_core.split_wall(h, w.id,
+                                          at_x=250, at_y=5,    # 5 cm off
+                                          perp_tol_cm=20)
+        assert h1.xEnd == 250
+        assert h2.xStart == 250
+
+
+class TestWallJoinCore:
+    def test_join_collinear_walls(self):
+        h = proj_core.new_home("J")
+        a = walls_core.add_wall(h, 0, 0, 250, 0)
+        b = walls_core.add_wall(h, 250, 0, 500, 0)
+        survivor = walls_core.join_walls(h, a.id, b.id)
+        assert survivor.id == a.id
+        assert survivor.xStart == 0 and survivor.xEnd == 500
+        assert b not in h.walls
+
+    def test_join_preserves_outer_links(self):
+        h = proj_core.new_home("J")
+        outer = walls_core.add_wall(h, -100, 0, 0, 0)
+        a = walls_core.add_wall(h, 0, 0, 250, 0)
+        b = walls_core.add_wall(h, 250, 0, 500, 0)
+        walls_core.connect_walls(h, outer.id, a.id, at="end-start")
+        # outer.wallAtEnd → a; a.wallAtStart → outer
+        survivor = walls_core.join_walls(h, a.id, b.id)
+        assert survivor.wallAtStart == outer.id
+        # And the outer wall still points at the survivor
+        assert outer.wallAtEnd == survivor.id
+
+    def test_join_rejects_non_collinear(self):
+        h = proj_core.new_home("J")
+        a = walls_core.add_wall(h, 0, 0, 250, 0)
+        b = walls_core.add_wall(h, 250, 0, 250, 250)   # 90°, not collinear
+        with pytest.raises(ValueError):
+            walls_core.join_walls(h, a.id, b.id)
+
+    def test_join_rejects_no_shared_endpoint(self):
+        h = proj_core.new_home("J")
+        a = walls_core.add_wall(h, 0, 0, 250, 0)
+        b = walls_core.add_wall(h, 300, 0, 500, 0)
+        with pytest.raises(ValueError):
+            walls_core.join_walls(h, a.id, b.id)
+
+    def test_join_rejects_mismatched_thickness(self):
+        h = proj_core.new_home("J")
+        a = walls_core.add_wall(h, 0, 0, 250, 0, thickness=7.5)
+        b = walls_core.add_wall(h, 250, 0, 500, 0, thickness=14)
+        with pytest.raises(ValueError):
+            walls_core.join_walls(h, a.id, b.id)
+
+    def test_join_rejects_different_levels(self):
+        h = proj_core.new_home("J")
+        a = walls_core.add_wall(h, 0, 0, 250, 0, level="L0")
+        b = walls_core.add_wall(h, 250, 0, 500, 0, level="L1")
+        with pytest.raises(ValueError):
+            walls_core.join_walls(h, a.id, b.id)
+
+    def test_split_then_join_roundtrips(self):
+        h = proj_core.new_home("J")
+        w = walls_core.add_wall(h, 0, 0, 500, 0)
+        original = (w.xStart, w.yStart, w.xEnd, w.yEnd)
+        h1, h2 = walls_core.split_wall(h, w.id, at_x=250, at_y=0)
+        survivor = walls_core.join_walls(h, h1.id, h2.id)
+        assert (survivor.xStart, survivor.yStart, survivor.xEnd, survivor.yEnd) == original
+        assert len(h.walls) == 1
+
+
+class TestWallSplitJoinCLI:
+    def test_split_cli(self, tmp_path):
+        sh3d = str(tmp_path / "ws.sh3d")
+        _run(["project", "new", "-o", sh3d])
+        r = _run(["--project", sh3d, "--json", "wall", "add",
+                   "0", "0", "500", "0"])
+        wid = json.loads(r.stdout)["id"]
+        r = _run(["--project", sh3d, "--json", "wall", "split", wid, "250,0"])
+        halves = json.loads(r.stdout)
+        assert len(halves) == 2
+        assert halves[0]["xEnd"] == 250
+        assert halves[1]["xStart"] == 250
+
+    def test_join_cli(self, tmp_path):
+        sh3d = str(tmp_path / "wj.sh3d")
+        _run(["project", "new", "-o", sh3d])
+        r1 = _run(["--project", sh3d, "--json", "wall", "add",
+                    "0", "0", "250", "0"])
+        r2 = _run(["--project", sh3d, "--json", "wall", "add",
+                    "250", "0", "500", "0"])
+        a = json.loads(r1.stdout)["id"]
+        b = json.loads(r2.stdout)["id"]
+        r = _run(["--project", sh3d, "--json", "wall", "join", a, b])
+        survivor = json.loads(r.stdout)
+        assert survivor["xEnd"] == 500
+        # Only one wall left
+        r = _run(["--project", sh3d, "--json", "find", "walls"])
+        assert len(json.loads(r.stdout)) == 1
+
+    def test_split_rejects_endpoint_cli(self, tmp_path):
+        sh3d = str(tmp_path / "wse.sh3d")
+        _run(["project", "new", "-o", sh3d])
+        r = _run(["--project", sh3d, "--json", "wall", "add",
+                   "0", "0", "500", "0"])
+        wid = json.loads(r.stdout)["id"]
+        r = _run(["--project", sh3d, "wall", "split", wid, "0,0"], check=False)
+        assert r.returncode != 0
+
+
 # ──────────────────────────────────────────────────── multi-domain workflow
 
 class TestRefine2Workflow:

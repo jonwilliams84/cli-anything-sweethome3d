@@ -205,6 +205,37 @@ Tests live in `cli_anything/sweethome3d/tests/test_refine2.py` (69 tests).
 Total suite: **398 / 398 pass** in ~34s, 6 skipped (render-runtime,
 SH3D-binary-only).
 
+## Refine pass v2.3 — 2026-05-22 (Blender render + wall surgery)
+
+- **Headless photo render via Blender** — `render photo --engine gpu_photo`
+  works end-to-end now. SH3D's `ExportObj.java` dumps the project to OBJ
+  via the bundled JRE; Blender (`--background`) renders via Cycles+OptiX.
+  Two fixes were needed before the path was actually usable:
+  - `render_runtime._compile()` was calling `_find_javac()` unconditionally,
+    failing on JRE-only systems even when the cached `.class` files were
+    fresh. Resolution: defer the lookup until something genuinely needs
+    compiling.
+  - `blender_render.py` was overriding any camera rotation with
+    `track_quat(centroid)`, so explicit yaw/pitch from a stored camera
+    were silently ignored. Resolution: honour explicit yaw/pitch when
+    camera JSON has non-zero values; only fall back to centroid-tracking
+    when angles are absent.
+- **`render photo --from-camera <name>`** — loads a stored camera's pose
+  into the active camera before rendering. Pairs with `camera save` and
+  `camera time` so an agent can frame, time-stamp, and render in three
+  commands.
+- **`wall split` / `wall join`** — surgical wall editing without
+  delete-and-re-add. Split preserves every property (thickness, height,
+  textures, baseboards, colours, arc extent, …) and rewires neighbour
+  links across both halves and to outer walls. Join enforces same level
+  + matching thickness/height + collinearity within tolerance; the
+  survivor inherits the outer neighbour links.
+- **gpu_photo smoke test** — `test_gpu_photo_renders_bundled_example`
+  runs the full pipeline against the bundled example .sh3d. Skips
+  cleanly when Blender / SH3D / the example aren't present.
+
+Tests: 456 / 456 pass in ~46s.
+
 ## Refine pass v2.2 — 2026-05-22 (introspection + measurement + duplication)
 
 Five surfaces that the example file showed agents would want but no

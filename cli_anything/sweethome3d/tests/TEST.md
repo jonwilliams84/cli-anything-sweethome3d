@@ -188,10 +188,12 @@ corrected semantics.
 
 ## Test Results
 
-**438 / 438 passed in ~40s** (329 baseline + 69 refine-v2 + 9
+**456 / 456 passed in ~46s** (329 baseline + 69 refine-v2 + 9
 example-driven follow-ups + 31 measurement / validate / camera time /
-level duplicate; 6 skipped SH3D-binary-only render tests). Includes ~70
-CLI subprocess tests.
+level duplicate + 16 wall split/join + 1 Blender gpu_photo smoke;
+5 skipped SH3D-binary-only render tests). Includes ~75 CLI subprocess
+tests. The Blender Cycles `gpu_photo` engine renders the bundled
+example end-to-end in ~3s at 320×200 / 8 samples on OptiX.
 
 ```
 cli_anything/sweethome3d/tests/test_core.py::TestModel (5 tests) PASSED

@@ -739,6 +739,71 @@ def wall_baseboard(ctx, ident, side, thickness, height, color, texture_id,
     _emit(ctx, w)
 
 
+@wall.command("split")
+@click.argument("ident")
+@click.argument("at", metavar="X,Y")
+@click.option("--perp-tol", "perp_tol", type=float, default=50.0,
+                show_default=True,
+                help="Max perpendicular distance from the wall centerline (cm)")
+@click.option("--endpoint-tol", "endpoint_tol", type=float, default=1.0,
+                show_default=True,
+                help="Minimum distance from either existing endpoint (cm)")
+@_json_flag
+@click.pass_context
+def wall_split_cmd(ctx, ident, at, perp_tol, endpoint_tol):
+    """Cut a wall at the given X,Y point projected onto its centerline.
+
+    Produces two walls that inherit every property of the original
+    (thickness, height, textures, baseboards, colours). Neighbour links
+    are remapped so the surrounding wall graph stays internally consistent.
+    """
+    sess = _load_session(ctx)
+    sess.checkpoint()
+    try:
+        ax, ay = _parse_xy(at)
+        h1, h2 = walls_core.split_wall(sess.home, ident,
+                                          at_x=ax, at_y=ay,
+                                          endpoint_tol_cm=endpoint_tol,
+                                          perp_tol_cm=perp_tol)
+    except (KeyError, ValueError) as e:
+        sess.undo()
+        raise click.ClickException(str(e))
+    _autosave(ctx)
+    _emit(ctx, [h1, h2])
+
+
+@wall.command("join")
+@click.argument("first")
+@click.argument("second")
+@click.option("--endpoint-tol", "endpoint_tol", type=float, default=1.0,
+                show_default=True,
+                help="Max gap between the two walls' shared endpoint (cm)")
+@click.option("--angle-tol", "angle_tol", type=float, default=2.0,
+                show_default=True,
+                help="Max angular deviation from collinear (degrees)")
+@_json_flag
+@click.pass_context
+def wall_join_cmd(ctx, first, second, endpoint_tol, angle_tol):
+    """Fuse two collinear walls that share an endpoint into one wall.
+
+    Requires both walls to share an endpoint within --endpoint-tol cm,
+    lie on the same line within --angle-tol°, sit on the same level, and
+    have matching thickness/height. The surviving wall inherits the outer
+    neighbour links.
+    """
+    sess = _load_session(ctx)
+    sess.checkpoint()
+    try:
+        survivor = walls_core.join_walls(sess.home, first, second,
+                                            endpoint_tol_cm=endpoint_tol,
+                                            angle_tol_deg=angle_tol)
+    except (KeyError, ValueError) as e:
+        sess.undo()
+        raise click.ClickException(str(e))
+    _autosave(ctx)
+    _emit(ctx, survivor)
+
+
 @wall.command("length")
 @click.argument("ident")
 @click.option("--units", type=click.Choice(["cm", "m", "in", "ft"]),
@@ -2442,11 +2507,15 @@ def render_status(ctx):
               help="Cycles sample count (applies to gpu_photo engine)")
 @click.option("--width", "-w", type=int, default=1400, show_default=True)
 @click.option("--height", "-h", type=int, default=900, show_default=True)
+@click.option("--from-camera", "from_camera", default=None,
+              help="Render from a named stored camera (from `camera save`). "
+                   "Loads the stored pose into the active camera before render.")
 @click.option("--timeout", "timeout_s", type=int, default=600, show_default=True,
               help="Render timeout in seconds")
 @_json_flag
 @click.pass_context
-def render_photo(ctx, output, engine, gpu, quality, samples, width, height, timeout_s):
+def render_photo(ctx, output, engine, gpu, quality, samples, width, height,
+                  from_camera, timeout_s):
     """Render a photo-realistic image of the loaded project.
 
     \b
@@ -2460,6 +2529,29 @@ def render_photo(ctx, output, engine, gpu, quality, samples, width, height, time
     sess = _load_session(ctx)
     if not sess.path:
         raise click.ClickException("no project path; save the project first")
+
+    # --from-camera: load the named stored camera into the active observer
+    # camera so the render uses its pose. We save the project after so the
+    # downstream Java/Blender path sees the updated camera on disk.
+    if from_camera is not None:
+        stored = next((c for c in sess.home.storedCameras
+                       if c.name == from_camera), None)
+        if stored is None:
+            raise click.ClickException(
+                f"stored camera not found: {from_camera!r}. "
+                f"Available: {[c.name for c in sess.home.storedCameras]}"
+            )
+        # Match the stored camera kind so framing maps cleanly
+        target = (sess.home.observerCamera if stored.kind == "observerCamera"
+                   else sess.home.topCamera)
+        target.x = stored.x; target.y = stored.y; target.z = stored.z
+        target.yaw = stored.yaw; target.pitch = stored.pitch
+        target.fieldOfView = stored.fieldOfView
+        target.lens = stored.lens
+        if stored.time is not None:
+            target.time = stored.time
+        sess.home.camera = stored.kind
+        sess.save()
 
     # Validate mutual exclusivity: --engine and --gpu/--no-gpu are alternatives
     if engine is not None and gpu is not None:

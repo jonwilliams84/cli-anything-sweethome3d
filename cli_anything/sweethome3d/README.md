@@ -110,7 +110,7 @@ commands auto-save unless `--dry-run` is passed.
 |-------|--------------|
 | `project` | new / open / info / save / **validate** / **bounds** |
 | `level` | list / add / delete / set / select / **duplicate** (multi-floor support) |
-| `wall` | list / add / rectangle / move / delete / set / baseboard / **length** / **info** |
+| `wall` | list / add / rectangle / move / delete / set / baseboard / length / info / **split** / **join** |
 | `room` | list / rectangle / add / delete / set / recompute-points / **area** / **info** |
 | `furniture` | list / add / add-door / add-window / add-light / move / delete / set / **info** |
 | `catalog` | browse the stock catalog + **`scan`** installed `.sh3f` libraries + **`from-project`** for ids already in the loaded `.sh3d` |
@@ -171,6 +171,54 @@ Textures emit `<texture attribute="leftSideTexture" .../>` (the canonical SH3D
 HomeXMLExporter format), so they render in SH3D 7.x. Older project files
 written with a nested `<leftSideTexture>` wrapper still parse correctly via
 a backward-compatibility path in the reader.
+
+### Photo-realistic render (Blender Cycles)
+
+`render photo --engine gpu_photo` produces a photo-real PNG via Blender
+Cycles+OptiX, sidestepping SH3D's GUI-coupled Java3D renderer entirely.
+The pipeline:
+
+1. SH3D's bundled JRE runs `ExportObj.java` to dump the project to OBJ
+   + MTL + textures + a `scene.camera.json` sidecar.
+2. Blender (`--background --python blender_render.py`) imports the OBJ,
+   wires up world / sun / camera from the sidecar, and renders to PNG
+   via Cycles (OptiX on NVIDIA, CUDA fallback, CPU last resort).
+
+```bash
+# Default framing (auto-aimed at the geometry centroid)
+cli-anything-sweethome3d --project house.sh3d render photo out.png \
+    --engine gpu_photo --samples 256 -w 1920 -h 1080
+
+# Render from a stored camera — pairs with `camera save`
+cli-anything-sweethome3d --project house.sh3d camera save "front-elevation"
+cli-anything-sweethome3d --project house.sh3d render photo front.png \
+    --engine gpu_photo --from-camera "front-elevation" --samples 256
+```
+
+**Prerequisites:**
+- Sweet Home 3D installed (for `ExportObj.java` + bundled JRE).
+- Blender 3.x or 4.x (`apt install blender`, `~/.local/bin/blender`, or
+  `BLENDER_BIN=/path/to/blender`).
+- A JDK is only needed on first run (to compile the Java helpers); after
+  that the cached classes are reused. Set `JAVA_HOME` to a JDK, or rely
+  on the bundled SH3D JRE for subsequent runs.
+
+### Surgical wall editing (split / join)
+
+```bash
+# Split a wall at a perpendicular point — the new walls inherit
+# thickness, height, textures, colours, and baseboards
+cli-anything-sweethome3d --project house.sh3d wall split wall-abc 250,0
+
+# Join two collinear walls sharing an endpoint back into one
+cli-anything-sweethome3d --project house.sh3d wall join wall-abc wall-def
+```
+
+Wall-to-wall neighbour links (`wallAtStart` / `wallAtEnd`) are rewired
+across both operations so the surrounding wall graph stays internally
+consistent. `wall join` requires both walls to be on the same level,
+share an endpoint within tolerance, be collinear within tolerance, and
+have matching thickness/height.
 
 ### Verifying a project (`project validate`)
 

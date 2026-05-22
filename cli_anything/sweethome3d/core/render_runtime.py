@@ -130,7 +130,6 @@ def _needs_compile(src: Path, cls: Path) -> bool:
 def _compile(sh3d_home: Path, classes_dir: Path) -> None:
     """Compile Render.java, GpuRender.java, and ExportObj.java into classes_dir if stale."""
     sources_dir = _java_sources_dir()
-    javac = _find_javac()
     classes_dir.mkdir(parents=True, exist_ok=True)
 
     to_compile = []
@@ -150,8 +149,12 @@ def _compile(sh3d_home: Path, classes_dir: Path) -> None:
             to_compile.append(str(src))
 
     if not to_compile:
-        return  # already up to date
+        return  # already up to date — javac isn't needed in this run
 
+    # Only resolve javac when there's actually something to compile. The
+    # bundled SH3D JRE has no javac, so users without a JDK can still run
+    # renders against an already-cached classes dir.
+    javac = _find_javac()
     jars = sorted(glob.glob(str(sh3d_home / "lib" / "*.jar")))
     cp = ":".join(jars)
     cmd = [
