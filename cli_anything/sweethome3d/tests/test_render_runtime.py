@@ -7,6 +7,7 @@ Slow CPU test can be skipped: SKIP_SLOW_RENDER=1 pytest ...
 
 import os
 import shutil
+import subprocess
 import glob
 from pathlib import Path
 
@@ -257,3 +258,104 @@ def test_gpu_photo_renders(tmp_path):
     arr_top = np.array(img_top).astype(np.float32)
     lum_top = 0.299 * arr_top[:, :, 0] + 0.587 * arr_top[:, :, 1] + 0.114 * arr_top[:, :, 2]
     assert lum_top.std() > 25.0, f"Top view is nearly flat; std={lum_top.std():.1f}"
+
+
+# ---------------------------------------------------------------------------
+# Blender camera fitting regression tests
+# ---------------------------------------------------------------------------
+
+def _blender_bin() -> str:
+    """Return the Blender binary path, or skip the test."""
+    env_bin = os.environ.get("BLENDER_BIN")
+    if env_bin and Path(env_bin).is_file():
+        return env_bin
+    for p in glob.glob("/home/jon/.local/opt/blender-*/blender"):
+        if Path(p).is_file():
+            return p
+    for p in glob.glob("/opt/blender-*/blender"):
+        if Path(p).is_file():
+            return p
+    if shutil.which("blender"):
+        return shutil.which("blender")
+    pytest.skip("Blender binary not found")
+
+
+@skip_no_blender
+def test_top_down_ortho_scale_respects_aspect_ratio(tmp_path):
+    """Top-down ortho camera must fit the taller/room axis after aspect ratio.
+
+    Regression: _fit_top_down_camera used max(width, depth) * padding, but
+    Blender's ortho_scale is the *horizontal* visible size.  For a non-square
+    render (e.g. 400x200, aspect=2) the vertical visible size is
+    ortho_scale / aspect, so a 10x10 room is clipped unless ortho_scale is at
+    least depth * aspect * padding.
+    """
+    import re
+    import numpy as np
+    from PIL import Image
+
+    work = tmp_path / "synthetic"
+    work.mkdir()
+    (work / "scene.mtl").write_text("newmtl floor\nKd 1.0 0.0 0.0\n")
+    # SH3D exports Y-up OBJ where the second coordinate is height and the
+    # third is the floor-plan depth.  Put a 10 m x 10 m red floor at y=0.
+    (work / "scene.obj").write_text(
+        "mtllib scene.mtl\n"
+        "usemtl floor\n"
+        "v 0.0 0.0 0.0\n"
+        "v 1000.0 0.0 0.0\n"
+        "v 1000.0 0.0 1000.0\n"
+        "v 0.0 0.0 1000.0\n"
+        "vt 0.0 0.0\n"
+        "vt 1.0 0.0\n"
+        "vt 1.0 1.0\n"
+        "vt 0.0 1.0\n"
+        "f 1/1 2/2 3/3 4/4\n"
+    )
+    out = work / "top_400x200.png"
+    blender = _blender_bin()
+    script = (
+        Path(__file__).resolve().parents[3]
+        / "cli_anything" / "sweethome3d" / "render" / "blender_render.py"
+    )
+    cmd = [
+        "xvfb-run", "-a", blender, "--background", "--python", str(script),
+        "--", str(work / "scene.obj"), str(out),
+        "--samples", "4", "--width", "400", "--height", "200", "--view", "top",
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    print(proc.stdout)
+    print(proc.stderr)
+    assert proc.returncode == 0, f"Blender render failed: {proc.stderr[-2000:]}"
+    assert out.exists(), "Output PNG not created"
+
+    # Parse the fitted camera report.
+    m = re.search(
+        r"TOP-DOWN ortho cam centre=\([^)]+\) scale=([0-9.]+) \(room ([0-9.]+)x([0-9.]+)",
+        proc.stdout,
+    )
+    assert m, f"Could not find TOP-DOWN camera report in stdout:\n{proc.stdout}"
+    scale = float(m.group(1))
+    width = float(m.group(2))
+    depth = float(m.group(3))
+    aspect = 400 / 200
+    expected = max(width, depth * aspect) * 1.08
+    assert scale >= expected * 0.99, (
+        f"ortho_scale {scale:.3f} too small for {width:.2f}x{depth:.2f} room "
+        f"at {400}x{200} (need ~{expected:.3f})"
+    )
+
+    # Pixel-level check: the red square must not be clipped vertically.
+    img = Image.open(out).convert("RGB")
+    arr = np.array(img)
+    red = (arr[:, :, 0] > 200) & (arr[:, :, 1] < 100) & (arr[:, :, 2] < 100)
+    ys, xs = np.where(red)
+    assert len(xs) > 0, "No red pixels rendered"
+    y_min, y_max = ys.min(), ys.max()
+    # With correct fitting the 10x10 m square at 400x200 should occupy the
+    # full render height (it is the limiting axis).  With the buggy narrow
+    # scale it is clipped and y_max - y_min is much smaller than the image.
+    assert (y_max - y_min) / img.height >= 0.85, (
+        f"Red square clipped vertically: covers only rows {y_min}-{y_max} "
+        f"of {img.height}"
+    )
