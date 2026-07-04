@@ -238,6 +238,65 @@ def _baseboard_to_xml(parent: ET.Element, attribute: str,
         _texture_el_to_xml(el, bb.texture)
 
 
+
+def _all_content_ids(home: Home) -> set[str]:
+    """Return every content-entry name already referenced by *home*.
+
+    Scans top-level furniture, nested furniture groups, rooms, walls,
+    baseboards, levels, background images and environment textures so that
+    newly embedded content can avoid colliding with existing entries.
+    """
+    used: set[str] = set()
+
+    def _add(v):
+        if v is not None:
+            used.add(str(v))
+
+    def _add_tex(t):
+        if t is not None:
+            _add(getattr(t, "image", None))
+
+    def _add_piece(p: PieceOfFurniture) -> None:
+        _add(p.model)
+        _add(getattr(p, "icon", None))
+        _add(getattr(p, "planIcon", None))
+        _add_tex(getattr(p, "texture", None))
+        for m in (getattr(p, "materials", None) or []):
+            _add_tex(getattr(m, "texture", None))
+
+    def _add_group(g: FurnitureGroup) -> None:
+        for item in g.furniture:
+            if isinstance(item, FurnitureGroup):
+                _add_group(item)
+            else:
+                _add_piece(item)
+
+    if home.backgroundImage:
+        _add(home.backgroundImage.image)
+    env = getattr(home, "environment", None)
+    if env is not None:
+        _add_tex(getattr(env, "skyTexture", None))
+        _add_tex(getattr(env, "groundTexture", None))
+    for lvl in home.levels:
+        if getattr(lvl, "backgroundImage", None):
+            _add(lvl.backgroundImage.image)
+    for w in home.walls:
+        _add_tex(getattr(w, "leftSideTexture", None))
+        _add_tex(getattr(w, "rightSideTexture", None))
+        for bb_attr in ("leftSideBaseboard", "rightSideBaseboard"):
+            bb = getattr(w, bb_attr, None)
+            if bb is not None:
+                _add_tex(getattr(bb, "texture", None))
+    for r in home.rooms:
+        _add_tex(getattr(r, "floorTexture", None))
+        _add_tex(getattr(r, "ceilingTexture", None))
+    for f in home.furniture:
+        _add_piece(f)
+    for g in home.furnitureGroups:
+        _add_group(g)
+
+    return used
+
 def _catalog_resource_entries(home: Home) -> dict[str, str]:
     """Assign a numeric zip-entry name to each catalog model/icon used.
 
@@ -250,61 +309,43 @@ def _catalog_resource_entries(home: Home) -> dict[str, str]:
         {"com/eteks/sweethome3d/io/resources/doorFrame.obj": "0", ...}
     """
     # Newly-embedded catalog content must NOT reuse zip-entry names already
-    # occupied by pieces loaded from an existing .sh3d (their models/icons take
-    # "0","1",..., possibly "5/window/..."). Start numbering after the highest
-    # existing content id, else the new bytes collide with — and drop — the
-    # original models on save (SH3D then reports the file "damaged").
+    # occupied by any existing content (models, icons, textures, background
+    # images, including those inside furniture groups). Start numbering after
+    # the highest existing content id, else the new bytes collide with — and
+    # drop — the original content on save (SH3D then reports the file
+    # "damaged").
+    used = _all_content_ids(home)
     used_ints: set[int] = set()
-
-    def _note(v):
-        if v is None:
-            return
+    for v in used:
         seg = str(v).split("/", 1)[0]
         if seg.isdigit():
             used_ints.add(int(seg))
 
-    def _note_tex(t):
-        if t is not None:
-            _note(getattr(t, "image", None))
-
-    # Content ids are used by MODELS/ICONS *and* TEXTURES (room floor/ceiling,
-    # wall sides, piece + material textures, sky/ground, background images).
-    # Miss any of these and new furniture will clobber e.g. the oak floor
-    # texture. Scan them all.
-    if home.backgroundImage:
-        _note(home.backgroundImage.image)
-    env = getattr(home, "environment", None)
-    if env is not None:
-        _note_tex(getattr(env, "skyTexture", None))
-        _note_tex(getattr(env, "groundTexture", None))
-    for lvl in home.levels:
-        if getattr(lvl, "backgroundImage", None):
-            _note(lvl.backgroundImage.image)
-    for w in home.walls:
-        _note_tex(getattr(w, "leftSideTexture", None))
-        _note_tex(getattr(w, "rightSideTexture", None))
-    for r in home.rooms:
-        _note_tex(getattr(r, "floorTexture", None))
-        _note_tex(getattr(r, "ceilingTexture", None))
-    for f in home.furniture:
-        _note(f.model)
-        _note(f.icon)
-        _note(getattr(f, "planIcon", None))
-        _note_tex(getattr(f, "texture", None))
-        for m in (getattr(f, "materials", None) or []):
-            _note_tex(getattr(m, "texture", None))
-
     mapping: dict[str, str] = {}
     idx = (max(used_ints) + 1) if used_ints else 0
-    for f in home.furniture:
+
+    def _add_piece(f: PieceOfFurniture) -> None:
+        nonlocal idx
         meta = SH3D_CATALOG.get(f.catalogId) if f.catalogId else None
         if not meta:
-            continue
+            return
         for key in ("model", "icon"):
             res = meta.get(key)
             if res and res not in mapping:
                 mapping[res] = str(idx)
                 idx += 1
+
+    def _add_group(g: FurnitureGroup) -> None:
+        for item in g.furniture:
+            if isinstance(item, FurnitureGroup):
+                _add_group(item)
+            else:
+                _add_piece(item)
+
+    for f in home.furniture:
+        _add_piece(f)
+    for g in home.furnitureGroups:
+        _add_group(g)
     return mapping
 
 
@@ -1465,6 +1506,7 @@ def save_home(home: Home, path: str, *,
     # come from the installed Furniture.jar.
     resource_entries = _catalog_resource_entries(home)
 
+    path = os.fspath(path)
     tmp = path + ".tmp"
     written_names: set[str] = set()
     with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as z:
@@ -1501,15 +1543,7 @@ def save_home(home: Home, path: str, *,
 
 def next_content_id(home: Home) -> str:
     """Pick the next free numeric content-entry name (matches SH3D convention)."""
-    used: set[str] = set()
-    if home.backgroundImage:
-        used.add(home.backgroundImage.image)
-    for lvl in home.levels:
-        if lvl.backgroundImage:
-            used.add(lvl.backgroundImage.image)
-    for f in home.furniture:
-        if f.model: used.add(f.model)
-        if f.icon:  used.add(f.icon)
+    used = _all_content_ids(home)
     i = 0
     while str(i) in used:
         i += 1
