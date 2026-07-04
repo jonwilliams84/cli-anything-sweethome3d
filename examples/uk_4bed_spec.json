@@ -6,14 +6,14 @@
   },
   "levels": [
     {
-      "id": "level-dbb85a257c3d",
+      "id": "level-967fc99b43d5",
       "name": "Ground Floor",
       "floor_height": 0,
       "ceiling_height": 250,
       "idx": 0,
       "walls": [
         {
-          "id": "wall-bbfff8a66449",
+          "id": "wall-5b9a3f75a8e9",
           "start": [
             0.0,
             0.0
@@ -25,10 +25,10 @@
           "thickness": 20,
           "is_envelope": true,
           "facing": "north",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "wall-00a356a1de84",
+          "id": "wall-b7c07d20b9ac",
           "start": [
             850.0,
             0.0
@@ -40,10 +40,10 @@
           "thickness": 20,
           "is_envelope": true,
           "facing": "east",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "wall-61a95e4bc7ad",
+          "id": "wall-f5ae69d45e74",
           "start": [
             0.0,
             900.0
@@ -55,10 +55,10 @@
           "thickness": 20,
           "is_envelope": true,
           "facing": "south",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "wall-347501d6f762",
+          "id": "wall-811f4127abf5",
           "start": [
             0.0,
             0.0
@@ -70,10 +70,10 @@
           "thickness": 20,
           "is_envelope": true,
           "facing": "west",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "wall-5d50c7514c13",
+          "id": "wall-07c2ad6ef689",
           "start": [
             0.0,
             150.0
@@ -85,10 +85,10 @@
           "thickness": 10,
           "is_envelope": false,
           "facing": null,
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "wall-3c93b11ae949",
+          "id": "wall-47101f6f0578",
           "start": [
             0.0,
             600.0
@@ -100,10 +100,10 @@
           "thickness": 10,
           "is_envelope": false,
           "facing": null,
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "wall-49b85bcf45de",
+          "id": "wall-81aac6d95d84",
           "start": [
             500.0,
             150.0
@@ -115,10 +115,10 @@
           "thickness": 10,
           "is_envelope": false,
           "facing": null,
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "wall-2efab0fe064c",
+          "id": "wall-fe697cf14dc4",
           "start": [
             200.0,
             600.0
@@ -130,10 +130,10 @@
           "thickness": 10,
           "is_envelope": false,
           "facing": null,
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "wall-74e23cdf460e",
+          "id": "wall-bffb51f10f43",
           "start": [
             400.0,
             600.0
@@ -145,12 +145,12 @@
           "thickness": 10,
           "is_envelope": false,
           "facing": null,
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         }
       ],
       "rooms": [
         {
-          "id": "room-3a8c63ee3cd4",
+          "id": "room-ae9a8707fd39",
           "polygon": [
             [
               0,
@@ -174,10 +174,10 @@
           "area_m2": 12.75,
           "floor_color": "#C8B99A",
           "ceiling_color": null,
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "room-ab94909fcf84",
+          "id": "room-6ced900d372f",
           "polygon": [
             [
               0,
@@ -201,10 +201,10 @@
           "area_m2": 22.5,
           "floor_color": "#D4C5A9",
           "ceiling_color": null,
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "room-886ab6137dd5",
+          "id": "room-e723070a6c8a",
           "polygon": [
             [
               500,
@@ -228,10 +228,10 @@
           "area_m2": 15.75,
           "floor_color": "#C8A880",
           "ceiling_color": null,
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "room-37256919280b",
+          "id": "room-6139f5d0d388",
           "polygon": [
             [
               0,
@@ -255,10 +255,10 @@
           "area_m2": 6.0,
           "floor_color": "#B0C8C0",
           "ceiling_color": null,
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "room-084d0d7ab16a",
+          "id": "room-8e6fdbeee778",
           "polygon": [
             [
               200,
@@ -282,10 +282,10 @@
           "area_m2": 6.0,
           "floor_color": "#C0C8D0",
           "ceiling_color": null,
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "room-71e6ccfa3e90",
+          "id": "room-8b3323063c76",
           "polygon": [
             [
               400,
@@ -309,15 +309,15 @@
           "area_m2": 13.5,
           "floor_color": "#C8C0B0",
           "ceiling_color": null,
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         }
       ],
       "openings": [
         {
-          "id": "opening-f81642f54180",
+          "id": "opening-d5b17bacd545",
           "kind": "door",
           "catalog_id": "DOOR_STANDARD",
-          "wall_id": "wall-bbfff8a66449",
+          "wall_id": "wall-5b9a3f75a8e9",
           "position_along": 0.25,
           "x": 212.5,
           "y": 0.0,
@@ -325,13 +325,13 @@
           "height": 210.0,
           "sill_height": 0.0,
           "label": "Front Door",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "opening-d25f40482228",
+          "id": "opening-90f4b7d738e9",
           "kind": "door",
           "catalog_id": "DOOR_STANDARD",
-          "wall_id": "wall-00a356a1de84",
+          "wall_id": "wall-b7c07d20b9ac",
           "position_along": 0.85,
           "x": 850.0,
           "y": 765.0,
@@ -339,13 +339,13 @@
           "height": 210.0,
           "sill_height": 0.0,
           "label": "Side Door",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "opening-9fb1413a792c",
+          "id": "opening-4b04b674b922",
           "kind": "door",
           "catalog_id": "DOOR_STANDARD",
-          "wall_id": "wall-5d50c7514c13",
+          "wall_id": "wall-07c2ad6ef689",
           "position_along": 0.3,
           "x": 255.0,
           "y": 150.0,
@@ -353,13 +353,13 @@
           "height": 210.0,
           "sill_height": 0.0,
           "label": "Hallway\u2192Living",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "opening-e1729a36dffd",
+          "id": "opening-17eaf1666a93",
           "kind": "door",
           "catalog_id": "DOOR_STANDARD",
-          "wall_id": "wall-5d50c7514c13",
+          "wall_id": "wall-07c2ad6ef689",
           "position_along": 0.75,
           "x": 637.5,
           "y": 150.0,
@@ -367,13 +367,13 @@
           "height": 210.0,
           "sill_height": 0.0,
           "label": "Hallway\u2192Kitchen",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "opening-df5c23b944f6",
+          "id": "opening-b744e538c73f",
           "kind": "window",
           "catalog_id": "WINDOW_CASEMENT",
-          "wall_id": "wall-61a95e4bc7ad",
+          "wall_id": "wall-f5ae69d45e74",
           "position_along": 0.2,
           "x": 170.0,
           "y": 900.0,
@@ -381,13 +381,13 @@
           "height": 120.0,
           "sill_height": 90.0,
           "label": "Living-S Window",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "opening-5c4fb09d11f0",
+          "id": "opening-e10828db4dab",
           "kind": "window",
           "catalog_id": "WINDOW_CASEMENT",
-          "wall_id": "wall-61a95e4bc7ad",
+          "wall_id": "wall-f5ae69d45e74",
           "position_along": 0.65,
           "x": 552.5,
           "y": 900.0,
@@ -395,13 +395,13 @@
           "height": 120.0,
           "sill_height": 90.0,
           "label": "Kitchen-S Window",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "opening-b401bb492ff9",
+          "id": "opening-4fd618de6b92",
           "kind": "window",
           "catalog_id": "WINDOW_CASEMENT",
-          "wall_id": "wall-bbfff8a66449",
+          "wall_id": "wall-5b9a3f75a8e9",
           "position_along": 0.6,
           "x": 510.0,
           "y": 0.0,
@@ -409,13 +409,13 @@
           "height": 120.0,
           "sill_height": 90.0,
           "label": "Living-N Window",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "opening-6e44868b02b1",
+          "id": "opening-2297938912da",
           "kind": "window",
           "catalog_id": "WINDOW_CASEMENT",
-          "wall_id": "wall-347501d6f762",
+          "wall_id": "wall-811f4127abf5",
           "position_along": 0.5,
           "x": 0.0,
           "y": 450.0,
@@ -423,12 +423,12 @@
           "height": 120.0,
           "sill_height": 90.0,
           "label": "Living-W Window",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         }
       ],
       "furniture": [
         {
-          "id": "furn-467c5cc4ed30",
+          "id": "furn-677d16bb1bf0",
           "catalog_id": "SOFA_3_SEATS",
           "x": 80.0,
           "y": 500.0,
@@ -437,10 +437,10 @@
           "depth": null,
           "height": null,
           "label": "Main Sofa",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "furn-38e10e0bdb6a",
+          "id": "furn-cc93448df12d",
           "catalog_id": "COFFEE_TABLE",
           "x": 180.0,
           "y": 430.0,
@@ -449,10 +449,10 @@
           "depth": null,
           "height": null,
           "label": "Coffee Table",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "furn-fffdba61fd95",
+          "id": "furn-81d7033a24de",
           "catalog_id": "ARMCHAIR",
           "x": 350.0,
           "y": 500.0,
@@ -461,10 +461,10 @@
           "depth": null,
           "height": null,
           "label": "Armchair",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "furn-43bd70f36e3c",
+          "id": "furn-86e9795d7574",
           "catalog_id": "TV_UNIT",
           "x": 80.0,
           "y": 200.0,
@@ -473,10 +473,10 @@
           "depth": null,
           "height": null,
           "label": "TV Unit",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "furn-e01cc6a26677",
+          "id": "furn-74232bd8408a",
           "catalog_id": "KITCHEN_UNIT_BASE",
           "x": 530.0,
           "y": 200.0,
@@ -485,10 +485,10 @@
           "depth": null,
           "height": null,
           "label": "Kitchen Base",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "furn-fd562468a964",
+          "id": "furn-a155def2d76d",
           "catalog_id": "KITCHEN_SINK",
           "x": 650.0,
           "y": 180.0,
@@ -497,10 +497,10 @@
           "depth": null,
           "height": null,
           "label": "Sink",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "furn-9d6566befc64",
+          "id": "furn-75cdd144fbb8",
           "catalog_id": "OVEN",
           "x": 570.0,
           "y": 200.0,
@@ -509,10 +509,10 @@
           "depth": null,
           "height": null,
           "label": "Oven",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "furn-e37a3d4f0c00",
+          "id": "furn-a62550d1934b",
           "catalog_id": "REFRIGERATOR",
           "x": 810.0,
           "y": 210.0,
@@ -521,10 +521,10 @@
           "depth": null,
           "height": null,
           "label": "Fridge",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "furn-1965f939dc43",
+          "id": "furn-7502a6279377",
           "catalog_id": "DINING_TABLE_4",
           "x": 660.0,
           "y": 400.0,
@@ -533,10 +533,10 @@
           "depth": null,
           "height": null,
           "label": "Dining Table",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "furn-1829dba53642",
+          "id": "furn-040a47de5be9",
           "catalog_id": "WASHING_MACHINE",
           "x": 50.0,
           "y": 650.0,
@@ -545,10 +545,10 @@
           "depth": null,
           "height": null,
           "label": "Washing Machine",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "furn-c831002e76da",
+          "id": "furn-e3d96e4f12f9",
           "catalog_id": "TUMBLE_DRYER",
           "x": 100.0,
           "y": 650.0,
@@ -557,10 +557,10 @@
           "depth": null,
           "height": null,
           "label": "Dryer",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "furn-036866256ee2",
+          "id": "furn-fbe343fb5927",
           "catalog_id": "TOILET",
           "x": 260.0,
           "y": 820.0,
@@ -569,10 +569,10 @@
           "depth": null,
           "height": null,
           "label": "WC",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "furn-f0b117ecec7b",
+          "id": "furn-92a62bcb8116",
           "catalog_id": "BASIN",
           "x": 260.0,
           "y": 650.0,
@@ -581,10 +581,10 @@
           "depth": null,
           "height": null,
           "label": "Basin",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "furn-6c078ac67a29",
+          "id": "furn-a626ce93b755",
           "catalog_id": "DESK",
           "x": 600.0,
           "y": 650.0,
@@ -593,10 +593,10 @@
           "depth": null,
           "height": null,
           "label": "Desk",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "furn-1b59365cc082",
+          "id": "furn-327889bd17ff",
           "catalog_id": "OFFICE_CHAIR",
           "x": 600.0,
           "y": 720.0,
@@ -605,10 +605,10 @@
           "depth": null,
           "height": null,
           "label": "Office Chair",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         },
         {
-          "id": "furn-38335ef568e5",
+          "id": "furn-cd8a48820921",
           "catalog_id": "BOOKCASE",
           "x": 780.0,
           "y": 650.0,
@@ -617,19 +617,19 @@
           "depth": null,
           "height": null,
           "label": "Bookcase",
-          "level_id": "level-dbb85a257c3d"
+          "level_id": "level-967fc99b43d5"
         }
       ]
     },
     {
-      "id": "level-e173211d4777",
+      "id": "level-752fa38c9943",
       "name": "First Floor",
       "floor_height": 250,
       "ceiling_height": 250,
       "idx": 1,
       "walls": [
         {
-          "id": "wall-5e374ad029e7",
+          "id": "wall-4b662d4ab83a",
           "start": [
             0.0,
             0.0
@@ -641,10 +641,10 @@
           "thickness": 20,
           "is_envelope": true,
           "facing": "north",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "wall-67e1279ec2fd",
+          "id": "wall-a89a538f153d",
           "start": [
             850.0,
             0.0
@@ -656,10 +656,10 @@
           "thickness": 20,
           "is_envelope": true,
           "facing": "east",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "wall-60aee3a10d8c",
+          "id": "wall-9229666ba53e",
           "start": [
             0.0,
             900.0
@@ -671,10 +671,10 @@
           "thickness": 20,
           "is_envelope": true,
           "facing": "south",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "wall-90b10cd96bd0",
+          "id": "wall-f255721bfec0",
           "start": [
             0.0,
             0.0
@@ -686,10 +686,10 @@
           "thickness": 20,
           "is_envelope": true,
           "facing": "west",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "wall-1dac0c69d53a",
+          "id": "wall-f8850306f33c",
           "start": [
             0.0,
             180.0
@@ -701,10 +701,10 @@
           "thickness": 10,
           "is_envelope": false,
           "facing": null,
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "wall-564d68aab5cd",
+          "id": "wall-9648c0dc3870",
           "start": [
             0.0,
             530.0
@@ -716,10 +716,10 @@
           "thickness": 10,
           "is_envelope": false,
           "facing": null,
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "wall-82f1f54ccec1",
+          "id": "wall-1c1d677af1b6",
           "start": [
             400.0,
             180.0
@@ -731,10 +731,10 @@
           "thickness": 10,
           "is_envelope": false,
           "facing": null,
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "wall-d96095cdaa16",
+          "id": "wall-320b78df1942",
           "start": [
             300.0,
             530.0
@@ -746,10 +746,10 @@
           "thickness": 10,
           "is_envelope": false,
           "facing": null,
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "wall-919214b206d6",
+          "id": "wall-d04ab32f397d",
           "start": [
             600.0,
             530.0
@@ -761,12 +761,12 @@
           "thickness": 10,
           "is_envelope": false,
           "facing": null,
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         }
       ],
       "rooms": [
         {
-          "id": "room-3106d02db5fd",
+          "id": "room-c5020b42e94c",
           "polygon": [
             [
               0,
@@ -790,10 +790,10 @@
           "area_m2": 15.3,
           "floor_color": "#C8B99A",
           "ceiling_color": null,
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "room-437dc2db13c5",
+          "id": "room-39a36d1f4c27",
           "polygon": [
             [
               0,
@@ -817,10 +817,10 @@
           "area_m2": 14.0,
           "floor_color": "#D4C5A9",
           "ceiling_color": null,
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "room-ba9935c39e00",
+          "id": "room-874978d5282a",
           "polygon": [
             [
               400,
@@ -844,10 +844,10 @@
           "area_m2": 15.75,
           "floor_color": "#D0C8BE",
           "ceiling_color": null,
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "room-d4d31dcdffda",
+          "id": "room-7e4e37f6b799",
           "polygon": [
             [
               0,
@@ -871,10 +871,10 @@
           "area_m2": 11.1,
           "floor_color": "#C8D0C0",
           "ceiling_color": null,
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "room-24220b3ad0a9",
+          "id": "room-790780838733",
           "polygon": [
             [
               300,
@@ -898,10 +898,10 @@
           "area_m2": 11.1,
           "floor_color": "#C8CCD4",
           "ceiling_color": null,
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "room-b70f569dfb47",
+          "id": "room-2b813016916c",
           "polygon": [
             [
               600,
@@ -925,15 +925,15 @@
           "area_m2": 9.25,
           "floor_color": "#B8C8D8",
           "ceiling_color": null,
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         }
       ],
       "openings": [
         {
-          "id": "opening-270ac4fa134a",
+          "id": "opening-a0f039973898",
           "kind": "window",
           "catalog_id": "WINDOW_CASEMENT",
-          "wall_id": "wall-5e374ad029e7",
+          "wall_id": "wall-4b662d4ab83a",
           "position_along": 0.25,
           "x": 212.5,
           "y": 0.0,
@@ -941,13 +941,13 @@
           "height": 120.0,
           "sill_height": 90.0,
           "label": "Master-N Window",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "opening-bef0db1d5e19",
+          "id": "opening-afc68a25cd4c",
           "kind": "window",
           "catalog_id": "WINDOW_CASEMENT",
-          "wall_id": "wall-5e374ad029e7",
+          "wall_id": "wall-4b662d4ab83a",
           "position_along": 0.7,
           "x": 595.0,
           "y": 0.0,
@@ -955,13 +955,13 @@
           "height": 120.0,
           "sill_height": 90.0,
           "label": "Bed2-N Window",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "opening-407f90fb77e9",
+          "id": "opening-536f44f8169a",
           "kind": "window",
           "catalog_id": "WINDOW_CASEMENT",
-          "wall_id": "wall-60aee3a10d8c",
+          "wall_id": "wall-9229666ba53e",
           "position_along": 0.15,
           "x": 127.5,
           "y": 900.0,
@@ -969,13 +969,13 @@
           "height": 120.0,
           "sill_height": 90.0,
           "label": "Bed3-S Window",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "opening-47f0cdcbefe1",
+          "id": "opening-e6bb2ec7869b",
           "kind": "window",
           "catalog_id": "WINDOW_CASEMENT",
-          "wall_id": "wall-60aee3a10d8c",
+          "wall_id": "wall-9229666ba53e",
           "position_along": 0.45,
           "x": 382.5,
           "y": 900.0,
@@ -983,13 +983,13 @@
           "height": 120.0,
           "sill_height": 90.0,
           "label": "Bed4-S Window",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "opening-bbde650ce205",
+          "id": "opening-fac3b8fdf48d",
           "kind": "window",
           "catalog_id": "WINDOW_CASEMENT",
-          "wall_id": "wall-60aee3a10d8c",
+          "wall_id": "wall-9229666ba53e",
           "position_along": 0.8,
           "x": 680.0,
           "y": 900.0,
@@ -997,13 +997,13 @@
           "height": 120.0,
           "sill_height": 90.0,
           "label": "Bath-S Window",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "opening-e88e1e20c373",
+          "id": "opening-a1f72751edd5",
           "kind": "window",
           "catalog_id": "WINDOW_CASEMENT",
-          "wall_id": "wall-90b10cd96bd0",
+          "wall_id": "wall-f255721bfec0",
           "position_along": 0.5,
           "x": 0.0,
           "y": 450.0,
@@ -1011,13 +1011,13 @@
           "height": 120.0,
           "sill_height": 90.0,
           "label": "Master-W Window",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "opening-c6990857fc7e",
+          "id": "opening-15cd6fceddd0",
           "kind": "window",
           "catalog_id": "WINDOW_CASEMENT",
-          "wall_id": "wall-67e1279ec2fd",
+          "wall_id": "wall-a89a538f153d",
           "position_along": 0.5,
           "x": 850.0,
           "y": 450.0,
@@ -1025,13 +1025,13 @@
           "height": 120.0,
           "sill_height": 90.0,
           "label": "Bed2-E Window",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "opening-4b281c4ec0b0",
+          "id": "opening-178b8b146a71",
           "kind": "door",
           "catalog_id": "DOOR_STANDARD",
-          "wall_id": "wall-1dac0c69d53a",
+          "wall_id": "wall-f8850306f33c",
           "position_along": 0.25,
           "x": 212.5,
           "y": 180.0,
@@ -1039,13 +1039,13 @@
           "height": 210.0,
           "sill_height": 0.0,
           "label": "Landing\u2192Master",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "opening-2dcc23f42e02",
+          "id": "opening-28ce725431a9",
           "kind": "door",
           "catalog_id": "DOOR_STANDARD",
-          "wall_id": "wall-1dac0c69d53a",
+          "wall_id": "wall-f8850306f33c",
           "position_along": 0.7,
           "x": 595.0,
           "y": 180.0,
@@ -1053,12 +1053,12 @@
           "height": 210.0,
           "sill_height": 0.0,
           "label": "Landing\u2192Bed2",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         }
       ],
       "furniture": [
         {
-          "id": "furn-b749646ad6ee",
+          "id": "furn-80ae9a757c20",
           "catalog_id": "KING_BED",
           "x": 150.0,
           "y": 350.0,
@@ -1067,10 +1067,10 @@
           "depth": null,
           "height": null,
           "label": "King Bed",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "furn-d6ece5706e75",
+          "id": "furn-d69b87df4542",
           "catalog_id": "WARDROBE",
           "x": 30.0,
           "y": 200.0,
@@ -1079,10 +1079,10 @@
           "depth": null,
           "height": null,
           "label": "Wardrobe",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "furn-40ab9c473986",
+          "id": "furn-a0ed5a2b956f",
           "catalog_id": "CHEST_OF_DRAWERS",
           "x": 320.0,
           "y": 200.0,
@@ -1091,10 +1091,10 @@
           "depth": null,
           "height": null,
           "label": "Drawers",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "furn-36264381b4a0",
+          "id": "furn-f9fdb914b3f9",
           "catalog_id": "DOUBLE_BED",
           "x": 580.0,
           "y": 380.0,
@@ -1103,10 +1103,10 @@
           "depth": null,
           "height": null,
           "label": "Double Bed",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "furn-7f9054e7afb6",
+          "id": "furn-87aece51afcb",
           "catalog_id": "WARDROBE",
           "x": 430.0,
           "y": 200.0,
@@ -1115,10 +1115,10 @@
           "depth": null,
           "height": null,
           "label": "Wardrobe 2",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "furn-fd177e44b646",
+          "id": "furn-07d48d44840a",
           "catalog_id": "SINGLE_BED",
           "x": 100.0,
           "y": 680.0,
@@ -1127,10 +1127,10 @@
           "depth": null,
           "height": null,
           "label": "Single Bed 3",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "furn-9fca3c037cc6",
+          "id": "furn-2ddcdde47ae7",
           "catalog_id": "BOOKCASE",
           "x": 30.0,
           "y": 560.0,
@@ -1139,10 +1139,10 @@
           "depth": null,
           "height": null,
           "label": "Bookcase 3",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "furn-d58ada1f25a4",
+          "id": "furn-f4bb83667861",
           "catalog_id": "SINGLE_BED",
           "x": 430.0,
           "y": 680.0,
@@ -1151,10 +1151,10 @@
           "depth": null,
           "height": null,
           "label": "Single Bed 4",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "furn-f2cd90178553",
+          "id": "furn-6bf0e0d717a2",
           "catalog_id": "DESK",
           "x": 530.0,
           "y": 560.0,
@@ -1163,10 +1163,10 @@
           "depth": null,
           "height": null,
           "label": "Study Desk",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "furn-e7dd62bf54d3",
+          "id": "furn-a5ecb6f865ff",
           "catalog_id": "BATH",
           "x": 680.0,
           "y": 800.0,
@@ -1175,10 +1175,10 @@
           "depth": null,
           "height": null,
           "label": "Bath",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "furn-a1b439ee0987",
+          "id": "furn-3a669c84530c",
           "catalog_id": "SHOWER_ENCLOSURE",
           "x": 760.0,
           "y": 600.0,
@@ -1187,10 +1187,10 @@
           "depth": null,
           "height": null,
           "label": "Shower",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "furn-284e409eb3d1",
+          "id": "furn-ba66503d8c82",
           "catalog_id": "TOILET",
           "x": 640.0,
           "y": 560.0,
@@ -1199,10 +1199,10 @@
           "depth": null,
           "height": null,
           "label": "Toilet",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         },
         {
-          "id": "furn-ca186ea8e659",
+          "id": "furn-08fe9cb0f903",
           "catalog_id": "VANITY_UNIT",
           "x": 700.0,
           "y": 560.0,
@@ -1211,7 +1211,7 @@
           "depth": null,
           "height": null,
           "label": "Vanity",
-          "level_id": "level-e173211d4777"
+          "level_id": "level-752fa38c9943"
         }
       ]
     }

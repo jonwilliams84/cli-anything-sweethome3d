@@ -50,11 +50,11 @@ def main(argv=None):
 
     args = parser.parse_args(argv)
 
-    # Import here so the module is importable even before install
-    import os
-    import sys
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.dirname(os.path.abspath(__file__))))))
+    # Import here so the module is importable even before install.
+    # Ensure the repo root is on sys.path when run as a script.
+    _repo_root = Path(__file__).resolve().parents[3]
+    if str(_repo_root) not in sys.path:
+        sys.path.insert(0, str(_repo_root))
 
     from cli_anything.sweethome3d.core.designer import Designer
 

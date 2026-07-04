@@ -914,3 +914,382 @@ class TestCLIMain:
         with pytest.raises(SystemExit) as exc:
             main(["--spec", str(tmp_path / "ghost.json"), "--out", str(tmp_path / "out.sh3d")])
         assert exc.value.code != 0
+
+
+# ─────────────────────────── Structural SH3D XML tests ───────────────────────
+# These parse the exported XML with xml.etree.ElementTree instead of doing
+# string searches, so malformed XML or wrong element tags are caught.
+
+class TestSH3DXmlStructural:
+    """Parse the exported Home.xml with ElementTree and assert structure."""
+
+    def _build_with_door_and_window(self):
+        """Build a design with one door on a 20cm envelope wall and one
+        window on a 10cm partition wall, so we can check both isDoor values
+        and that depth matches the wall thickness."""
+        d = Designer(name="Structural Test")
+        g = d.add_level("Ground")
+        # Envelope with 20cm walls
+        d.envelope(g, width=1000, depth=800, thickness=20)
+        # Partition with 10cm thickness, touching the envelope
+        d.partition(g, (500, 0), (500, 800), thickness=10)
+        # Door on the north envelope wall (thickness 20)
+        north = d.wall_facing("north", level=g)
+        d.add_external_door(g, wall=north, position_along=0.5,
+                            width=90, label="Front Door")
+        # Window on the partition wall (thickness 10)
+        part = next(w for w in g.walls if not w["is_envelope"])
+        d.add_window(g, wall=part["id"], position_along=0.5,
+                     width=120, label="Partition Window")
+        return d, g
+
+    def _export_xml(self, d, tmp_path):
+        out = Path(tmp_path) / "Home.sh3d"
+        d.save(out)
+        with zipfile.ZipFile(out) as zf:
+            return zf.read("Home.xml").decode("utf-8")
+
+    def test_xml_is_well_formed(self, tmp_path):
+        import xml.etree.ElementTree as ET
+        d, _ = self._build_with_door_and_window()
+        xml = self._export_xml(d, tmp_path)
+        # fromstring raises ParseError if the XML is malformed
+        root = ET.fromstring(xml)
+        assert root.tag == "home"
+
+    def test_window_exports_as_doorOrWindow_isDoor_false(self, tmp_path):
+        import xml.etree.ElementTree as ET
+        d, g = self._build_with_door_and_window()
+        xml = self._export_xml(d, tmp_path)
+        root = ET.fromstring(xml)
+        openings = root.findall("doorOrWindow")
+        assert len(openings) == 2, "expected 2 doorOrWindow elements"
+        # Find the window (label == "Partition Window")
+        win = next(o for o in openings if o.get("name") == "Partition Window")
+        assert win.get("isDoor") == "false"
+        # And the door
+        door = next(o for o in openings if o.get("name") == "Front Door")
+        assert door.get("isDoor") == "true"
+
+    def test_door_exports_as_doorOrWindow_isDoor_true(self, tmp_path):
+        import xml.etree.ElementTree as ET
+        d, g = self._build_with_door_and_window()
+        xml = self._export_xml(d, tmp_path)
+        root = ET.fromstring(xml)
+        door = next(o for o in root.findall("doorOrWindow")
+                    if o.get("name") == "Front Door")
+        assert door.get("isDoor") == "true"
+
+    def test_no_opening_uses_pieceOfFurniture_tag(self, tmp_path):
+        import xml.etree.ElementTree as ET
+        d, g = self._build_with_door_and_window()
+        xml = self._export_xml(d, tmp_path)
+        root = ET.fromstring(xml)
+        # Openings must never be <pieceOfFurniture> — that tag is for furniture only
+        for f in root.findall("pieceOfFurniture"):
+            # Furniture catalog ids don't start with "opening-"
+            assert f.get("catalogId") in {
+                "SOFA_3_SEATS", "COFFEE_TABLE", "ARMCHAIR", "DESK",
+                "DINING_TABLE_4", "KING_BED",
+            } or not f.get("id", "").startswith("opening-"), (
+                "opening wrongly exported as <pieceOfFurniture>"
+            )
+
+    def test_opening_depth_matches_wall_thickness(self, tmp_path):
+        import xml.etree.ElementTree as ET
+        d, g = self._build_with_door_and_window()
+        xml = self._export_xml(d, tmp_path)
+        root = ET.fromstring(xml)
+        # Door is on the 20cm envelope wall
+        door = next(o for o in root.findall("doorOrWindow")
+                    if o.get("name") == "Front Door")
+        assert float(door.get("depth")) == 20.0
+        # Window is on the 10cm partition wall
+        win = next(o for o in root.findall("doorOrWindow")
+                   if o.get("name") == "Partition Window")
+        assert float(win.get("depth")) == 10.0
+
+    def test_xml_walls_have_coordinates(self, tmp_path):
+        import xml.etree.ElementTree as ET
+        d, g = self._build_with_door_and_window()
+        xml = self._export_xml(d, tmp_path)
+        root = ET.fromstring(xml)
+        walls = root.findall("wall")
+        assert len(walls) == 5  # 4 envelope + 1 partition
+        # At least one wall must have numeric xStart/yStart/xEnd/yEnd
+        w0 = walls[0]
+        float(w0.get("xStart"))
+        float(w0.get("yStart"))
+        float(w0.get("xEnd"))
+        float(w0.get("yEnd"))
+
+
+# ─────────────────────────── Round-trip coordinate tests ─────────────────────
+
+class TestSpecRoundTripCoordinates:
+    """Verify that from_spec preserves actual wall start/end coordinates,
+    not just wall counts."""
+
+    def _make_with_known_walls(self):
+        d = Designer(name="Coord Test")
+        g = d.add_level("Ground")
+        d.envelope(g, width=1000, depth=800)
+        d.partition(g, (500, 0), (500, 800))
+        return d, g
+
+    def test_round_trip_preserves_wall_start_end(self):
+        d, g = self._make_with_known_walls()
+        spec = d.to_spec()
+        d2 = Designer.from_spec(spec)
+        g2 = d2._levels[0]
+        # Compare every wall's start and end coordinates, not just the count
+        assert len(g2.walls) == len(g.walls)
+        for w_orig, w_new in zip(g.walls, g2.walls):
+            assert abs(w_new["start"][0] - w_orig["start"][0]) < 1e-9
+            assert abs(w_new["start"][1] - w_orig["start"][1]) < 1e-9
+            assert abs(w_new["end"][0] - w_orig["end"][0]) < 1e-9
+            assert abs(w_new["end"][1] - w_orig["end"][1]) < 1e-9
+
+    def test_round_trip_preserves_specific_north_wall(self):
+        d, g = self._make_with_known_walls()
+        spec = d.to_spec()
+        d2 = Designer.from_spec(spec)
+        g2 = d2._levels[0]
+        north = next(w for w in g2.walls if w.get("facing") == "north")
+        # North wall: (0,0) → (1000,0)
+        assert abs(north["start"][0] - 0.0) < 1e-9
+        assert abs(north["start"][1] - 0.0) < 1e-9
+        assert abs(north["end"][0] - 1000.0) < 1e-9
+        assert abs(north["end"][1] - 0.0) < 1e-9
+
+    def test_round_trip_preserves_partition_coordinates(self):
+        d, g = self._make_with_known_walls()
+        spec = d.to_spec()
+        d2 = Designer.from_spec(spec)
+        g2 = d2._levels[0]
+        part = next(w for w in g2.walls if not w["is_envelope"])
+        # Partition: (500,0) → (500,800)
+        assert abs(part["start"][0] - 500.0) < 1e-9
+        assert abs(part["start"][1] - 0.0) < 1e-9
+        assert abs(part["end"][0] - 500.0) < 1e-9
+        assert abs(part["end"][1] - 800.0) < 1e-9
+
+    def test_round_trip_preserves_opening_positions(self):
+        d = Designer(name="Opening Coords")
+        g = d.add_level("Ground")
+        d.envelope(g, width=1000, depth=800)
+        north = d.wall_facing("north", level=g)
+        d.add_external_door(g, wall=north, position_along=0.3, label="Front")
+        spec = d.to_spec()
+        d2 = Designer.from_spec(spec)
+        g2 = d2._levels[0]
+        assert len(g2.openings) == len(g.openings)
+        for o_orig, o_new in zip(g.openings, g2.openings):
+            assert abs(o_new["x"] - o_orig["x"]) < 1e-9
+            assert abs(o_new["y"] - o_orig["y"]) < 1e-9
+            assert abs(o_new["width"] - o_orig["width"]) < 1e-9
+
+
+# ─────────────────────────── Unit validation ─────────────────────────────────
+
+class TestUnitValidation:
+    def test_valid_units_accepted(self):
+        for u in ["CENTIMETER", "INCH", "MILLIMETER", "METER"]:
+            d = Designer(unit=u)
+            assert d.unit == u
+
+    def test_invalid_unit_rejected(self):
+        with pytest.raises(ValueError, match="Invalid unit"):
+            Designer(unit="BANANA")
+
+    def test_invalid_unit_lower_rejected(self):
+        with pytest.raises(ValueError, match="Invalid unit"):
+            Designer(unit="centimeter")
+
+    def test_from_spec_invalid_unit_raises(self):
+        spec = {
+            "spec_version": "1.0",
+            "meta": {"name": "X", "unit": "PARSECS"},
+            "levels": [],
+        }
+        with pytest.raises(ValueError, match="Invalid unit"):
+            Designer.from_spec(spec)
+
+
+# ─────────────────────────── _color_int robustness ───────────────────────────
+
+class TestColorIntRobustness:
+    def test_valid_hex(self):
+        from cli_anything.sweethome3d.core.designer import _color_int
+        assert _color_int("#FF0000") == 0xFFFF0000
+
+    def test_short_hex_returns_default(self):
+        from cli_anything.sweethome3d.core.designer import _color_int
+        # "#FF" has len 2 after strip — must not raise
+        result = _color_int("#FF")
+        assert result == 0xFF888888
+
+    def test_garbage_returns_default(self):
+        from cli_anything.sweethome3d.core.designer import _color_int
+        assert _color_int("not a color") == 0xFF888888
+
+    def test_none_returns_default(self):
+        from cli_anything.sweethome3d.core.designer import _color_int
+        assert _color_int(None) == 0xFF888888  # type: ignore[arg-type]
+
+
+# ─────────────────────────── Renderer tests ──────────────────────────────────
+
+class TestRenderer:
+    def _make_design(self):
+        d = Designer(name="Render Test")
+        g = d.add_level("Ground")
+        d.envelope(g, width=800, depth=600)
+        d.room(g, polygon=[(0, 0), (800, 0), (800, 600), (0, 600)], label="Hall")
+        north = d.wall_facing("north", level=g)
+        d.add_external_door(g, wall=north, position_along=0.5)
+        d.place_furniture(g, catalog_id="SOFA_3_SEATS", x=200, y=300)
+        return d
+
+    def test_make_transform_returns_callable(self):
+        from cli_anything.sweethome3d.core.renderer import _make_transform
+        d = self._make_design()
+        t = _make_transform(d, width=1200, height=900, margin=40)
+        px, py = t(0, 0)
+        assert isinstance(px, int)
+        assert isinstance(py, int)
+
+    def test_make_transform_maps_origin_to_margin(self):
+        from cli_anything.sweethome3d.core.renderer import _make_transform
+        d = self._make_design()
+        margin = 40
+        t = _make_transform(d, width=1200, height=900, margin=margin)
+        # The design's min point (0,0) should map to (margin, margin)
+        px, py = t(0, 0)
+        assert px == margin
+        assert py == margin
+
+    def test_make_transform_scales_proportionally(self):
+        from cli_anything.sweethome3d.core.renderer import _make_transform
+        d = self._make_design()
+        t = _make_transform(d, width=1200, height=900, margin=40)
+        # The far corner (800, 600) should map within the canvas
+        px, py = t(800, 600)
+        assert 0 <= px <= 1200
+        assert 0 <= py <= 900
+
+    def test_make_transform_empty_design(self):
+        from cli_anything.sweethome3d.core.renderer import _make_transform
+        d = Designer()
+        d.add_level("Empty")
+        t = _make_transform(d, width=1200, height=900, margin=40)
+        # No walls/rooms → returns margin fallback
+        px, py = t(100, 100)
+        assert px == 40 and py == 40
+
+    def test_make_transform_includes_furniture_in_bbox(self):
+        from cli_anything.sweethome3d.core.renderer import _make_transform
+        d = Designer()
+        g = d.add_level("Ground")
+        d.envelope(g, width=400, depth=400)
+        # Place furniture far outside the walls
+        d.place_furniture(g, catalog_id="SOFA_3_SEATS", x=2000, y=2000)
+        t = _make_transform(d, width=1200, height=900, margin=40)
+        # The furniture point must be inside the canvas
+        px, py = t(2000, 2000)
+        assert 0 <= px <= 1200
+        assert 0 <= py <= 900
+
+    def test_encode_png_rgb_valid_header(self):
+        from cli_anything.sweethome3d.core.renderer import _encode_png_rgb
+        pixels = bytearray(10 * 10 * 3)
+        png = _encode_png_rgb(pixels, 10, 10)
+        assert png[:8] == b"\x89PNG\r\n\x1a\n"
+        # IHDR should specify 10x10
+        import struct
+        ihdr_len = struct.unpack(">I", png[8:12])[0]
+        assert ihdr_len == 13
+        width = struct.unpack(">I", png[16:20])[0]
+        height = struct.unpack(">I", png[20:24])[0]
+        assert width == 10
+        assert height == 10
+
+    def test_render_floorplan_creates_valid_png(self, tmp_path):
+        from cli_anything.sweethome3d.core.renderer import render_floorplan
+        d = self._make_design()
+        out = tmp_path / "render.png"
+        render_floorplan(d, out, canvas_width=400, canvas_height=300)
+        assert out.exists()
+        assert out.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
+
+    def test_render_floorplan_returns_path(self, tmp_path):
+        from cli_anything.sweethome3d.core.renderer import render_floorplan
+        d = self._make_design()
+        out = tmp_path / "render.png"
+        result = render_floorplan(d, out)
+        assert result == out
+
+    def test_render_floorplan_pixel_dimensions(self, tmp_path):
+        """The rendered PNG must have the requested pixel dimensions."""
+        from cli_anything.sweethome3d.core.renderer import render_floorplan
+        import struct
+        d = self._make_design()
+        out = tmp_path / "render.png"
+        render_floorplan(d, out, canvas_width=300, canvas_height=200)
+        data = out.read_bytes()
+        # IHDR width/height at bytes 16-24
+        width = struct.unpack(">I", data[16:20])[0]
+        height = struct.unpack(">I", data[20:24])[0]
+        assert width == 300
+        assert height == 200
+
+    def test_render_floorplan_draws_wall_pixels(self, tmp_path):
+        """A wall should produce non-background pixels somewhere in the image."""
+        from cli_anything.sweethome3d.core.renderer import render_floorplan
+        d = self._make_design()
+        out = tmp_path / "render.png"
+        render_floorplan(d, out, canvas_width=400, canvas_height=300, margin=20)
+        data = out.read_bytes()
+        # Decode the IHDR to get real dimensions
+        import struct, zlib
+        width = struct.unpack(">I", data[16:20])[0]
+        height = struct.unpack(">I", data[20:24])[0]
+        # Find IDAT chunk
+        idx = 8
+        idat_data = b""
+        while idx < len(data):
+            clen = struct.unpack(">I", data[idx:idx + 4])[0]
+            ctype = data[idx + 4:idx + 8]
+            cdata = data[idx + 8:idx + 8 + clen]
+            if ctype == b"IDAT":
+                idat_data += cdata
+            idx += 8 + clen + 4
+        raw = zlib.decompress(idat_data)
+        # Background is (248,248,240). Walls are dark (20,20,20) or (70,70,70).
+        # Scan for any pixel that is NOT the background colour.
+        found_non_bg = False
+        row_bytes = width * 3
+        for row in range(height):
+            base = row * (row_bytes + 1) + 1  # +1 for filter byte
+            for x in range(width):
+                off = base + x * 3
+                r, g, b = raw[off], raw[off + 1], raw[off + 2]
+                if (r, g, b) != (248, 248, 240):
+                    found_non_bg = True
+                    break
+            if found_non_bg:
+                break
+        assert found_non_bg, "rendered image has no non-background pixels — walls not drawn"
+
+    def test_to_svg_includes_furniture(self):
+        """SVG output must include furniture elements."""
+        d = self._make_design()
+        svg = d.to_svg()
+        assert "<rect" in svg  # furniture is drawn as rectangles
+
+    def test_to_svg_is_well_formed(self):
+        import xml.etree.ElementTree as ET
+        d = self._make_design()
+        svg = d.to_svg()
+        # Should parse without error
+        ET.fromstring(svg)

@@ -32,11 +32,11 @@ setup(
 
     author="cli-anything contributors",
     author_email="",
-    url="https://github.com/HKUDS/CLI-Anything",
+    url="https://github.com/jonwilliams84/cli-anything-sweethome3d",
 
     project_urls={
-        "Source":  "https://github.com/HKUDS/CLI-Anything",
-        "Tracker": "https://github.com/HKUDS/CLI-Anything/issues",
+        "Source":  "https://github.com/jonwilliams84/cli-anything-sweethome3d",
+        "Tracker": "https://github.com/jonwilliams84/cli-anything-sweethome3d/issues",
     },
 
     license="MIT",

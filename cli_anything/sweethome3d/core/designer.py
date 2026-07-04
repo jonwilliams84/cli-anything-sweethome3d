@@ -33,9 +33,7 @@ import math
 import uuid
 import zipfile
 import struct
-import io
-import os
-import textwrap
+import zlib
 from pathlib import Path
 from typing import Any, Optional, Union
 
@@ -119,22 +117,6 @@ def _pt_to_seg_dist(p: Pt, a: Pt, b: Pt) -> tuple[float, Pt]:
     cx = ax + t * dx
     cy = ay + t * dy
     return _dist(p, (cx, cy)), (cx, cy)
-
-
-def _seg_intersection(a1: Pt, a2: Pt, b1: Pt, b2: Pt) -> Optional[Pt]:
-    """Return intersection point of infinite lines through a1-a2 and b1-b2,
-    or None if they are parallel."""
-    x1, y1 = a1
-    x2, y2 = a2
-    x3, y3 = b1
-    x4, y4 = b2
-    denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
-    if abs(denom) < 1e-9:
-        return None
-    t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom
-    ix = x1 + t * (x2 - x1)
-    iy = y1 + t * (y2 - y1)
-    return (ix, iy)
 
 
 def _polygon_area(pts: list[Pt]) -> float:
@@ -233,12 +215,6 @@ class _Level:
                 return w
         return None
 
-    def _endpoint_used(self, pt: Pt, tol: float = 5.0) -> bool:
-        for w in self.walls:
-            if _dist(pt, w["start"]) < tol or _dist(pt, w["end"]) < tol:
-                return True
-        return False
-
     def _closest_wall_to_point(self, pt: Pt) -> tuple[Optional[dict], float, Pt]:
         best_wall = None
         best_dist = float("inf")
@@ -256,11 +232,6 @@ class _Level:
 
     def _partition_walls(self) -> list[dict]:
         return [w for w in self.walls if not w.get("is_envelope", False)]
-
-    def _wall_midpoint(self, w: dict) -> Pt:
-        sx, sy = w["start"]
-        ex, ey = w["end"]
-        return ((sx + ex) / 2.0, (sy + ey) / 2.0)
 
     def _wall_facing(self, direction: str) -> Optional[dict]:
         """Return the envelope wall facing a compass direction.
@@ -368,8 +339,14 @@ class Designer:
     """
 
     _SNAP_TOL = 8.0   # cm — points closer than this snap together
+    _VALID_UNITS = {"CENTIMETER", "INCH", "MILLIMETER", "METER"}
 
     def __init__(self, *, name: str = "Home", unit: str = "CENTIMETER"):
+        if unit not in self._VALID_UNITS:
+            raise ValueError(
+                f"Invalid unit {unit!r}. Valid units: "
+                f"{sorted(self._VALID_UNITS)}."
+            )
         self.name = name
         self.unit = unit
         self._levels: list[_Level] = []
@@ -543,14 +520,27 @@ class Designer:
                 # Give actionable guidance
                 wid = closest_wall["id"]
                 facing = closest_wall.get("facing", "")
-                hint = f"d.wall_facing({facing!r}, level)" if facing else f"wall id={wid!r}"
+                if label == "start":
+                    # snap_to projects the start point onto a wall
+                    snap_hint = (
+                        f" Did you mean to snap to it? If so, call: "
+                        f"d.partition(level, {pt}, {end}, "
+                        f"snap_to=d.wall_facing({facing!r}, level))"
+                        if facing else
+                        f" Adjust the start coordinate to touch the wall, "
+                        f"or pass snap_to=wall id={wid!r}."
+                    )
+                else:
+                    # snap_to only snaps the start point; for the end point
+                    # the user must adjust the coordinate directly.
+                    snap_hint = (
+                        f" Adjust the end coordinate {pt} so it touches the "
+                        f"wall (snap_to only snaps the start point)."
+                    )
                 raise ValueError(
                     f"partition {label} endpoint {pt} doesn't touch any existing wall. "
                     f"Closest wall is {wid!r}{(' ('+facing+' envelope)') if facing else ''} "
-                    f"at distance {cdist:.1f} cm. "
-                    f"Did you mean to snap to it? If so, call: "
-                    f"d.partition(level, {pt}, {end if label=='start' else start}, "
-                    f"snap_to=d.wall_facing({facing!r}, level))"
+                    f"at distance {cdist:.1f} cm.{snap_hint}"
                 )
 
         wid = _uid("wall-")
@@ -1356,16 +1346,22 @@ class Designer:
                 )
 
         # Openings (doors + windows)
+        # Both doors and windows are <doorOrWindow> elements in SH3D XML.
+        # isDoor="true" for doors, isDoor="false" for windows.
+        # depth (wall penetration) is the thickness of the wall the opening sits on.
         for lv in self._levels:
             for o in lv.openings:
                 lid = f' level="{lv.id}"' if len(self._levels) > 1 else ""
-                tag = "doorOrWindow" if o["kind"] == "door" else "pieceOfFurniture"
+                is_door = "true" if o["kind"] == "door" else "false"
+                wobj = lv._find_wall(o.get("wall_id", ""))
+                wall_thickness = wobj["thickness"] if wobj else 20.0
                 lines.append(
-                    f'  <{tag} id="{o["id"]}" catalogId="{o["catalog_id"]}" '
+                    f'  <doorOrWindow id="{o["id"]}" catalogId="{o["catalog_id"]}" '
                     f'name="{_xml_escape(o.get("label",""))}" '
+                    f'isDoor="{is_door}" '
                     f'x="{o["x"]:.2f}" y="{o["y"]:.2f}" '
                     f'elevation="{o.get("sill_height",0):.1f}" '
-                    f'width="{o["width"]:.1f}" depth="20" '
+                    f'width="{o["width"]:.1f}" depth="{wall_thickness:.1f}" '
                     f'height="{o["height"]:.1f}" wallSide="BOTH"{lid} />'
                 )
 
@@ -1391,11 +1387,9 @@ class Designer:
         """Create a minimal 1×1 white PNG as placeholder thumbnail."""
         # PNG signature + IHDR + IDAT + IEND
         def chunk(name: bytes, data: bytes) -> bytes:
-            import zlib
             crc = zlib.crc32(name + data) & 0xFFFFFFFF
             return struct.pack(">I", len(data)) + name + data + struct.pack(">I", crc)
 
-        import zlib
         sig = b"\x89PNG\r\n\x1a\n"
         ihdr = chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0))
         raw = b"\x00\xff\xff\xff"
@@ -1420,8 +1414,6 @@ class Designer:
 
     def _make_placeholder_png(self, w: int, h: int) -> bytes:
         """Create a minimal valid PNG (grey rectangle) without Pillow."""
-        import zlib
-        import struct
 
         def make_chunk(ctype: bytes, data: bytes) -> bytes:
             crc = zlib.crc32(ctype + data) & 0xFFFFFFFF
@@ -1438,14 +1430,27 @@ class Designer:
         iend = make_chunk(b"IEND", b"")
         return sig + ihdr + idat + iend
 
+    def to_svg(self) -> str:
+        """Return an SVG floor-plan string for the design (public API).
+
+        Delegates to the internal SVG generator. Renderers and external
+        callers should use this method rather than the private ``_to_svg``.
+        """
+        return self._to_svg()
+
     def _to_svg(self) -> str:
         """Minimal SVG floor-plan for quick rendering."""
-        # Compute bounding box
+        # Compute bounding box — include walls, rooms, and furniture so that
+        # furniture placed outside the wall/room extents is not clipped.
         all_pts: list[Pt] = []
         for lv in self._levels:
             for w in lv.walls:
                 all_pts.append(tuple(w["start"]))
                 all_pts.append(tuple(w["end"]))
+            for r in lv.rooms:
+                all_pts.extend(tuple(p) for p in r["polygon"])
+            for f in lv.furniture:
+                all_pts.append((float(f["x"]), float(f["y"])))
         if not all_pts:
             return '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"/>'
         min_x = min(p[0] for p in all_pts)
@@ -1504,6 +1509,26 @@ class Designer:
                     f'<circle cx="{tx(o["x"]):.1f}" cy="{ty(o["y"]):.1f}" '
                     f'r="{r_px:.1f}" fill="{color}" opacity="0.8"/>'
                 )
+        # Draw furniture — simple filled rectangles at (x, y).
+        for lv in self._levels:
+            for f in lv.furniture:
+                fw = float(f.get("width") or 60)
+                fd = float(f.get("depth") or 60)
+                # Centre the rectangle on the furniture's (x, y)
+                rx = tx(f["x"]) - fw * scale / 2.0
+                ry = ty(f["y"]) - fd * scale / 2.0
+                lines.append(
+                    f'<rect x="{rx:.1f}" y="{ry:.1f}" '
+                    f'width="{fw * scale:.1f}" height="{fd * scale:.1f}" '
+                    f'fill="#8a8a8a" stroke="#444" stroke-width="0.5" opacity="0.6"/>'
+                )
+                label = f.get("label", "")
+                if label:
+                    lines.append(
+                        f'<text x="{tx(f["x"]):.1f}" y="{ty(f["y"]):.1f}" '
+                        f'font-size="7" text-anchor="middle" fill="#222">'
+                        f'{_xml_escape(label)}</text>'
+                    )
         lines.append("</svg>")
         return "\n".join(lines)
 
@@ -1523,10 +1548,19 @@ def _xml_escape(s: str) -> str:
 
 
 def _color_int(hex_color: str) -> int:
-    """Convert '#RRGGBB' to SH3D integer ARGB."""
-    h = hex_color.lstrip("#")
-    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
-    return (0xFF << 24) | (r << 16) | (g << 8) | b
+    """Convert '#RRGGBB' to SH3D integer ARGB.
+
+    Returns a default grey (0xFF888888) for malformed input instead of
+    raising, so the renderer and XML export stay robust.
+    """
+    try:
+        h = str(hex_color).lstrip("#")
+        if len(h) != 6:
+            return 0xFF888888
+        r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+        return (0xFF << 24) | (r << 16) | (g << 8) | b
+    except (ValueError, TypeError):
+        return 0xFF888888
 
 
 # ---------------------------------------------------------------------------

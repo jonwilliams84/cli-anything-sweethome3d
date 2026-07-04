@@ -60,17 +60,18 @@ def render_floorplan(
     try:
         _render_with_pillow(designer, path, canvas_width, canvas_height, margin)
         return path
-    except ImportError:
+    except Exception:
+        # Pillow missing or rendering failed (bad font, OOM, …) → fall back
         pass
 
     # Fall back to SVG → PNG via cairosvg
     try:
         import cairosvg  # type: ignore
-        svg = designer._to_svg()
+        svg = designer.to_svg()
         cairosvg.svg2png(bytestring=svg.encode(), write_to=str(path),
                          output_width=canvas_width, output_height=canvas_height)
         return path
-    except ImportError:
+    except Exception:
         pass
 
     # Pure stdlib fallback
@@ -153,6 +154,9 @@ def _make_transform(designer: "Designer", width: int, height: int, margin: int):
             all_pts.append(w["end"])
         for r in lv.rooms:
             all_pts.extend(r["polygon"])
+        # Include furniture so items placed outside walls/rooms are not clipped.
+        for f in lv.furniture:
+            all_pts.append((float(f["x"]), float(f["y"])))
 
     if not all_pts:
         return lambda x, y: (margin, margin)
