@@ -299,7 +299,33 @@ else:
         print("BLENDER-RENDER: no --camera-json supplied; using defaults.")
 
 # Determine camera transform
-if cam_info and 'camera' in cam_info:
+import os as _os2
+_use_ortho = False
+_ortho_scale = 0.0
+_topdown = _os2.environ.get('SH3D_RENDER_TOPDOWN', '') not in ('', '0', 'false')
+if _topdown:
+    _xs = []; _ys = []; _zs = []
+    for obj in bpy.context.scene.objects:
+        if obj.type == 'MESH':
+            for v in obj.data.vertices:
+                wv = obj.matrix_world @ v.co
+                _xs.append(wv.x); _ys.append(wv.y); _zs.append(wv.z)
+    if _xs:
+        # Imported SH3D geometry is Y-UP in Blender: Y is height, the floor
+        # plane is X-Z. Look straight DOWN the -Y axis to get a true plan view.
+        _cx = (min(_xs) + max(_xs)) / 2.0
+        _cz = (min(_zs) + max(_zs)) / 2.0
+        cam_loc = (_cx, max(_ys) + 10.0, _cz)   # above the roof, in +Y
+        cam_rot = (-math.pi / 2.0, 0.0, 0.0)     # look straight down -Y
+        fov = math.radians(60.0)
+        _use_ortho = True
+        _ortho_scale = max(max(_xs) - min(_xs), max(_zs) - min(_zs)) * 1.08
+        print(f"BLENDER-RENDER: TOP-DOWN ortho cam centre=({_cx:.2f},{_cz:.2f}) "
+              f"scale={_ortho_scale:.2f}")
+    else:
+        _topdown = False
+
+if not _topdown and cam_info and 'camera' in cam_info:
     c = cam_info['camera']
     x_sh3d   = float(c.get('x',          0.0))
     y_sh3d   = float(c.get('y',          0.0))
@@ -441,6 +467,9 @@ try:
     cam_data = bpy.data.cameras.new('RenderCamera')
     cam_data.lens_unit = 'FOV'
     cam_data.angle     = fov
+    if _use_ortho:
+        cam_data.type = 'ORTHO'
+        cam_data.ortho_scale = _ortho_scale
 
     cam_obj = bpy.data.objects.new('RenderCamera', cam_data)
     bpy.context.collection.objects.link(cam_obj)
