@@ -7,6 +7,8 @@ Each test exercises a real bug that was found by round-tripping generated
 from __future__ import annotations
 
 import os
+import xml.etree.ElementTree as ET
+import zipfile
 import subprocess
 import tempfile
 from pathlib import Path
@@ -157,5 +159,47 @@ class TestTransformationMatrixValidation:
         with tempfile.TemporaryDirectory() as td:
             p = os.path.join(td, "transform.sh3d")
             proj_core.save_home(h, p)
+            r = run_sh3d_validator(p)
+        assert r.returncode == 0, r.stderr.strip()
+
+
+class TestFurnitureGroupCatalogContent:
+    """Regression for catalog pieces inside furniture groups losing their model/icon."""
+
+    def test_grouped_catalog_piece_keeps_model_and_icon(self):
+        h = Home()
+        grp = FurnitureGroup(name="Doors")
+        grp.furniture.append(
+            PieceOfFurniture(
+                name="Front door", x=0, y=0,
+                width=80, depth=6, height=200,
+                catalogId="eTeks#door",
+            )
+        )
+        h.furnitureGroups.append(grp)
+
+        with tempfile.TemporaryDirectory() as td:
+            p = os.path.join(td, "grp_catalog.sh3d")
+            proj_core.save_home(h, p)
+
+            with zipfile.ZipFile(p) as z:
+                names = set(z.namelist())
+                root = ET.fromstring(z.read("Home.xml"))
+
+            piece_el = root.find(".//furnitureGroup/pieceOfFurniture")
+            assert piece_el is not None
+            model = piece_el.get("model")
+            icon = piece_el.get("icon")
+            assert model is not None, "grouped catalog piece lost its model reference"
+            assert icon is not None, "grouped catalog piece lost its icon reference"
+            assert model in names, f"model content entry {model} missing from .sh3d zip"
+            assert icon in names, f"icon content entry {icon} missing from .sh3d zip"
+
+            h2 = proj_core.open_home(p)
+            g2 = h2.furnitureGroups[0]
+            f2 = g2.furniture[0]
+            assert f2.model == model
+            assert f2.icon == icon
+
             r = run_sh3d_validator(p)
         assert r.returncode == 0, r.stderr.strip()
