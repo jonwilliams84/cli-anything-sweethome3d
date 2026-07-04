@@ -262,14 +262,36 @@ def _catalog_resource_entries(home: Home) -> dict[str, str]:
         if seg.isdigit():
             used_ints.add(int(seg))
 
+    def _note_tex(t):
+        if t is not None:
+            _note(getattr(t, "image", None))
+
+    # Content ids are used by MODELS/ICONS *and* TEXTURES (room floor/ceiling,
+    # wall sides, piece + material textures, sky/ground, background images).
+    # Miss any of these and new furniture will clobber e.g. the oak floor
+    # texture. Scan them all.
     if home.backgroundImage:
         _note(home.backgroundImage.image)
+    env = getattr(home, "environment", None)
+    if env is not None:
+        _note_tex(getattr(env, "skyTexture", None))
+        _note_tex(getattr(env, "groundTexture", None))
     for lvl in home.levels:
         if getattr(lvl, "backgroundImage", None):
             _note(lvl.backgroundImage.image)
+    for w in home.walls:
+        _note_tex(getattr(w, "leftSideTexture", None))
+        _note_tex(getattr(w, "rightSideTexture", None))
+    for r in home.rooms:
+        _note_tex(getattr(r, "floorTexture", None))
+        _note_tex(getattr(r, "ceilingTexture", None))
     for f in home.furniture:
         _note(f.model)
         _note(f.icon)
+        _note(getattr(f, "planIcon", None))
+        _note_tex(getattr(f, "texture", None))
+        for m in (getattr(f, "materials", None) or []):
+            _note_tex(getattr(m, "texture", None))
 
     mapping: dict[str, str] = {}
     idx = (max(used_ints) + 1) if used_ints else 0
