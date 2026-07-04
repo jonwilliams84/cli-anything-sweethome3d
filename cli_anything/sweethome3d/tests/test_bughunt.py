@@ -15,6 +15,7 @@ import pytest
 
 from cli_anything.sweethome3d.core import project as proj_core
 from cli_anything.sweethome3d.core.model import (
+    Transformation,
     FurnitureGroup,
     Home,
     PieceOfFurniture,
@@ -130,3 +131,31 @@ class TestSaveHomePathLike:
             proj_core.save_home(h, p)
             h2 = proj_core.open_home(p)
         assert h2.name == "pathlike"
+
+
+class TestTransformationMatrixValidation:
+    """Regression for invalid transformation matrices producing unreadable SH3D files."""
+
+    def test_short_matrix_raises_valueerror(self):
+        with pytest.raises(ValueError, match="12"):
+            Transformation(name="arm", matrix="1 0 0 0 1 0 0 0 1")
+
+    def test_long_matrix_raises_valueerror(self):
+        with pytest.raises(ValueError, match="12"):
+            Transformation(name="arm", matrix="1 0 0 0 0 1 0 0 0 0 1 0 0")
+
+    def test_valid_matrix_opens_in_sh3d(self):
+        h = Home()
+        h.furniture.append(PieceOfFurniture(
+            name="Chair", x=50, y=50, width=50, depth=50, height=80,
+            catalogId="eTeks#chair",
+            modelTransformations=[Transformation(
+                name="arm",
+                matrix="1 0 0 0 0 1 0 0 0 0 1 0",
+            )],
+        ))
+        with tempfile.TemporaryDirectory() as td:
+            p = os.path.join(td, "transform.sh3d")
+            proj_core.save_home(h, p)
+            r = run_sh3d_validator(p)
+        assert r.returncode == 0, r.stderr.strip()

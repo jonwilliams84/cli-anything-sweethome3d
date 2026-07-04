@@ -59,6 +59,16 @@ class Transformation:
     name: str
     matrix: str  # "m00 m01 m02 m03 m10 m11 m12 m13 m20 m21 m22 m23"
 
+    def __post_init__(self) -> None:
+        parts = self.matrix.strip().split()
+        if len(parts) != 12:
+            raise ValueError(f"Transformation matrix must contain exactly 12 floats, got {len(parts)}")
+        for part in parts:
+            try:
+                float(part)
+            except ValueError as exc:
+                raise ValueError(f"Transformation matrix contains non-numeric value: {part!r}") from exc
+
 
 @dataclass
 class LightSource:
