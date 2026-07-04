@@ -625,7 +625,23 @@ def home_to_xml(home: Home) -> ET.ElementTree:
         _write_piece(root, f)
 
     # furniture groups
-    def _write_furnituregroup(parent_el: ET.Element, grp: FurnitureGroup) -> None:
+    def _group_has_content(grp: FurnitureGroup) -> bool:
+        """Return True if the group (recursively) contains at least one piece.
+
+        SH3D's HomeFurnitureGroup constructor throws IndexOutOfBoundsException
+        for an empty furniture list, so an empty group must not be serialized.
+        """
+        for child in grp.furniture:
+            if isinstance(child, PieceOfFurniture):
+                return True
+            if isinstance(child, FurnitureGroup) and _group_has_content(child):
+                return True
+        return False
+
+    def _write_furnituregroup(parent_el: ET.Element, grp: FurnitureGroup) -> bool:
+        """Write a <furnitureGroup> element, skipping empty groups."""
+        if not _group_has_content(grp):
+            return False
         g_el = ET.SubElement(parent_el, "furnitureGroup")
         _set_attr(g_el, "id", grp.id)
         _set_attr(g_el, "level", grp.level)
@@ -667,6 +683,7 @@ def home_to_xml(home: Home) -> ET.ElementTree:
             elif isinstance(child, PieceOfFurniture):
                 _write_piece(g_el, child)
         _textstyle_to_xml(g_el, grp.nameStyle, attribute="nameStyle")
+        return True
 
     for grp in home.furnitureGroups:
         _write_furnituregroup(root, grp)

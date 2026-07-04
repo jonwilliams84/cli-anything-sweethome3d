@@ -86,3 +86,35 @@ class TestTextureWidthHeight:
             proj_core.save_home(h, p, extra_content={"2": b"\x89PNG\r\n\x1a\n"})
             r = run_sh3d_validator(p)
         assert r.returncode == 0, r.stderr.strip()
+
+
+class TestEmptyFurnitureGroup:
+    """Regression for empty furniture groups crashing SH3D's reader."""
+
+    def test_empty_furnituregroup_not_serialized(self):
+        h = Home()
+        h.furnitureGroups.append(FurnitureGroup(name="Empty", furniture=[]))
+        tree = proj_core.home_to_xml(h)
+        assert tree.find("furnitureGroup") is None
+
+    def test_empty_nested_furnituregroup_not_serialized(self):
+        h = Home()
+        inner = FurnitureGroup(name="InnerEmpty", furniture=[])
+        h.furnitureGroups.append(FurnitureGroup(
+            name="Outer",
+            furniture=[PieceOfFurniture(name="P", x=0, y=0, width=10, depth=10, height=10), inner],
+        ))
+        tree = proj_core.home_to_xml(h)
+        outer = tree.find("furnitureGroup")
+        assert outer is not None
+        assert outer.find("furnitureGroup") is None
+        assert outer.find("pieceOfFurniture") is not None
+
+    def test_home_with_empty_group_opens_in_sh3d(self):
+        h = Home()
+        h.furnitureGroups.append(FurnitureGroup(name="Empty", furniture=[]))
+        with tempfile.TemporaryDirectory() as td:
+            p = os.path.join(td, "empty_group.sh3d")
+            proj_core.save_home(h, p)
+            r = run_sh3d_validator(p)
+        assert r.returncode == 0, r.stderr.strip()
