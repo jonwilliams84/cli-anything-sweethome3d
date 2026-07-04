@@ -1,0 +1,1219 @@
+{
+  "spec_version": "1.0",
+  "meta": {
+    "name": "UK 4-Bed Semi",
+    "unit": "CENTIMETER"
+  },
+  "levels": [
+    {
+      "id": "level-dbb85a257c3d",
+      "name": "Ground Floor",
+      "floor_height": 0,
+      "ceiling_height": 250,
+      "idx": 0,
+      "walls": [
+        {
+          "id": "wall-bbfff8a66449",
+          "start": [
+            0.0,
+            0.0
+          ],
+          "end": [
+            850.0,
+            0.0
+          ],
+          "thickness": 20,
+          "is_envelope": true,
+          "facing": "north",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "wall-00a356a1de84",
+          "start": [
+            850.0,
+            0.0
+          ],
+          "end": [
+            850.0,
+            900.0
+          ],
+          "thickness": 20,
+          "is_envelope": true,
+          "facing": "east",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "wall-61a95e4bc7ad",
+          "start": [
+            0.0,
+            900.0
+          ],
+          "end": [
+            850.0,
+            900.0
+          ],
+          "thickness": 20,
+          "is_envelope": true,
+          "facing": "south",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "wall-347501d6f762",
+          "start": [
+            0.0,
+            0.0
+          ],
+          "end": [
+            0.0,
+            900.0
+          ],
+          "thickness": 20,
+          "is_envelope": true,
+          "facing": "west",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "wall-5d50c7514c13",
+          "start": [
+            0.0,
+            150.0
+          ],
+          "end": [
+            850.0,
+            150.0
+          ],
+          "thickness": 10,
+          "is_envelope": false,
+          "facing": null,
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "wall-3c93b11ae949",
+          "start": [
+            0.0,
+            600.0
+          ],
+          "end": [
+            850.0,
+            600.0
+          ],
+          "thickness": 10,
+          "is_envelope": false,
+          "facing": null,
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "wall-49b85bcf45de",
+          "start": [
+            500.0,
+            150.0
+          ],
+          "end": [
+            500.0,
+            600.0
+          ],
+          "thickness": 10,
+          "is_envelope": false,
+          "facing": null,
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "wall-2efab0fe064c",
+          "start": [
+            200.0,
+            600.0
+          ],
+          "end": [
+            200.0,
+            900.0
+          ],
+          "thickness": 10,
+          "is_envelope": false,
+          "facing": null,
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "wall-74e23cdf460e",
+          "start": [
+            400.0,
+            600.0
+          ],
+          "end": [
+            400.0,
+            900.0
+          ],
+          "thickness": 10,
+          "is_envelope": false,
+          "facing": null,
+          "level_id": "level-dbb85a257c3d"
+        }
+      ],
+      "rooms": [
+        {
+          "id": "room-3a8c63ee3cd4",
+          "polygon": [
+            [
+              0,
+              0
+            ],
+            [
+              850,
+              0
+            ],
+            [
+              850,
+              150
+            ],
+            [
+              0,
+              150
+            ]
+          ],
+          "label": "Hallway",
+          "area_cm2": 127500.0,
+          "area_m2": 12.75,
+          "floor_color": "#C8B99A",
+          "ceiling_color": null,
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "room-ab94909fcf84",
+          "polygon": [
+            [
+              0,
+              150
+            ],
+            [
+              500,
+              150
+            ],
+            [
+              500,
+              600
+            ],
+            [
+              0,
+              600
+            ]
+          ],
+          "label": "Living Room",
+          "area_cm2": 225000.0,
+          "area_m2": 22.5,
+          "floor_color": "#D4C5A9",
+          "ceiling_color": null,
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "room-886ab6137dd5",
+          "polygon": [
+            [
+              500,
+              150
+            ],
+            [
+              850,
+              150
+            ],
+            [
+              850,
+              600
+            ],
+            [
+              500,
+              600
+            ]
+          ],
+          "label": "Kitchen/Dining",
+          "area_cm2": 157500.0,
+          "area_m2": 15.75,
+          "floor_color": "#C8A880",
+          "ceiling_color": null,
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "room-37256919280b",
+          "polygon": [
+            [
+              0,
+              600
+            ],
+            [
+              200,
+              600
+            ],
+            [
+              200,
+              900
+            ],
+            [
+              0,
+              900
+            ]
+          ],
+          "label": "Utility Room",
+          "area_cm2": 60000.0,
+          "area_m2": 6.0,
+          "floor_color": "#B0C8C0",
+          "ceiling_color": null,
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "room-084d0d7ab16a",
+          "polygon": [
+            [
+              200,
+              600
+            ],
+            [
+              400,
+              600
+            ],
+            [
+              400,
+              900
+            ],
+            [
+              200,
+              900
+            ]
+          ],
+          "label": "WC",
+          "area_cm2": 60000.0,
+          "area_m2": 6.0,
+          "floor_color": "#C0C8D0",
+          "ceiling_color": null,
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "room-71e6ccfa3e90",
+          "polygon": [
+            [
+              400,
+              600
+            ],
+            [
+              850,
+              600
+            ],
+            [
+              850,
+              900
+            ],
+            [
+              400,
+              900
+            ]
+          ],
+          "label": "Study",
+          "area_cm2": 135000.0,
+          "area_m2": 13.5,
+          "floor_color": "#C8C0B0",
+          "ceiling_color": null,
+          "level_id": "level-dbb85a257c3d"
+        }
+      ],
+      "openings": [
+        {
+          "id": "opening-f81642f54180",
+          "kind": "door",
+          "catalog_id": "DOOR_STANDARD",
+          "wall_id": "wall-bbfff8a66449",
+          "position_along": 0.25,
+          "x": 212.5,
+          "y": 0.0,
+          "width": 90,
+          "height": 210.0,
+          "sill_height": 0.0,
+          "label": "Front Door",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "opening-d25f40482228",
+          "kind": "door",
+          "catalog_id": "DOOR_STANDARD",
+          "wall_id": "wall-00a356a1de84",
+          "position_along": 0.85,
+          "x": 850.0,
+          "y": 765.0,
+          "width": 80,
+          "height": 210.0,
+          "sill_height": 0.0,
+          "label": "Side Door",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "opening-9fb1413a792c",
+          "kind": "door",
+          "catalog_id": "DOOR_STANDARD",
+          "wall_id": "wall-5d50c7514c13",
+          "position_along": 0.3,
+          "x": 255.0,
+          "y": 150.0,
+          "width": 80,
+          "height": 210.0,
+          "sill_height": 0.0,
+          "label": "Hallway\u2192Living",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "opening-e1729a36dffd",
+          "kind": "door",
+          "catalog_id": "DOOR_STANDARD",
+          "wall_id": "wall-5d50c7514c13",
+          "position_along": 0.75,
+          "x": 637.5,
+          "y": 150.0,
+          "width": 80,
+          "height": 210.0,
+          "sill_height": 0.0,
+          "label": "Hallway\u2192Kitchen",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "opening-df5c23b944f6",
+          "kind": "window",
+          "catalog_id": "WINDOW_CASEMENT",
+          "wall_id": "wall-61a95e4bc7ad",
+          "position_along": 0.2,
+          "x": 170.0,
+          "y": 900.0,
+          "width": 120,
+          "height": 120.0,
+          "sill_height": 90.0,
+          "label": "Living-S Window",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "opening-5c4fb09d11f0",
+          "kind": "window",
+          "catalog_id": "WINDOW_CASEMENT",
+          "wall_id": "wall-61a95e4bc7ad",
+          "position_along": 0.65,
+          "x": 552.5,
+          "y": 900.0,
+          "width": 120,
+          "height": 120.0,
+          "sill_height": 90.0,
+          "label": "Kitchen-S Window",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "opening-b401bb492ff9",
+          "kind": "window",
+          "catalog_id": "WINDOW_CASEMENT",
+          "wall_id": "wall-bbfff8a66449",
+          "position_along": 0.6,
+          "x": 510.0,
+          "y": 0.0,
+          "width": 90,
+          "height": 120.0,
+          "sill_height": 90.0,
+          "label": "Living-N Window",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "opening-6e44868b02b1",
+          "kind": "window",
+          "catalog_id": "WINDOW_CASEMENT",
+          "wall_id": "wall-347501d6f762",
+          "position_along": 0.5,
+          "x": 0.0,
+          "y": 450.0,
+          "width": 100,
+          "height": 120.0,
+          "sill_height": 90.0,
+          "label": "Living-W Window",
+          "level_id": "level-dbb85a257c3d"
+        }
+      ],
+      "furniture": [
+        {
+          "id": "furn-467c5cc4ed30",
+          "catalog_id": "SOFA_3_SEATS",
+          "x": 80.0,
+          "y": 500.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Main Sofa",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "furn-38e10e0bdb6a",
+          "catalog_id": "COFFEE_TABLE",
+          "x": 180.0,
+          "y": 430.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Coffee Table",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "furn-fffdba61fd95",
+          "catalog_id": "ARMCHAIR",
+          "x": 350.0,
+          "y": 500.0,
+          "rotation_deg": 90.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Armchair",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "furn-43bd70f36e3c",
+          "catalog_id": "TV_UNIT",
+          "x": 80.0,
+          "y": 200.0,
+          "rotation_deg": 180.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "TV Unit",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "furn-e01cc6a26677",
+          "catalog_id": "KITCHEN_UNIT_BASE",
+          "x": 530.0,
+          "y": 200.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Kitchen Base",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "furn-fd562468a964",
+          "catalog_id": "KITCHEN_SINK",
+          "x": 650.0,
+          "y": 180.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Sink",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "furn-9d6566befc64",
+          "catalog_id": "OVEN",
+          "x": 570.0,
+          "y": 200.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Oven",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "furn-e37a3d4f0c00",
+          "catalog_id": "REFRIGERATOR",
+          "x": 810.0,
+          "y": 210.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Fridge",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "furn-1965f939dc43",
+          "catalog_id": "DINING_TABLE_4",
+          "x": 660.0,
+          "y": 400.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Dining Table",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "furn-1829dba53642",
+          "catalog_id": "WASHING_MACHINE",
+          "x": 50.0,
+          "y": 650.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Washing Machine",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "furn-c831002e76da",
+          "catalog_id": "TUMBLE_DRYER",
+          "x": 100.0,
+          "y": 650.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Dryer",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "furn-036866256ee2",
+          "catalog_id": "TOILET",
+          "x": 260.0,
+          "y": 820.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "WC",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "furn-f0b117ecec7b",
+          "catalog_id": "BASIN",
+          "x": 260.0,
+          "y": 650.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Basin",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "furn-6c078ac67a29",
+          "catalog_id": "DESK",
+          "x": 600.0,
+          "y": 650.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Desk",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "furn-1b59365cc082",
+          "catalog_id": "OFFICE_CHAIR",
+          "x": 600.0,
+          "y": 720.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Office Chair",
+          "level_id": "level-dbb85a257c3d"
+        },
+        {
+          "id": "furn-38335ef568e5",
+          "catalog_id": "BOOKCASE",
+          "x": 780.0,
+          "y": 650.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Bookcase",
+          "level_id": "level-dbb85a257c3d"
+        }
+      ]
+    },
+    {
+      "id": "level-e173211d4777",
+      "name": "First Floor",
+      "floor_height": 250,
+      "ceiling_height": 250,
+      "idx": 1,
+      "walls": [
+        {
+          "id": "wall-5e374ad029e7",
+          "start": [
+            0.0,
+            0.0
+          ],
+          "end": [
+            850.0,
+            0.0
+          ],
+          "thickness": 20,
+          "is_envelope": true,
+          "facing": "north",
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "wall-67e1279ec2fd",
+          "start": [
+            850.0,
+            0.0
+          ],
+          "end": [
+            850.0,
+            900.0
+          ],
+          "thickness": 20,
+          "is_envelope": true,
+          "facing": "east",
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "wall-60aee3a10d8c",
+          "start": [
+            0.0,
+            900.0
+          ],
+          "end": [
+            850.0,
+            900.0
+          ],
+          "thickness": 20,
+          "is_envelope": true,
+          "facing": "south",
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "wall-90b10cd96bd0",
+          "start": [
+            0.0,
+            0.0
+          ],
+          "end": [
+            0.0,
+            900.0
+          ],
+          "thickness": 20,
+          "is_envelope": true,
+          "facing": "west",
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "wall-1dac0c69d53a",
+          "start": [
+            0.0,
+            180.0
+          ],
+          "end": [
+            850.0,
+            180.0
+          ],
+          "thickness": 10,
+          "is_envelope": false,
+          "facing": null,
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "wall-564d68aab5cd",
+          "start": [
+            0.0,
+            530.0
+          ],
+          "end": [
+            850.0,
+            530.0
+          ],
+          "thickness": 10,
+          "is_envelope": false,
+          "facing": null,
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "wall-82f1f54ccec1",
+          "start": [
+            400.0,
+            180.0
+          ],
+          "end": [
+            400.0,
+            530.0
+          ],
+          "thickness": 10,
+          "is_envelope": false,
+          "facing": null,
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "wall-d96095cdaa16",
+          "start": [
+            300.0,
+            530.0
+          ],
+          "end": [
+            300.0,
+            900.0
+          ],
+          "thickness": 10,
+          "is_envelope": false,
+          "facing": null,
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "wall-919214b206d6",
+          "start": [
+            600.0,
+            530.0
+          ],
+          "end": [
+            600.0,
+            900.0
+          ],
+          "thickness": 10,
+          "is_envelope": false,
+          "facing": null,
+          "level_id": "level-e173211d4777"
+        }
+      ],
+      "rooms": [
+        {
+          "id": "room-3106d02db5fd",
+          "polygon": [
+            [
+              0,
+              0
+            ],
+            [
+              850,
+              0
+            ],
+            [
+              850,
+              180
+            ],
+            [
+              0,
+              180
+            ]
+          ],
+          "label": "Landing",
+          "area_cm2": 153000.0,
+          "area_m2": 15.3,
+          "floor_color": "#C8B99A",
+          "ceiling_color": null,
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "room-437dc2db13c5",
+          "polygon": [
+            [
+              0,
+              180
+            ],
+            [
+              400,
+              180
+            ],
+            [
+              400,
+              530
+            ],
+            [
+              0,
+              530
+            ]
+          ],
+          "label": "Master Bedroom",
+          "area_cm2": 140000.0,
+          "area_m2": 14.0,
+          "floor_color": "#D4C5A9",
+          "ceiling_color": null,
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "room-ba9935c39e00",
+          "polygon": [
+            [
+              400,
+              180
+            ],
+            [
+              850,
+              180
+            ],
+            [
+              850,
+              530
+            ],
+            [
+              400,
+              530
+            ]
+          ],
+          "label": "Bedroom 2",
+          "area_cm2": 157500.0,
+          "area_m2": 15.75,
+          "floor_color": "#D0C8BE",
+          "ceiling_color": null,
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "room-d4d31dcdffda",
+          "polygon": [
+            [
+              0,
+              530
+            ],
+            [
+              300,
+              530
+            ],
+            [
+              300,
+              900
+            ],
+            [
+              0,
+              900
+            ]
+          ],
+          "label": "Bedroom 3",
+          "area_cm2": 111000.0,
+          "area_m2": 11.1,
+          "floor_color": "#C8D0C0",
+          "ceiling_color": null,
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "room-24220b3ad0a9",
+          "polygon": [
+            [
+              300,
+              530
+            ],
+            [
+              600,
+              530
+            ],
+            [
+              600,
+              900
+            ],
+            [
+              300,
+              900
+            ]
+          ],
+          "label": "Bedroom 4",
+          "area_cm2": 111000.0,
+          "area_m2": 11.1,
+          "floor_color": "#C8CCD4",
+          "ceiling_color": null,
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "room-b70f569dfb47",
+          "polygon": [
+            [
+              600,
+              530
+            ],
+            [
+              850,
+              530
+            ],
+            [
+              850,
+              900
+            ],
+            [
+              600,
+              900
+            ]
+          ],
+          "label": "Bathroom",
+          "area_cm2": 92500.0,
+          "area_m2": 9.25,
+          "floor_color": "#B8C8D8",
+          "ceiling_color": null,
+          "level_id": "level-e173211d4777"
+        }
+      ],
+      "openings": [
+        {
+          "id": "opening-270ac4fa134a",
+          "kind": "window",
+          "catalog_id": "WINDOW_CASEMENT",
+          "wall_id": "wall-5e374ad029e7",
+          "position_along": 0.25,
+          "x": 212.5,
+          "y": 0.0,
+          "width": 100,
+          "height": 120.0,
+          "sill_height": 90.0,
+          "label": "Master-N Window",
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "opening-bef0db1d5e19",
+          "kind": "window",
+          "catalog_id": "WINDOW_CASEMENT",
+          "wall_id": "wall-5e374ad029e7",
+          "position_along": 0.7,
+          "x": 595.0,
+          "y": 0.0,
+          "width": 100,
+          "height": 120.0,
+          "sill_height": 90.0,
+          "label": "Bed2-N Window",
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "opening-407f90fb77e9",
+          "kind": "window",
+          "catalog_id": "WINDOW_CASEMENT",
+          "wall_id": "wall-60aee3a10d8c",
+          "position_along": 0.15,
+          "x": 127.5,
+          "y": 900.0,
+          "width": 100,
+          "height": 120.0,
+          "sill_height": 90.0,
+          "label": "Bed3-S Window",
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "opening-47f0cdcbefe1",
+          "kind": "window",
+          "catalog_id": "WINDOW_CASEMENT",
+          "wall_id": "wall-60aee3a10d8c",
+          "position_along": 0.45,
+          "x": 382.5,
+          "y": 900.0,
+          "width": 100,
+          "height": 120.0,
+          "sill_height": 90.0,
+          "label": "Bed4-S Window",
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "opening-bbde650ce205",
+          "kind": "window",
+          "catalog_id": "WINDOW_CASEMENT",
+          "wall_id": "wall-60aee3a10d8c",
+          "position_along": 0.8,
+          "x": 680.0,
+          "y": 900.0,
+          "width": 80,
+          "height": 120.0,
+          "sill_height": 90.0,
+          "label": "Bath-S Window",
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "opening-e88e1e20c373",
+          "kind": "window",
+          "catalog_id": "WINDOW_CASEMENT",
+          "wall_id": "wall-90b10cd96bd0",
+          "position_along": 0.5,
+          "x": 0.0,
+          "y": 450.0,
+          "width": 90,
+          "height": 120.0,
+          "sill_height": 90.0,
+          "label": "Master-W Window",
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "opening-c6990857fc7e",
+          "kind": "window",
+          "catalog_id": "WINDOW_CASEMENT",
+          "wall_id": "wall-67e1279ec2fd",
+          "position_along": 0.5,
+          "x": 850.0,
+          "y": 450.0,
+          "width": 90,
+          "height": 120.0,
+          "sill_height": 90.0,
+          "label": "Bed2-E Window",
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "opening-4b281c4ec0b0",
+          "kind": "door",
+          "catalog_id": "DOOR_STANDARD",
+          "wall_id": "wall-1dac0c69d53a",
+          "position_along": 0.25,
+          "x": 212.5,
+          "y": 180.0,
+          "width": 80,
+          "height": 210.0,
+          "sill_height": 0.0,
+          "label": "Landing\u2192Master",
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "opening-2dcc23f42e02",
+          "kind": "door",
+          "catalog_id": "DOOR_STANDARD",
+          "wall_id": "wall-1dac0c69d53a",
+          "position_along": 0.7,
+          "x": 595.0,
+          "y": 180.0,
+          "width": 80,
+          "height": 210.0,
+          "sill_height": 0.0,
+          "label": "Landing\u2192Bed2",
+          "level_id": "level-e173211d4777"
+        }
+      ],
+      "furniture": [
+        {
+          "id": "furn-b749646ad6ee",
+          "catalog_id": "KING_BED",
+          "x": 150.0,
+          "y": 350.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "King Bed",
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "furn-d6ece5706e75",
+          "catalog_id": "WARDROBE",
+          "x": 30.0,
+          "y": 200.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Wardrobe",
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "furn-40ab9c473986",
+          "catalog_id": "CHEST_OF_DRAWERS",
+          "x": 320.0,
+          "y": 200.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Drawers",
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "furn-36264381b4a0",
+          "catalog_id": "DOUBLE_BED",
+          "x": 580.0,
+          "y": 380.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Double Bed",
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "furn-7f9054e7afb6",
+          "catalog_id": "WARDROBE",
+          "x": 430.0,
+          "y": 200.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Wardrobe 2",
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "furn-fd177e44b646",
+          "catalog_id": "SINGLE_BED",
+          "x": 100.0,
+          "y": 680.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Single Bed 3",
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "furn-9fca3c037cc6",
+          "catalog_id": "BOOKCASE",
+          "x": 30.0,
+          "y": 560.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Bookcase 3",
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "furn-d58ada1f25a4",
+          "catalog_id": "SINGLE_BED",
+          "x": 430.0,
+          "y": 680.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Single Bed 4",
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "furn-f2cd90178553",
+          "catalog_id": "DESK",
+          "x": 530.0,
+          "y": 560.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Study Desk",
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "furn-e7dd62bf54d3",
+          "catalog_id": "BATH",
+          "x": 680.0,
+          "y": 800.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Bath",
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "furn-a1b439ee0987",
+          "catalog_id": "SHOWER_ENCLOSURE",
+          "x": 760.0,
+          "y": 600.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Shower",
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "furn-284e409eb3d1",
+          "catalog_id": "TOILET",
+          "x": 640.0,
+          "y": 560.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Toilet",
+          "level_id": "level-e173211d4777"
+        },
+        {
+          "id": "furn-ca186ea8e659",
+          "catalog_id": "VANITY_UNIT",
+          "x": 700.0,
+          "y": 560.0,
+          "rotation_deg": 0.0,
+          "width": null,
+          "depth": null,
+          "height": null,
+          "label": "Vanity",
+          "level_id": "level-e173211d4777"
+        }
+      ]
+    }
+  ]
+}
