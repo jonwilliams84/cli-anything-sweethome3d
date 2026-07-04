@@ -479,8 +479,14 @@ def _render_gpu_photo(
     width: int,
     height: int,
     timeout_s: int,
+    view: str = "camera",
+    exclude_levels: Optional[list[str]] = None,
+    include_levels: Optional[list[str]] = None,
+    hide_ceilings: bool = False,
 ) -> dict:
     """OBJ export via ExportObj.java → Blender Cycles+OptiX render."""
+    if view not in ("camera", "top", "iso"):
+        raise ValueError(f"view must be camera, top, or iso; got {view!r}")
     blender = _find_blender()
 
     blender_script = Path(BLENDER_SCRIPT)
@@ -519,7 +525,14 @@ def _render_gpu_photo(
         _copy_with_walls_alpha_zeroed(home_path, str(temp_sh3d))
         export_src = str(temp_sh3d)
 
-    _run_java_export_obj(sh3d_home, _classes_dir, export_src, obj_path)
+    # Apply level filters / ceiling hiding for this render only.
+    with filtered_levels(
+        export_src,
+        include=include_levels,
+        exclude=exclude_levels,
+        hide_ceilings=hide_ceilings,
+    ) as filtered_src:
+        _run_java_export_obj(sh3d_home, _classes_dir, filtered_src, obj_path)
 
     # BUG 1 safety net: strip any remaining thousands-separator commas
     # from the OBJ file. The Java-side fix (reflection + post-process)
@@ -538,6 +551,8 @@ def _render_gpu_photo(
         "--height", str(height),
         "--camera-json", str(cam_json),
     ]
+    if view != "camera":
+        cmd += ["--view", view]
 
     t0 = time.monotonic()
     res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s)
@@ -563,6 +578,10 @@ def _render_gpu_photo(
         "width": width,
         "height": height,
         "samples": samples,
+        "view": view,
+        "levels_excluded": exclude_levels,
+        "levels_included": include_levels,
+        "ceilings_hidden": hide_ceilings,
     }
 
 
@@ -579,8 +598,12 @@ def render(
     quality: str = "LOW",
     width: int = 1400,
     height: int = 900,
-    samples: int = 128,                # gpu_photo only
+    samples: int = 256,                # gpu_photo only
     timeout_s: int = 600,
+    view: str = "camera",              # gpu_photo only
+    exclude_levels: Optional[list[str]] = None,   # gpu_photo only
+    include_levels: Optional[list[str]] = None,   # gpu_photo only
+    hide_ceilings: bool = False,                   # gpu_photo only
 ) -> dict:
     """Run a SweetHome3D render.
 
@@ -634,6 +657,10 @@ def render(
         return _render_gpu_photo(
             home_path, output_path,
             samples=samples, width=width, height=height, timeout_s=timeout_s,
+            view=view,
+            exclude_levels=exclude_levels,
+            include_levels=include_levels,
+            hide_ceilings=hide_ceilings,
         )
 
     # --- Legacy Java paths (gpu_draft / cpu_photo) ----------------------------

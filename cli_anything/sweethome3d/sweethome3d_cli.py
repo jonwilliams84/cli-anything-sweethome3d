@@ -2503,7 +2503,7 @@ def render_status(ctx):
 @click.option("--quality", type=click.Choice(["LOW", "MEDIUM", "HIGH"]),
               default="LOW", show_default=True,
               help="Quality level (applies to cpu_photo engine)")
-@click.option("--samples", type=int, default=128, show_default=True,
+@click.option("--samples", type=int, default=256, show_default=True,
               help="Cycles sample count (applies to gpu_photo engine)")
 @click.option("--width", "-w", type=int, default=1400, show_default=True)
 @click.option("--height", "-h", type=int, default=900, show_default=True)
@@ -2524,13 +2524,22 @@ def render_status(ctx):
                    "Pair with a straight-down top camera to get a true "
                    "floor-plan view that shows floor textures and "
                    "furniture inside rooms.")
+@click.option("--view",
+              type=click.Choice(["camera", "top", "iso"]),
+              default="camera", show_default=True,
+              help=(
+                  "Camera framing preset for gpu_photo. "
+                  "camera = use the stored / sidecar camera (default); "
+                  "top = orthographic straight-down plan view fitted to the level; "
+                  "iso = fitted 3/4 perspective view."
+              ))
 @click.option("--timeout", "timeout_s", type=int, default=600, show_default=True,
               help="Render timeout in seconds")
 @_json_flag
 @click.pass_context
 def render_photo(ctx, output, engine, gpu, quality, samples, width, height,
                   from_camera, levels_include, levels_exclude, hide_ceilings,
-                  timeout_s):
+                  view, timeout_s):
     """Render a photo-realistic image of the loaded project.
 
     \b
@@ -2617,23 +2626,18 @@ def render_photo(ctx, output, engine, gpu, quality, samples, width, height,
 
     include = [s for s in (levels_include or "").split(",") if s.strip()]
     exclude = [s for s in (levels_exclude or "").split(",") if s.strip()]
+
+    kwargs["view"] = view
+    kwargs["exclude_levels"] = exclude or None
+    kwargs["include_levels"] = include or None
+    kwargs["hide_ceilings"] = hide_ceilings
+
     try:
-        with filtered_levels(
-            sess.path,
-            include=include or None,
-            exclude=exclude or None,
-            hide_ceilings=hide_ceilings,
-        ) as render_path:
-            result = _render(render_path, output, **kwargs)
+        result = _render(sess.path, output, **kwargs)
     except ValueError as e:
         raise click.BadParameter(str(e))
     except Exception as e:
         raise click.ClickException(f"render failed: {e}")
-    if include or exclude:
-        result["levels_included"] = include or None
-        result["levels_excluded"] = exclude or None
-    if hide_ceilings:
-        result["ceilings_hidden"] = True
     _emit(ctx, result)
 
 

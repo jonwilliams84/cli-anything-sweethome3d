@@ -178,39 +178,82 @@ def test_gpu_photo_renders_bundled_example(tmp_path):
     assert r["width"] == 320
     assert r["height"] == 200
     assert r["samples"] == 8
+    assert r["view"] == "camera"
 
 
 @skip_no_blender
 @skip_no_sh3d
-@skip_no_sh3d_v19
+@skip_no_example
 @pytest.mark.slow
 def test_gpu_photo_renders(tmp_path):
-    """gpu_photo: OBJ export + Blender Cycles should produce a PNG > 5 kB."""
+    """gpu_photo: OBJ export + Blender Cycles should produce a sane render of
+    the bundled furnished-kitchen example, including fitted top/iso cameras.
+    """
     from cli_anything.sweethome3d.core.render_runtime import render  # noqa: PLC0415
 
-    # Use v19 if available; fall back to v18
-    sh3d_path = str(_BUNGALOW_V19) if BUNGALOW_V19_AVAILABLE else BUNGALOW_SH3D
+    # Use the bundled furnished-kitchen example for reproducible CI / any checkout.
+    _FURNITURED_KITCHEN = (
+        Path(__file__).resolve().parent.parent.parent.parent
+        / "examples" / "furnished_kitchen.sh3d"
+    )
 
-    out = tmp_path / "render.png"
+    out = tmp_path / "gpu_photo_furnished_kitchen.png"
     r = render(
-        sh3d_path,
+        str(_FURNITURED_KITCHEN),
         str(out),
         engine="gpu_photo",
-        samples=16,
-        width=400,
-        height=300,
+        samples=32,
+        width=640,
+        height=480,
+        view="iso",
+        hide_ceilings=True,
+        exclude_levels=["Level 1", "Level 2"],
         timeout_s=600,
     )
 
-    assert r["engine"] == "BlenderCycles-OptiX", (
-        f"Expected BlenderCycles-OptiX engine, got {r['engine']!r}"
-    )
     assert out.exists(), f"Output PNG not created at {out}"
     assert out.stat().st_size > 5_000, (
         f"Output PNG is suspiciously small ({out.stat().st_size} bytes)"
     )
+    with open(out, "rb") as f:
+        assert f.read(8) == b"\x89PNG\r\n\x1a\n", "Output is not a valid PNG file"
+    assert r["engine"] == "BlenderCycles-OptiX"
     assert r["elapsed_s"] > 0
-    assert r["width"] == 400
-    assert r["height"] == 300
-    assert r["samples"] == 16
-    assert r["output"] == str(out.resolve())
+    assert r["width"] == 640
+    assert r["height"] == 480
+    assert r["samples"] == 32
+    assert r["view"] == "iso"
+
+    # Visual sanity: the fitted iso view should show geometry, not a blank sky.
+    from PIL import Image
+    import numpy as np
+
+    img = Image.open(out).convert("RGB")
+    arr = np.array(img).astype(np.float32)
+    lum = 0.299 * arr[:, :, 0] + 0.587 * arr[:, :, 1] + 0.114 * arr[:, :, 2]
+    near_white = (lum > 245).mean()
+    near_black = (lum < 10).mean()
+    assert near_white < 0.35, f"Too much near-white sky: {near_white:.2%}"
+    assert near_black < 0.10, f"Too much near-black empty space: {near_black:.2%}"
+    assert lum.std() > 25.0, f"Image is nearly flat; std={lum.std():.1f}"
+
+    # Also render the top-down floor-plan view for coverage.
+    out_top = tmp_path / "gpu_photo_furnished_kitchen_top.png"
+    r_top = render(
+        str(_FURNITURED_KITCHEN),
+        str(out_top),
+        engine="gpu_photo",
+        samples=16,
+        width=320,
+        height=240,
+        view="top",
+        hide_ceilings=True,
+        exclude_levels=["Level 1", "Level 2"],
+        timeout_s=600,
+    )
+    assert out_top.exists()
+    assert r_top["view"] == "top"
+    img_top = Image.open(out_top).convert("RGB")
+    arr_top = np.array(img_top).astype(np.float32)
+    lum_top = 0.299 * arr_top[:, :, 0] + 0.587 * arr_top[:, :, 1] + 0.114 * arr_top[:, :, 2]
+    assert lum_top.std() > 25.0, f"Top view is nearly flat; std={lum_top.std():.1f}"
