@@ -43,6 +43,9 @@ parser.add_argument('--width',       type=int, default=1920, help='Render width 
 parser.add_argument('--height',      type=int, default=1080, help='Render height (default 1080)')
 parser.add_argument('--camera-json', dest='camera_json', default=None,
                     help='Path to the sidecar .camera.json file')
+parser.add_argument('--view', dest='view', default='camera',
+                    choices=['camera', 'top', 'iso'],
+                    help='Camera framing preset (camera=sidecar, top=ortho plan, iso=3/4 perspective)')
 
 try:
     args = parser.parse_args(raw_args)
@@ -57,11 +60,12 @@ SAMPLES     = args.samples
 WIDTH       = args.width
 HEIGHT      = args.height
 CAMERA_JSON = args.camera_json
+VIEW        = args.view
 
 print(f"BLENDER-RENDER: input_obj={INPUT_OBJ}")
 print(f"BLENDER-RENDER: output_png={OUTPUT_PNG}")
 print(f"BLENDER-RENDER: samples={SAMPLES}  resolution={WIDTH}x{HEIGHT}")
-print(f"BLENDER-RENDER: camera_json={CAMERA_JSON}")
+print(f"BLENDER-RENDER: camera_json={CAMERA_JSON} view={VIEW}")
 
 # ---------------------------------------------------------------------------
 # 2. Import bpy (only available inside Blender)
@@ -142,6 +146,19 @@ if not imported_ok:
 # ---------------------------------------------------------------------------
 scene = bpy.context.scene
 scene.render.engine = 'CYCLES'
+
+# View transform: Blender 4.2 defaults to AgX, which desaturates and washes
+# out bright interiors (walls read as flat pale white). Use Standard for
+# accurate, readable colours, with a slight negative exposure so bright walls
+# don't blow to pure white.
+try:
+    scene.view_settings.view_transform = 'Standard'
+    scene.view_settings.look = 'None'
+    scene.view_settings.exposure = float(__import__('os').environ.get('SH3D_RENDER_EXPOSURE', '-0.35'))
+    scene.view_settings.gamma = 1.0
+    print(f"BLENDER-RENDER: view_transform=Standard exposure={scene.view_settings.exposure}")
+except Exception as _vexc:
+    print(f"BLENDER-RENDER: view transform setup failed: {_vexc}")
 
 compute_backend_used = 'CPU'
 
@@ -286,7 +303,96 @@ else:
         print("BLENDER-RENDER: no --camera-json supplied; using defaults.")
 
 # Determine camera transform
-if cam_info and 'camera' in cam_info:
+import os as _os2
+_use_ortho = False
+_ortho_scale = 0.0
+
+
+def _geometry_bounds():
+    """Return (min_x, max_x, min_y, max_y, min_z, max_z) in metres for all mesh objects."""
+    xs, ys, zs = [], [], []
+    for obj in bpy.context.scene.objects:
+        if obj.type != 'MESH':
+            continue
+        if obj.name.startswith(('GroundPlane',)):
+            # The artificial ground plane is huge; it would dominate the fit
+            # and shrink the actual building to a tiny fraction of the frame.
+            continue
+        try:
+            for v in obj.data.vertices:
+                wv = obj.matrix_world @ v.co
+                xs.append(wv.x); ys.append(wv.y); zs.append(wv.z)
+        except Exception:
+            continue
+    if not xs:
+        return None
+    return (min(xs), max(xs), min(ys), max(ys), min(zs), max(zs))
+
+
+def _fit_top_down_camera(bounds):
+    """Return (loc, rot, fov, ortho_scale) for an orthographic top-down view."""
+    min_x, max_x, min_y, max_y, min_z, max_z = bounds
+    cx = (min_x + max_x) / 2.0
+    cy = (min_y + max_y) / 2.0
+    width = max_x - min_x
+    depth = max_y - min_y
+    # Padding keeps geometry clear of the frame edges even when the output
+    # resolution aspect ratio differs from the room aspect ratio.
+    scale = max(width, depth) * 1.08
+    loc = (cx, cy, max_z + 12.0)
+    rot = (0.0, 0.0, 0.0)
+    print(f"BLENDER-RENDER: TOP-DOWN ortho cam centre=({cx:.2f},{cy:.2f}) "
+          f"scale={scale:.2f} (room {width:.2f}x{depth:.2f})")
+    return loc, rot, math.radians(60.0), scale
+
+
+def _fit_iso_camera(bounds):
+    """Return (loc, rot, fov, ortho_scale=0) for a fitted 3/4 perspective view."""
+    import mathutils
+    min_x, max_x, min_y, max_y, min_z, max_z = bounds
+    cx = (min_x + max_x) / 2.0
+    cy = (min_y + max_y) / 2.0
+    cz = (min_z + max_z) / 2.0
+    target = mathutils.Vector((cx, cy, cz))
+
+    width = max_x - min_x
+    depth = max_y - min_y
+    height = max_z - min_z
+
+    # Fixed, pleasant isometric-ish direction: from above the front-left
+    # corner looking toward the centre. Z up is the vertical axis.
+    direction = mathutils.Vector((1.0, -1.0, 0.85)).normalized()
+
+    fov = math.radians(55.0)
+    # Fit distance to horizontal FOV. Also guard vertical FOV for tall scenes.
+    aspect = WIDTH / max(HEIGHT, 1)
+    vfov = 2.0 * math.atan(math.tan(fov / 2.0) / aspect)
+    pad = max(width, depth, height) * 0.15
+    d_horizontal = (width / 2.0 + pad) / math.tan(fov / 2.0)
+    d_vertical   = (depth / 2.0 + pad) / math.tan(vfov / 2.0)
+    d_height     = (height / 2.0 + pad) / math.tan(vfov / 2.0)
+    distance = max(d_horizontal, d_vertical, d_height, 4.0)
+
+    loc = target + direction * distance
+    print(f"BLENDER-RENDER: ISO cam target=({cx:.2f},{cy:.2f},{cz:.2f}) "
+          f"distance={distance:.2f} (room {width:.2f}x{depth:.2f}x{height:.2f})")
+    return loc, None, fov, 0.0
+
+
+_topdown = _os2.environ.get('SH3D_RENDER_TOPDOWN', '') not in ('', '0', 'false')
+if _topdown:
+    VIEW = 'top'
+
+bounds = _geometry_bounds()
+if VIEW == 'top' and bounds is not None:
+    cam_loc, cam_rot, fov, _ortho_scale = _fit_top_down_camera(bounds)
+    _use_ortho = True
+    camera_source = "top-down fitted"
+elif VIEW == 'iso' and bounds is not None:
+    import mathutils as _mathutils_iso
+    cam_loc, cam_rot, fov, _ortho_scale = _fit_iso_camera(bounds)
+    camera_source = "iso fitted"
+elif cam_info and 'camera' in cam_info:
     c = cam_info['camera']
     x_sh3d   = float(c.get('x',          0.0))
     y_sh3d   = float(c.get('y',          0.0))
@@ -337,12 +443,24 @@ else:
 sky_color    = (0.529, 0.808, 0.922, 1.0)   # light blue default
 ground_color = (0.486, 0.702, 0.255, 1.0)   # grass green default
 
+cam_info_env_override = VIEW in ('top', 'iso') and cam_info and 'environment' in cam_info
 if cam_info and 'environment' in cam_info:
-    env = cam_info['environment']
-    if 'skyColor' in env:
-        sky_color = _parse_color(env['skyColor'])
-    if 'groundColor' in env:
-        ground_color = _parse_color(env['groundColor'])
+    if not cam_info_env_override:
+        env = cam_info['environment']
+        if 'skyColor' in env:
+            sky_color = _parse_color(env['skyColor'])
+        if 'groundColor' in env:
+            ground_color = _parse_color(env['groundColor'])
+    # The camera JSON environment is ignored for fitted views so that sky/ground
+    # don't dominate the frame, but the wall height is still useful.
+    env_wall_height = float(cam_info['environment'].get('wallHeight',
+                                float(cam_info.get('wallHeight', 250.0))))
+else:
+    env_wall_height = float(cam_info.get('wallHeight', 250.0)) if cam_info else 250.0
+
+# Default wall height when the sidecar doesn't provide it
+wall_height = env_wall_height
+print(f"BLENDER-RENDER: wall height = {wall_height} cm")
 
 # ---------------------------------------------------------------------------
 # 8. World / lighting setup
@@ -359,9 +477,10 @@ try:
     wnt.links.new(bg_node.outputs['Background'], out_node.inputs['Surface'])
 
     bg_node.inputs['Color'].default_value = sky_color
-    # Stronger sky gives ambient fill on the shadow-side facades so they
-    # don't read as solid black under a low directional sun.
-    bg_node.inputs['Strength'].default_value = 4.0
+    # The world provides ambient fill. For interior renders the sun + fill area
+    # light do the heavy lifting, so keep the visible sky background at a level
+    # that doesn't blow out to pure white.
+    bg_node.inputs['Strength'].default_value = 1.2
     print(f"BLENDER-RENDER: sky colour set to {sky_color}")
 except Exception as exc:
     print(f"BLENDER-RENDER: WARNING — world/sky setup failed: {exc}")
@@ -370,9 +489,9 @@ except Exception as exc:
 # Sun light (warm morning sun, 7am: low in east, slightly south)
 try:
     sun_data = bpy.data.lights.new(name='Sun', type='SUN')
-    sun_data.energy   = 3.0
-    sun_data.color    = (1.0, 0.87, 0.7)   # warm yellowish
-    sun_data.angle    = math.radians(0.5)
+    sun_data.energy   = 6.0
+    sun_data.color    = (1.0, 0.96, 0.84)   # warm yellowish
+    sun_data.angle    = math.radians(1.5)
     sun_obj = bpy.data.objects.new('Sun', sun_data)
     bpy.context.collection.objects.link(sun_obj)
 
@@ -380,7 +499,7 @@ try:
     try:
         all_verts_sun = []
         for obj in bpy.context.scene.objects:
-            if obj.type == 'MESH':
+            if obj.type == 'MESH' and not obj.name.startswith(('GroundPlane',)):
                 for v in obj.data.vertices:
                     wv = obj.matrix_world @ v.co
                     all_verts_sun.append((wv.x, wv.y, wv.z))
@@ -392,17 +511,51 @@ try:
     except Exception:
         scx, scy = 0.0, 0.0
 
-    sun_obj.location = (scx + 5.0, scy - 5.0, 20.0)
-    # Point the sun downward and slightly south: tilt X ~-60°, rotate Z ~45°
-    sun_obj.rotation_euler = (math.radians(-60.0), 0.0, math.radians(45.0))
+    sun_obj.location = (scx + 8.0, scy - 8.0, 20.0)
+    # Point the sun downward and slightly south: tilt X ~-60°, rotate Z ~40°
+    sun_obj.rotation_euler = (math.radians(-60.0), 0.0, math.radians(40.0))
     print(f"BLENDER-RENDER: sun light placed at {sun_obj.location}")
 except Exception as exc:
     print(f"BLENDER-RENDER: WARNING — sun light setup failed: {exc}")
     traceback.print_exc()
 
-# Ground plane (below z=0) with ground colour as diffuse
+# Fill light: large area light pointing down from above the ceiling to soften
+# interior shadows and keep the room readable without washing out textures.
 try:
-    bpy.ops.mesh.primitive_plane_add(size=2000.0, location=(0.0, 0.0, -0.01))
+    fill_data = bpy.data.lights.new(name='FillLight', type='AREA')
+    fill_data.energy   = 6.0
+    fill_data.color    = (0.95, 0.98, 1.0)   # cool neutral
+    if bounds is not None:
+        _bx = (bounds[1] - bounds[0], bounds[3] - bounds[2])
+        fill_data.size = max(_bx) * 1.2
+        fill_obj = bpy.data.objects.new('FillLight', fill_data)
+        bpy.context.collection.objects.link(fill_obj)
+        min_x, max_x, min_y, max_y, min_z, max_z = bounds
+        fill_obj.location = ((min_x + max_x) / 2.0, (min_y + max_y) / 2.0, max_z + 2.5)
+    else:
+        fill_data.size = 20.0
+        fill_obj = bpy.data.objects.new('FillLight', fill_data)
+        bpy.context.collection.objects.link(fill_obj)
+        fill_obj.location = (0.0, 0.0, 6.0)
+    fill_data.shape = 'RECTANGLE'
+    fill_obj.rotation_euler = (0.0, 0.0, 0.0)
+    print(f"BLENDER-RENDER: fill area light placed at {fill_obj.location} size={fill_data.size:.2f}")
+except Exception as exc:
+    print(f"BLENDER-RENDER: WARNING — fill light setup failed: {exc}")
+    traceback.print_exc()
+
+# Ground plane (below z=0) with ground colour as diffuse
+# Size it to the scene footprint so it frames the house without dominating
+# the bounding box used for camera fitting.
+try:
+    if bounds is not None:
+        _gmin_x, _gmax_x, _gmin_y, _gmax_y, _, _ = bounds
+        _gcx = (_gmin_x + _gmax_x) / 2.0
+        _gcy = (_gmin_y + _gmax_y) / 2.0
+        _gsize = max(_gmax_x - _gmin_x, _gmax_y - _gmin_y) * 1.6
+    else:
+        _gcx, _gcy, _gsize = 0.0, 0.0, 100.0
+    bpy.ops.mesh.primitive_plane_add(size=_gsize, location=(_gcx, _gcy, -0.01))
     ground_obj = bpy.context.active_object
     ground_obj.name = 'GroundPlane'
 
@@ -428,6 +581,9 @@ try:
     cam_data = bpy.data.cameras.new('RenderCamera')
     cam_data.lens_unit = 'FOV'
     cam_data.angle     = fov
+    if _use_ortho:
+        cam_data.type = 'ORTHO'
+        cam_data.ortho_scale = _ortho_scale
 
     cam_obj = bpy.data.objects.new('RenderCamera', cam_data)
     bpy.context.collection.objects.link(cam_obj)
@@ -436,24 +592,39 @@ try:
 
     # Camera framing policy:
     #
-    # - When --camera-json supplies an explicit camera with non-zero yaw or
-    #   pitch (i.e. the user picked a viewpoint via `render --from-camera`
-    #   or `camera set`), trust the SH3D angles. The Euler conversion in
-    #   sh3d_to_blender_euler() is approximate but matches the convention
-    #   the rest of the harness uses, so users who tune `camera set` get
-    #   what they're tuning.
+    # - --view top / iso: fitted camera computed above; just point it at the
+    #   geometry centre with the pre-computed rotation (top) or track-quat (iso).
     #
-    # - Otherwise (no camera JSON, or yaw/pitch both 0 = default), fall
-    #   back to track_quat(centroid) so a no-config render still produces
-    #   a usable "see the building" framing.
+    # - --camera-json with explicit yaw/pitch: trust the stored camera angles.
+    #
+    # - Otherwise: track the geometry centroid so a no-config render still frames
+    #   the building.
     import mathutils  # local import — bpy guarantees this is available
-    explicit_angles = (
+    if VIEW in ('top', 'iso') and bounds is not None:
+        min_x, max_x, min_y, max_y, min_z, max_z = bounds
+        target = mathutils.Vector((
+            (min_x + max_x) / 2.0,
+            (min_y + max_y) / 2.0,
+            (min_z + max_z) / 2.0,
+        ))
+        if VIEW == 'top':
+            cam_obj.rotation_mode = 'QUATERNION'
+            direction = mathutils.Vector((0.0, 0.0, -1.0))
+            cam_obj.rotation_quaternion = direction.to_track_quat('-Z', 'Y')
+            print(f"BLENDER-RENDER: camera placed at {cam_loc} "
+                   f"(top-down ortho) fov={math.degrees(fov):.1f}°")
+        else:
+            direction = target - mathutils.Vector(cam_loc)
+            cam_obj.rotation_mode = 'QUATERNION'
+            cam_obj.rotation_quaternion = direction.to_track_quat('-Z', 'Y')
+            print(f"BLENDER-RENDER: camera placed at {cam_loc} aiming at {tuple(target)} "
+                   f"(iso perspective) fov={math.degrees(fov):.1f}°")
+    elif (
         cam_info is not None
         and 'camera' in cam_info
         and (float(cam_info['camera'].get('yaw', 0.0)) != 0.0
               or float(cam_info['camera'].get('pitch', 0.0)) != 0.0)
-    )
-    if explicit_angles:
+    ):
         cam_obj.rotation_mode  = 'XYZ'
         cam_obj.rotation_euler = cam_rot
         print(f"BLENDER-RENDER: camera placed at {cam_loc} rot={cam_rot} "
@@ -520,6 +691,11 @@ print("---")
 print(f"engine: BlenderCycles-{compute_backend_used}")
 print(f"samples: {SAMPLES}")
 print(f"resolution: {WIDTH}x{HEIGHT}")
-print(f"camera: loc={cam_loc} rot={tuple(round(r, 4) for r in cam_rot)} "
-      f"fov={math.degrees(fov):.1f}° (source: {camera_source})")
+print(f"view: {VIEW}")
+if _use_ortho:
+    print(f"camera: ortho_scale={_ortho_scale:.3f} loc={cam_loc} "
+          f"(source: {camera_source})")
+else:
+    print(f"camera: loc={cam_loc} rot={tuple(round(r, 4) for r in cam_rot)} "
+          f"fov={math.degrees(fov):.1f}° (source: {camera_source})")
 print(f"wrote: {OUTPUT_PNG}")

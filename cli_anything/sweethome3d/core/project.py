@@ -248,8 +248,53 @@ def _catalog_resource_entries(home: Home) -> dict[str, str]:
     Returns: {jar-resource-path -> "N"}  e.g.
         {"com/eteks/sweethome3d/io/resources/doorFrame.obj": "0", ...}
     """
+    # Newly-embedded catalog content must NOT reuse zip-entry names already
+    # occupied by pieces loaded from an existing .sh3d (their models/icons take
+    # "0","1",..., possibly "5/window/..."). Start numbering after the highest
+    # existing content id, else the new bytes collide with — and drop — the
+    # original models on save (SH3D then reports the file "damaged").
+    used_ints: set[int] = set()
+
+    def _note(v):
+        if v is None:
+            return
+        seg = str(v).split("/", 1)[0]
+        if seg.isdigit():
+            used_ints.add(int(seg))
+
+    def _note_tex(t):
+        if t is not None:
+            _note(getattr(t, "image", None))
+
+    # Content ids are used by MODELS/ICONS *and* TEXTURES (room floor/ceiling,
+    # wall sides, piece + material textures, sky/ground, background images).
+    # Miss any of these and new furniture will clobber e.g. the oak floor
+    # texture. Scan them all.
+    if home.backgroundImage:
+        _note(home.backgroundImage.image)
+    env = getattr(home, "environment", None)
+    if env is not None:
+        _note_tex(getattr(env, "skyTexture", None))
+        _note_tex(getattr(env, "groundTexture", None))
+    for lvl in home.levels:
+        if getattr(lvl, "backgroundImage", None):
+            _note(lvl.backgroundImage.image)
+    for w in home.walls:
+        _note_tex(getattr(w, "leftSideTexture", None))
+        _note_tex(getattr(w, "rightSideTexture", None))
+    for r in home.rooms:
+        _note_tex(getattr(r, "floorTexture", None))
+        _note_tex(getattr(r, "ceilingTexture", None))
+    for f in home.furniture:
+        _note(f.model)
+        _note(f.icon)
+        _note(getattr(f, "planIcon", None))
+        _note_tex(getattr(f, "texture", None))
+        for m in (getattr(f, "materials", None) or []):
+            _note_tex(getattr(m, "texture", None))
+
     mapping: dict[str, str] = {}
-    idx = 0
+    idx = (max(used_ints) + 1) if used_ints else 0
     for f in home.furniture:
         meta = SH3D_CATALOG.get(f.catalogId) if f.catalogId else None
         if not meta:
@@ -1421,11 +1466,16 @@ def save_home(home: Home, path: str, *,
             if data is not None:
                 z.writestr(entry_name, data)
                 written_names.add(entry_name)
-        # 3. then copy_content_from for anything not already written
+        # 3. then copy_content_from for anything not already written.
+        #    Skip "ContentDigests": it only covers the source file's original
+        #    content, so once we add new catalog models the stale digest set
+        #    no longer matches and SH3D rejects the file as "damaged". The
+        #    digest manifest is optional, so dropping it is safe.
         if copy_content_from and os.path.isfile(copy_content_from):
             with zipfile.ZipFile(copy_content_from) as src:
                 for name in src.namelist():
-                    if name in written_names or name == HOME_BINARY_ENTRY:
+                    if (name in written_names or name == HOME_BINARY_ENTRY
+                            or name == "ContentDigests"):
                         continue
                     z.writestr(name, src.read(name))
     os.replace(tmp, path)

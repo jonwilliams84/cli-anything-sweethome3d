@@ -2503,19 +2503,43 @@ def render_status(ctx):
 @click.option("--quality", type=click.Choice(["LOW", "MEDIUM", "HIGH"]),
               default="LOW", show_default=True,
               help="Quality level (applies to cpu_photo engine)")
-@click.option("--samples", type=int, default=128, show_default=True,
+@click.option("--samples", type=int, default=256, show_default=True,
               help="Cycles sample count (applies to gpu_photo engine)")
 @click.option("--width", "-w", type=int, default=1400, show_default=True)
 @click.option("--height", "-h", type=int, default=900, show_default=True)
 @click.option("--from-camera", "from_camera", default=None,
               help="Render from a named stored camera (from `camera save`). "
                    "Loads the stored pose into the active camera before render.")
+@click.option("--levels", "levels_include", default=None,
+              help="Comma-separated level ids or names to keep visible for "
+                   "this render. Other levels are temporarily hidden; the "
+                   "saved project is not modified. "
+                   "Example: --levels 'Level 0,Level 1'")
+@click.option("--exclude-levels", "levels_exclude", default=None,
+              help="Comma-separated level ids or names to hide for this "
+                   "render. Inverse of --levels. Mutually exclusive with "
+                   "--levels.")
+@click.option("--hide-ceilings", is_flag=True, default=False,
+              help="Hide ceilings on visible-level rooms for this render. "
+                   "Pair with a straight-down top camera to get a true "
+                   "floor-plan view that shows floor textures and "
+                   "furniture inside rooms.")
+@click.option("--view",
+              type=click.Choice(["camera", "top", "iso"]),
+              default="camera", show_default=True,
+              help=(
+                  "Camera framing preset for gpu_photo. "
+                  "camera = use the stored / sidecar camera (default); "
+                  "top = orthographic straight-down plan view fitted to the level; "
+                  "iso = fitted 3/4 perspective view."
+              ))
 @click.option("--timeout", "timeout_s", type=int, default=600, show_default=True,
               help="Render timeout in seconds")
 @_json_flag
 @click.pass_context
 def render_photo(ctx, output, engine, gpu, quality, samples, width, height,
-                  from_camera, timeout_s):
+                  from_camera, levels_include, levels_exclude, hide_ceilings,
+                  view, timeout_s):
     """Render a photo-realistic image of the loaded project.
 
     \b
@@ -2573,11 +2597,18 @@ def render_photo(ctx, output, engine, gpu, quality, samples, width, height,
         )
 
     try:
-        from cli_anything.sweethome3d.core.render_runtime import render as _render
+        from cli_anything.sweethome3d.core.render_runtime import (  # noqa: PLC0415
+            filtered_levels, render as _render,
+        )
     except ImportError as e:
         raise click.ClickException(
             f"render_runtime not available: {e}. "
             "Ensure cli_anything.sweethome3d.core.render_runtime is installed."
+        )
+
+    if levels_include and levels_exclude:
+        raise click.UsageError(
+            "--levels and --exclude-levels are mutually exclusive"
         )
 
     # Build kwargs — let render_runtime handle gpu→engine mapping
@@ -2593,8 +2624,18 @@ def render_photo(ctx, output, engine, gpu, quality, samples, width, height,
     if gpu is not None:
         kwargs["gpu"] = gpu
 
+    include = [s for s in (levels_include or "").split(",") if s.strip()]
+    exclude = [s for s in (levels_exclude or "").split(",") if s.strip()]
+
+    kwargs["view"] = view
+    kwargs["exclude_levels"] = exclude or None
+    kwargs["include_levels"] = include or None
+    kwargs["hide_ceilings"] = hide_ceilings
+
     try:
         result = _render(sess.path, output, **kwargs)
+    except ValueError as e:
+        raise click.BadParameter(str(e))
     except Exception as e:
         raise click.ClickException(f"render failed: {e}")
     _emit(ctx, result)
