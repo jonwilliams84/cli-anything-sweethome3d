@@ -242,6 +242,47 @@ def _find_blender() -> str:
 # gpu_photo helpers
 # ---------------------------------------------------------------------------
 
+def _strip_obj_commas(obj_path: Path) -> None:
+    """BUG 1 safety net: strip thousands-separator commas from v/vn/vt lines.
+
+    SH3D's OBJWriter uses NumberFormat.getNumberInstance(Locale.US) which
+    enables grouping → values ≥1000 get comma separators (e.g.
+    ``1,350.1787``). Blender's OBJ importer uses strtod which stops at the
+    comma, collapsing far-side vertices. The Java-side fix in ExportObj
+    handles this, but this Python pass is a last-resort guard against
+    stale cached .class files or reflection failures.
+    """
+    if not obj_path.exists():
+        return
+    lines = obj_path.read_text().splitlines(keepends=True)
+    changed = False
+    fixed = []
+    for line in lines:
+        stripped = line.rstrip("\n")
+        if stripped and stripped[0] == "v" and len(stripped) > 1 and stripped[1] in (" ", "n", "t"):
+            new_line = _remove_thousands_commas(stripped)
+            if new_line != stripped:
+                changed = True
+            fixed.append(new_line + "\n")
+        else:
+            fixed.append(line)
+    if changed:
+        obj_path.write_text("".join(fixed))
+
+
+def _remove_thousands_commas(s: str) -> str:
+    """Remove commas that sit between digits (thousands separators)."""
+    result = []
+    for i, ch in enumerate(s):
+        if ch == ",":
+            prev_digit = i > 0 and s[i - 1].isdigit()
+            next_digit = i + 1 < len(s) and s[i + 1].isdigit()
+            if prev_digit and next_digit:
+                continue
+        result.append(ch)
+    return "".join(result)
+
+
 def _run_java_export_obj(sh3d_home: Path, classes_dir: Path,
                          home_path: str, obj_path: Path) -> None:
     """Run ExportObj to produce .obj, .mtl, .camera.json and textures dir."""
@@ -320,6 +361,13 @@ def _render_gpu_photo(
     obj_path = work / "scene.obj"
 
     _run_java_export_obj(sh3d_home, _classes_dir, home_path, obj_path)
+
+    # BUG 1 safety net: strip any remaining thousands-separator commas
+    # from the OBJ file. The Java-side fix (reflection + post-process)
+    # should handle this, but this Python-side pass is a last-resort
+    # guard in case the Java fix is incomplete or the cached .class is
+    # stale.
+    _strip_obj_commas(obj_path)
 
     cam_json = work / "scene.camera.json"
     cmd = [

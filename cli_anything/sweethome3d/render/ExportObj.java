@@ -1,7 +1,12 @@
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.text.NumberFormat;
+import java.util.Locale;
 
 import javax.media.j3d.BranchGroup;
 import javax.media.j3d.Node;
@@ -38,6 +43,17 @@ import com.eteks.sweethome3d.viewcontroller.Object3DFactory;
 public class ExportObj {
 
     public static void main(String[] args) throws Exception {
+        // ------------------------------------------------------------------
+        // BUG 1 FIX: SH3D's OBJWriter uses NumberFormat.getNumberInstance(Locale.US)
+        // which has grouping enabled by default → values ≥1000 get comma
+        // separators (e.g. "1,350.1787"), corrupting the OBJ for Blender's
+        // importer (strtod stops at the comma, vertices collapse).
+        // Setting Locale.ROOT (or Locale.US with grouping disabled) prevents this.
+        // We also set the default locale BEFORE constructing OBJWriter so the
+        // internal NumberFormat.getNumberInstance() call picks up the root locale.
+        // ------------------------------------------------------------------
+        Locale.setDefault(Locale.ROOT);
+
         if (args.length < 2) {
             System.err.println("usage: ExportObj input.sh3d output.obj [includeLights]");
             System.exit(2);
@@ -104,8 +120,37 @@ public class ExportObj {
         // ------------------------------------------------------------------ //
         OBJWriter writer = new OBJWriter(objFile,
                 "Exported from CLI-Anything-SH3D", 4);
+
+        // BUG 1 FIX (belt-and-suspenders): OBJWriter internally creates a
+        // NumberFormat with NumberFormat.getNumberInstance(Locale.US) which
+        // has grouping enabled → comma separators for values ≥1000. Use
+        // reflection to reach the private `numberFormat` field and disable
+        // grouping, so vertex/normal/UV coordinates are written as plain
+        // numbers (e.g. "1350.1787" not "1,350.1787").
+        try {
+            java.lang.reflect.Field nfField =
+                    OBJWriter.class.getDeclaredField("numberFormat");
+            nfField.setAccessible(true);
+            NumberFormat nf = (NumberFormat) nfField.get(writer);
+            if (nf != null) {
+                nf.setGroupingUsed(false);
+                System.out.println("disabled number grouping in OBJWriter");
+            }
+        } catch (Exception reflectEx) {
+            // Reflection can fail on restricted JVMs; the post-process
+            // safety net below still catches any stray commas.
+            System.out.println("note: could not patch OBJWriter numberFormat ("
+                    + reflectEx.getMessage() + "); will post-process");
+        }
+
         writer.writeNode(root);
         writer.close();
+
+        // BUG 1 SAFtey net: post-process the OBJ to strip any remaining
+        // thousands-separator commas from vertex/normal/UV lines.
+        // This catches the case where reflection fails or the internal
+        // defaultNumberFormat (used for exponential notation) still groups.
+        stripGroupingCommas(objFile);
 
         // Report produced files
         System.out.println("exported: " + objFile.getAbsolutePath());
@@ -214,5 +259,78 @@ public class ExportObj {
     /** Converts an ARGB int to a "#AARRGGBB" hex string. */
     private static String argbToHex(int argb) {
         return String.format("#%08X", argb);
+    }
+
+    /**
+     * BUG 1 safety net: strip thousands-separator commas from vertex/normal/UV
+     * lines in the OBJ file. OBJWriter's NumberFormat may still group numbers
+     * ≥1000 (e.g. "1,350.1787") even after the reflection patch, because the
+     * internal defaultNumberFormat (used for exponential notation) uses a
+     * different DecimalFormat. Blender's OBJ importer misparses grouped numbers
+     * (strtod stops at the comma), causing far-side vertices to collapse.
+     *
+     * This pass rewrites v/vn/vt/f lines, removing commas that appear between
+     * digits (thousands separators), while preserving the structural commas in
+     * face lines (which separate vertex/texture/normal indices like "1/2/3").
+     */
+    private static void stripGroupingCommas(File objFile) throws IOException {
+        File tmp = new File(objFile.getAbsolutePath() + ".tmp");
+        boolean changed = false;
+        try (BufferedReader r = new BufferedReader(new FileReader(objFile));
+             PrintWriter w = new PrintWriter(tmp)) {
+            String line;
+            while ((line = r.readLine()) != null) {
+                String fixed = fixObjLine(line);
+                if (!fixed.equals(line)) changed = true;
+                w.println(fixed);
+            }
+        }
+        if (changed) {
+            if (!objFile.delete() || !tmp.renameTo(objFile)) {
+                throw new IOException("could not replace " + objFile
+                        + " with comma-stripped version");
+            }
+            System.out.println("stripped grouping commas from OBJ: " + objFile);
+        } else {
+            tmp.delete();
+        }
+    }
+
+    /**
+     * Remove thousands-separator commas from v, vn, vt lines.
+     * Face lines (f) use slashes, not commas, so they're left alone.
+     * Comment lines (#) are left alone.
+     */
+    private static String fixObjLine(String line) {
+        if (line.isEmpty()) return line;
+        char c = line.charAt(0);
+        // v, vn, vt lines have numeric coords that may contain grouping commas
+        if (c == 'v' && (line.length() == 1 || line.charAt(1) == ' '
+                || line.charAt(1) == 'n' || line.charAt(1) == 't')) {
+            return stripCommasFromNumbers(line);
+        }
+        return line;
+    }
+
+    /**
+     * Remove commas that sit between digits (thousands separators).
+     * "v 17.0609 0 1,350.1787" → "v 17.0609 0 1350.1787"
+     */
+    private static String stripCommasFromNumbers(String s) {
+        StringBuilder sb = new StringBuilder(s.length());
+        for (int i = 0; i < s.length(); i++) {
+            char ch = s.charAt(i);
+            if (ch == ',') {
+                // Only remove if surrounded by digits (thousands separator)
+                boolean prevDigit = i > 0 && Character.isDigit(s.charAt(i - 1));
+                boolean nextDigit = i + 1 < s.length()
+                        && Character.isDigit(s.charAt(i + 1));
+                if (prevDigit && nextDigit) {
+                    continue; // skip this comma
+                }
+            }
+            sb.append(ch);
+        }
+        return sb.toString();
     }
 }
