@@ -1465,6 +1465,7 @@ def save_home(home: Home, path: str, *,
     # come from the installed Furniture.jar.
     resource_entries = _catalog_resource_entries(home)
 
+    path = os.fspath(path)
     tmp = path + ".tmp"
     written_names: set[str] = set()
     with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as z:

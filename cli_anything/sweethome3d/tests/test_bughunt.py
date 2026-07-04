@@ -118,3 +118,15 @@ class TestEmptyFurnitureGroup:
             proj_core.save_home(h, p)
             r = run_sh3d_validator(p)
         assert r.returncode == 0, r.stderr.strip()
+
+
+class TestSaveHomePathLike:
+    """Regression for save_home rejecting pathlib.Path objects."""
+
+    def test_save_home_accepts_pathlib_path(self):
+        h = Home(name="pathlike")
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "pathlike.sh3d"
+            proj_core.save_home(h, p)
+            h2 = proj_core.open_home(p)
+        assert h2.name == "pathlike"
