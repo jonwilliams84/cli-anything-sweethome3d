@@ -311,16 +311,17 @@ if _topdown:
                 wv = obj.matrix_world @ v.co
                 _xs.append(wv.x); _ys.append(wv.y); _zs.append(wv.z)
     if _xs:
-        # Imported SH3D geometry is Y-UP in Blender: Y is height, the floor
-        # plane is X-Z. Look straight DOWN the -Y axis to get a true plan view.
+        # Imported SH3D geometry is Z-UP in Blender (measured: Z span ~ storey
+        # height, X/Y = floor plane). Look straight DOWN the -Z axis for a true
+        # plan view.
         _cx = (min(_xs) + max(_xs)) / 2.0
-        _cz = (min(_zs) + max(_zs)) / 2.0
-        cam_loc = (_cx, max(_ys) + 10.0, _cz)   # above the roof, in +Y
-        cam_rot = (-math.pi / 2.0, 0.0, 0.0)     # look straight down -Y
+        _cy = (min(_ys) + max(_ys)) / 2.0
+        cam_loc = (_cx, _cy, max(_zs) + 10.0)   # above, in +Z
+        cam_rot = (0.0, 0.0, 0.0)                # look straight down -Z
         fov = math.radians(60.0)
         _use_ortho = True
-        _ortho_scale = max(max(_xs) - min(_xs), max(_zs) - min(_zs)) * 1.08
-        print(f"BLENDER-RENDER: TOP-DOWN ortho cam centre=({_cx:.2f},{_cz:.2f}) "
+        _ortho_scale = max(max(_xs) - min(_xs), max(_ys) - min(_ys)) * 1.06
+        print(f"BLENDER-RENDER: TOP-DOWN ortho cam centre=({_cx:.2f},{_cy:.2f}) "
               f"scale={_ortho_scale:.2f}")
     else:
         _topdown = False
