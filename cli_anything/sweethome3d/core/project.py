@@ -137,10 +137,11 @@ def _texture_el_to_xml(parent: ET.Element, tx: "Texture",
     _set_attr(inner, "catalogId", tx.catalogId)
     _set_attr(inner, "name", tx.name)
     _set_attr(inner, "image", tx.image)
-    if tx.width is not None:
-        _set_attr(inner, "width", tx.width)
-    if tx.height is not None:
-        _set_attr(inner, "height", tx.height)
+    # SH3D's HomeXMLHandler.createTexture requires both width and height
+    # attributes on every <texture> element. Missing them raises
+    # "Missing float attribute width" and the file is rejected as damaged.
+    _set_attr(inner, "width", tx.width if tx.width is not None else 0)
+    _set_attr(inner, "height", tx.height if tx.height is not None else 0)
     _set_attr(inner, "xOffset", tx.xOffset)
     _set_attr(inner, "yOffset", tx.yOffset)
     _set_attr(inner, "angle", tx.angle)
