@@ -11,9 +11,9 @@ Engines
   cpu_photo  : SH3D Render (Sunflow) — slow, real GI.
   gpu_photo  : SH3D OBJ export → Blender Cycles+OptiX — GPU GI, photoreal.
 """
-
 from __future__ import annotations
 
+import contextlib
 import glob
 import os
 import shutil
@@ -22,7 +22,7 @@ import tempfile
 import time
 import warnings
 from pathlib import Path
-from typing import Optional
+from typing import Iterable, Iterator, Optional
 
 
 # ---------------------------------------------------------------------------
@@ -31,9 +31,107 @@ from typing import Optional
 _compiled: bool = False
 _classes_dir: Optional[Path] = None
 
+
+# ---------------------------------------------------------------------------
+# Level-visibility filter (per-render)
+# ---------------------------------------------------------------------------
+
+def _resolve_level_specs(home, specs: Iterable[str]) -> set[str]:
+    """Resolve a list of level identifiers (ids or names) to a set of level
+    ids. Raises ValueError if any spec doesn't match a level.
+    """
+    by_id = {lvl.id: lvl for lvl in home.levels}
+    by_name = {lvl.name: lvl for lvl in home.levels if lvl.name}
+    resolved: set[str] = set()
+    missing: list[str] = []
+    for spec in specs:
+        s = spec.strip()
+        if not s:
+            continue
+        if s in by_id:
+            resolved.add(s)
+        elif s in by_name:
+            resolved.add(by_name[s].id)
+        else:
+            missing.append(s)
+    if missing:
+        known = sorted(set(by_id) | set(by_name.keys()))
+        raise ValueError(
+            f"unknown level(s): {missing!r}. Known ids/names: {known!r}"
+        )
+    return resolved
+
+
+@contextlib.contextmanager
+def filtered_levels(
+    home_path: str,
+    *,
+    include: Optional[Iterable[str]] = None,
+    exclude: Optional[Iterable[str]] = None,
+    hide_ceilings: bool = False,
+) -> Iterator[str]:
+    """Yield a path to a temporary .sh3d with the requested level filter
+    applied. Restored (file deleted) on exit.
+
+    Resolution rules:
+    - ``include``: only the named levels remain visible (others get
+      ``level.visible=False``). Pass ids or names.
+    - ``exclude``: the named levels are hidden; all others stay visible.
+    - Pass at most one of the two. Passing neither yields the original
+      path unchanged (no temp file is created).
+    - ``hide_ceilings``: when True, every room on a still-visible level
+      has its ``ceilingVisible`` flag set to False for this render.
+    """
+    if not include and not exclude and not hide_ceilings:
+        yield home_path
+        return
+    if include and exclude:
+        raise ValueError("filtered_levels: pass include OR exclude, not both")
+
+    from cli_anything.sweethome3d.core.project import (  # noqa: PLC0415
+        open_home, save_home,
+    )
+
+    home = open_home(home_path)
+    if include or exclude:
+        if include is not None:
+            keep = _resolve_level_specs(home, include)
+        else:
+            drop = _resolve_level_specs(home, exclude or [])
+            keep = {lvl.id for lvl in home.levels if lvl.id not in drop}
+        if not keep:
+            raise ValueError(
+                "filtered_levels: filter resolved to zero visible levels — "
+                "rendering would produce a sky-only image"
+            )
+        for lvl in home.levels:
+            lvl.visible = lvl.id in keep
+        if home.selectedLevel and home.selectedLevel not in keep:
+            home.selectedLevel = next(iter(keep))
+    else:
+        keep = {lvl.id for lvl in home.levels}
+
+    if hide_ceilings:
+        for r in home.rooms:
+            if r.level in keep:
+                r.ceilingVisible = False
+
+    tmp = tempfile.NamedTemporaryFile(
+        suffix=".sh3d", prefix="sh3d-render-", delete=False,
+    )
+    tmp.close()
+    try:
+        save_home(home, tmp.name, copy_content_from=home_path)
+        yield tmp.name
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+
+
 # Path to blender_render.py (lives next to ExportObj.java in the render/ package)
 BLENDER_SCRIPT = str(Path(__file__).parent.parent / "render" / "blender_render.py")
-
 
 # ---------------------------------------------------------------------------
 # Path discovery helpers
@@ -283,6 +381,52 @@ def _remove_thousands_commas(s: str) -> str:
     return "".join(result)
 
 
+def _needs_export_preprocessing(home_path: str) -> bool:
+    """Quick XML scan: does the .sh3d have a non-zero environment.wallsAlpha?
+
+    When wallsAlpha > 0, OBJWriter sets d=(1-alpha) on EVERY material (not
+    just walls), making all surfaces partially transparent. Cycles renders
+    this as stacked alpha-blended layers — walls look broken when you can
+    see through them into other walls.
+    """
+    import re
+    import zipfile
+
+    try:
+        with zipfile.ZipFile(home_path) as z:
+            if "Home.xml" not in z.namelist():
+                return False
+            xml = z.read("Home.xml").decode("utf-8", errors="replace")
+    except (zipfile.BadZipFile, OSError):
+        return False
+    # Non-zero wallsAlpha on environment
+    env_match = re.search(r'<environment\b[^>]*>', xml)
+    if env_match:
+        alpha_match = re.search(r'wallsAlpha="([^"]+)"', env_match.group(0))
+        if alpha_match:
+            try:
+                if float(alpha_match.group(1)) > 0:
+                    return True
+            except ValueError:
+                pass
+    return False
+
+
+def _copy_with_walls_alpha_zeroed(src_path: str, dst_path: str) -> None:
+    """Copy `src_path` to `dst_path` with `wallsAlpha` zeroed.
+
+    Only zeroes wallsAlpha — level visibility is left as-is because
+    filtered_levels has already set it correctly for the render request.
+    The mutation lives only on disk in the temp copy; the user's
+    source .sh3d is never touched.
+    """
+    from cli_anything.sweethome3d.core.session import Session
+
+    sess = Session.open(src_path)
+    sess.home.environment.wallsAlpha = 0
+    sess.save(dst_path)
+
+
 def _run_java_export_obj(sh3d_home: Path, classes_dir: Path,
                          home_path: str, obj_path: Path) -> None:
     """Run ExportObj to produce .obj, .mtl, .camera.json and textures dir."""
@@ -360,7 +504,22 @@ def _render_gpu_photo(
     work = Path(tempfile.mkdtemp(prefix="sh3d-cycles-"))
     obj_path = work / "scene.obj"
 
-    _run_java_export_obj(sh3d_home, _classes_dir, home_path, obj_path)
+    # Zero wallsAlpha and ensure levels are correctly visible for export.
+    # SH3D's OBJWriter emits d=(1-alpha) on EVERY material when
+    # environment.wallsAlpha > 0, making all surfaces ~7.5% transparent
+    # (wallsAlpha=0.0745 → d=0.9255), which Cycles renders as broken
+    # alpha-blended layers. Also, the GUI default of visible=false on
+    # non-active levels means ExportObj would skip upper floors unless
+    # we promote them — but filtered_levels may have already set some
+    # to false deliberately. We zero wallsAlpha always, and leave level
+    # visibility as-is (filtered_levels already set it correctly).
+    export_src = home_path
+    if _needs_export_preprocessing(home_path):
+        temp_sh3d = work / "preprocessed.sh3d"
+        _copy_with_walls_alpha_zeroed(home_path, str(temp_sh3d))
+        export_src = str(temp_sh3d)
+
+    _run_java_export_obj(sh3d_home, _classes_dir, export_src, obj_path)
 
     # BUG 1 safety net: strip any remaining thousands-separator commas
     # from the OBJ file. The Java-side fix (reflection + post-process)

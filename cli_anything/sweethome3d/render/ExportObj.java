@@ -91,26 +91,37 @@ public class ExportObj {
         Object3DBranchFactory factory = new Object3DBranchFactory(prefs);
         BranchGroup root = new BranchGroup();
 
-        // Walls
+        // Walls — skip those on invisible levels (BUG 5: level filter)
+        int wallCount = 0;
         for (Wall wall : home.getWalls()) {
+            if (wall.getLevel() != null && !wall.getLevel().isViewableAndVisible()) {
+                continue;
+            }
             Object node3d = factory.createObject3D(home, wall, true);
             if (node3d instanceof Node) {
                 root.addChild((Node) node3d);
+                wallCount++;
             }
         }
 
-        // Rooms (floors / ceilings)
+        // Rooms (floors / ceilings) — skip those on invisible levels
+        int roomCount = 0;
         for (Room room : home.getRooms()) {
+            if (room.getLevel() != null && !room.getLevel().isViewableAndVisible()) {
+                continue;
+            }
             Object node3d = factory.createObject3D(home, room, true);
             if (node3d instanceof Node) {
                 root.addChild((Node) node3d);
+                roomCount++;
             }
         }
 
         // Furniture (recursive – HomeFurnitureGroup is also Selectable)
-        addFurniture(home, home.getFurniture(), factory, root, includeLights);
+        int furnCount = addFurniture(home, home.getFurniture(), factory, root, includeLights);
 
-        System.out.println("scene graph assembled");
+        System.out.println("scene graph assembled – walls=" + wallCount
+                + " rooms=" + roomCount + " furniture=" + furnCount);
 
         // ------------------------------------------------------------------ //
         // 3. Write .obj + .mtl via OBJWriter
@@ -195,22 +206,29 @@ public class ExportObj {
      * list that home.getFurniture() returns (which includes top-level items;
      * sub-groups are handled internally by the factory).
      */
-    private static void addFurniture(Home home,
+    private static int addFurniture(Home home,
             java.util.List<HomePieceOfFurniture> furniture,
             Object3DBranchFactory factory,
             BranchGroup root,
             boolean includeLights) {
+        int count = 0;
         for (HomePieceOfFurniture piece : furniture) {
             // Skip lights unless requested
             if (!includeLights
                     && piece instanceof com.eteks.sweethome3d.model.HomeLight) {
                 continue;
             }
+            // BUG 5: skip furniture on invisible levels
+            if (piece.getLevel() != null && !piece.getLevel().isViewableAndVisible()) {
+                continue;
+            }
             Object node3d = factory.createObject3D(home, piece, true);
             if (node3d instanceof Node) {
                 root.addChild((Node) node3d);
+                count++;
             }
         }
+        return count;
     }
 
     /**
