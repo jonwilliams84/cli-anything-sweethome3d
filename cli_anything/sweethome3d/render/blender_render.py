@@ -143,6 +143,19 @@ if not imported_ok:
 scene = bpy.context.scene
 scene.render.engine = 'CYCLES'
 
+# View transform: Blender 4.2 defaults to AgX, which desaturates and washes
+# out bright interiors (walls read as flat pale white). Use Standard for
+# accurate, readable colours, with a slight negative exposure so bright walls
+# don't blow to pure white.
+try:
+    scene.view_settings.view_transform = 'Standard'
+    scene.view_settings.look = 'None'
+    scene.view_settings.exposure = float(__import__('os').environ.get('SH3D_RENDER_EXPOSURE', '-0.7'))
+    scene.view_settings.gamma = 1.0
+    print(f"BLENDER-RENDER: view_transform=Standard exposure={scene.view_settings.exposure}")
+except Exception as _vexc:
+    print(f"BLENDER-RENDER: view transform setup failed: {_vexc}")
+
 compute_backend_used = 'CPU'
 
 def _enable_optix():
