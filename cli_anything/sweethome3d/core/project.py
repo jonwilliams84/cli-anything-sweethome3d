@@ -137,10 +137,11 @@ def _texture_el_to_xml(parent: ET.Element, tx: "Texture",
     _set_attr(inner, "catalogId", tx.catalogId)
     _set_attr(inner, "name", tx.name)
     _set_attr(inner, "image", tx.image)
-    if tx.width is not None:
-        _set_attr(inner, "width", tx.width)
-    if tx.height is not None:
-        _set_attr(inner, "height", tx.height)
+    # SH3D's HomeXMLHandler.createTexture requires both width and height
+    # attributes on every <texture> element. Missing them raises
+    # "Missing float attribute width" and the file is rejected as damaged.
+    _set_attr(inner, "width", tx.width if tx.width is not None else 0)
+    _set_attr(inner, "height", tx.height if tx.height is not None else 0)
     _set_attr(inner, "xOffset", tx.xOffset)
     _set_attr(inner, "yOffset", tx.yOffset)
     _set_attr(inner, "angle", tx.angle)
@@ -624,7 +625,23 @@ def home_to_xml(home: Home) -> ET.ElementTree:
         _write_piece(root, f)
 
     # furniture groups
-    def _write_furnituregroup(parent_el: ET.Element, grp: FurnitureGroup) -> None:
+    def _group_has_content(grp: FurnitureGroup) -> bool:
+        """Return True if the group (recursively) contains at least one piece.
+
+        SH3D's HomeFurnitureGroup constructor throws IndexOutOfBoundsException
+        for an empty furniture list, so an empty group must not be serialized.
+        """
+        for child in grp.furniture:
+            if isinstance(child, PieceOfFurniture):
+                return True
+            if isinstance(child, FurnitureGroup) and _group_has_content(child):
+                return True
+        return False
+
+    def _write_furnituregroup(parent_el: ET.Element, grp: FurnitureGroup) -> bool:
+        """Write a <furnitureGroup> element, skipping empty groups."""
+        if not _group_has_content(grp):
+            return False
         g_el = ET.SubElement(parent_el, "furnitureGroup")
         _set_attr(g_el, "id", grp.id)
         _set_attr(g_el, "level", grp.level)
@@ -666,6 +683,7 @@ def home_to_xml(home: Home) -> ET.ElementTree:
             elif isinstance(child, PieceOfFurniture):
                 _write_piece(g_el, child)
         _textstyle_to_xml(g_el, grp.nameStyle, attribute="nameStyle")
+        return True
 
     for grp in home.furnitureGroups:
         _write_furnituregroup(root, grp)
