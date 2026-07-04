@@ -336,13 +336,15 @@ def _fit_top_down_camera(bounds):
     cy = (min_y + max_y) / 2.0
     width = max_x - min_x
     depth = max_y - min_y
-    # Padding keeps geometry clear of the frame edges even when the output
-    # resolution aspect ratio differs from the room aspect ratio.
-    scale = max(width, depth) * 1.08
+    # Blender's ortho_scale is the *horizontal* world size visible in the
+    # frame.  The vertical visible size is ortho_scale / aspect.  Make sure
+    # the room fits in both dimensions, then add a small padding.
+    aspect = WIDTH / max(HEIGHT, 1)
+    scale = max(width, depth * aspect) * 1.08
     loc = (cx, cy, max_z + 12.0)
     rot = (0.0, 0.0, 0.0)
     print(f"BLENDER-RENDER: TOP-DOWN ortho cam centre=({cx:.2f},{cy:.2f}) "
-          f"scale={scale:.2f} (room {width:.2f}x{depth:.2f})")
+          f"scale={scale:.2f} (room {width:.2f}x{depth:.2f}, aspect={aspect:.3f})")
     return loc, rot, math.radians(60.0), scale
 
 
