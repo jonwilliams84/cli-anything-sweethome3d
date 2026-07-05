@@ -30,6 +30,7 @@ from __future__ import annotations
 import copy
 import json
 import math
+import html
 import uuid
 import zipfile
 import struct
@@ -1659,7 +1660,7 @@ class Designer:
                 if label:
                     lines.append(
                         f'<text x="{tx(cx):.1f}" y="{ty(cy):.1f}" '
-                        f'font-size="10" text-anchor="middle" fill="#333">{_xml_escape(label)}</text>'
+                        f'font-size="10" text-anchor="middle" fill="#333">{html.escape(label, quote=True)}</text>'
                     )
         # Draw walls
         for lv in self._levels:
@@ -1689,16 +1690,6 @@ class Designer:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def _xml_escape(s: str) -> str:
-    return (
-        str(s)
-        .replace("&", "&amp;")
-        .replace('"', "&quot;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-    )
-
 
 def _color_int(hex_color: str) -> int:
     """Convert '#RRGGBB' to SH3D integer ARGB."""
