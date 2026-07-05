@@ -1566,21 +1566,6 @@ class Designer:
         return path
 
 
-    def _make_thumbnail_png(self) -> bytes:
-        """Create a minimal 1×1 white PNG as placeholder thumbnail."""
-        # PNG signature + IHDR + IDAT + IEND
-        def chunk(name: bytes, data: bytes) -> bytes:
-            import zlib
-            crc = zlib.crc32(name + data) & 0xFFFFFFFF
-            return struct.pack(">I", len(data)) + name + data + struct.pack(">I", crc)
-
-        import zlib
-        sig = b"\x89PNG\r\n\x1a\n"
-        ihdr = chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0))
-        raw = b"\x00\xff\xff\xff"
-        idat = chunk(b"IDAT", zlib.compress(raw))
-        iend = chunk(b"IEND", b"")
-        return sig + ihdr + idat + iend
 
     def _render_png(self, path: Path) -> None:
         """Write a simple 2-D floor-plan PNG using only stdlib (no Pillow required)."""
