@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import os
 import tempfile
 import zipfile
@@ -111,6 +112,14 @@ class TestProjectXML:
         assert xs == "0"  # not "0.0"
         ys = tree.find("wall").get("xEnd")
         assert ys == "100"
+
+    def test_explicit_zero_float_attr_is_not_coerced_to_default(self):
+        """Regression: _float_attr result must not be post-processed with `or default`."""
+        xml = b'''<home version="6005"><room nameYOffset="0"><point x="0" y="0"/><point x="100" y="0"/><point x="100" y="100"/></room></home>'''
+        tree = ET.parse(io.BytesIO(xml))
+        home = proj_core.xml_to_home(tree)
+        assert len(home.rooms) == 1
+        assert home.rooms[0].nameYOffset == 0
 
     def test_roundtrip_preserves_walls(self):
         h = proj_core.new_home("RT")
