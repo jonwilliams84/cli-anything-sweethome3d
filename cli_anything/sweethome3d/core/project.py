@@ -886,6 +886,11 @@ def home_to_xml(home: Home) -> ET.ElementTree:
 def _color_from_str(s: Optional[str]) -> Optional[int]:
     if s is None:
         return None
+    s = s.strip()
+    if s.startswith('#'):
+        s = s[1:]
+    elif s.lower().startswith('0x'):
+        s = s[2:]
     try:
         return int(s, 16)
     except ValueError:
@@ -1005,7 +1010,7 @@ def _parse_furniture_el(el: ET.Element, kind: str) -> PieceOfFurniture:
                 x=_float_attr(ls, "x", 0),
                 y=_float_attr(ls, "y", 0),
                 z=_float_attr(ls, "z", 0),
-                color=_color_from_str(ls.get("color")) or 0xFFFFFFFF,
+                color=_color_from_str(ls.get("color")) if ls.get("color") is not None else 0xFFFFFFFF,
                 diameter=_float_attr(ls, "diameter"),
             )
             for ls in el.findall("lightSource")

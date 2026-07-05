@@ -214,6 +214,25 @@ class TestProjectXML:
         assert info["doors_and_windows"] == 1
         assert info["lights"] == 1
 
+    def test_lightsource_black_color_is_preserved(self):
+        """HIGH-1: explicit black (#000000) light source color must not be
+        coerced to the default white because 0x000000 is falsy."""
+        xml = b'''<home version="6005">
+  <light name="lamp" x="100" y="200" angle="0"
+         width="10" depth="10" height="10"
+         visible="true" movable="true"
+         modelCenteredAtOrigin="true" doorOrWindow="false"
+         resizable="true" deformable="true" texturable="true"
+         horizontallyRotatable="true">
+    <lightSource x="0" y="0" z="10" color="#000000"/>
+  </light>
+</home>'''
+        tree = ET.parse(io.BytesIO(xml))
+        home = proj_core.xml_to_home(tree)
+        piece = home.furniture[0]
+        assert len(piece.lightSources) == 1
+        assert piece.lightSources[0].color == 0x000000
+
 
 # ─── walls ──────────────────────────────────────────────────────────────────
 
@@ -1088,3 +1107,5 @@ class TestBackend:
                               lambda x: "/usr/bin/java" if x == "java" else None)
         monkeypatch.setattr(backend.os.path, "isfile", lambda p: p == str(jar))
         assert backend.version() == "7.5"
+
+
