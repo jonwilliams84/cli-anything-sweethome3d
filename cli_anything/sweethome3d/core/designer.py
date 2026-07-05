@@ -193,22 +193,6 @@ def _pt_to_seg_dist(p: Pt, a: Pt, b: Pt) -> tuple[float, Pt]:
     return _dist(p, (cx, cy)), (cx, cy)
 
 
-def _seg_intersection(a1: Pt, a2: Pt, b1: Pt, b2: Pt) -> Optional[Pt]:
-    """Return intersection point of infinite lines through a1-a2 and b1-b2,
-    or None if they are parallel."""
-    x1, y1 = a1
-    x2, y2 = a2
-    x3, y3 = b1
-    x4, y4 = b2
-    denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
-    if abs(denom) < 1e-9:
-        return None
-    t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom
-    ix = x1 + t * (x2 - x1)
-    iy = y1 + t * (y2 - y1)
-    return (ix, iy)
-
-
 def _polygon_area(pts: list[Pt]) -> float:
     """Signed area via shoelace; positive = CCW."""
     n = len(pts)
