@@ -42,16 +42,20 @@ def _resolve_level_specs(home, specs: Iterable[str]) -> set[str]:
     """
     by_id = {lvl.id: lvl for lvl in home.levels}
     by_name = {lvl.name: lvl for lvl in home.levels if lvl.name}
+    # case-insensitive, whitespace-trimmed lookup maps
+    by_id_ci = {k.strip().lower(): v for k, v in by_id.items()}
+    by_name_ci = {k.strip().lower(): v for k, v in by_name.items()}
     resolved: set[str] = set()
     missing: list[str] = []
     for spec in specs:
         s = spec.strip()
         if not s:
             continue
-        if s in by_id:
-            resolved.add(s)
-        elif s in by_name:
-            resolved.add(by_name[s].id)
+        sl = s.lower()
+        if sl in by_id_ci:
+            resolved.add(by_id_ci[sl].id)
+        elif sl in by_name_ci:
+            resolved.add(by_name_ci[sl].id)
         else:
             missing.append(s)
     if missing:

@@ -82,6 +82,22 @@ def _furniture_polygon(f) -> list[tuple[float, float]]:
              for cx, cy in corners]
 
 
+def _resolve_level(home: Home, spec: str) -> str:
+    """Resolve a level spec (id or name) to a level id.
+
+    Matching is whitespace-trimmed and case-insensitive on both id and name.
+    Raises ValueError if the spec matches no level.
+    """
+    s = spec.strip()
+    for lvl in home.levels:
+        if lvl.id.strip().lower() == s.lower() or (lvl.name and lvl.name.strip().lower() == s.lower()):
+            return lvl.id
+    known = sorted({lvl.id for lvl in home.levels} | {lvl.name for lvl in home.levels if lvl.name})
+    raise ValueError(
+        f"unknown level spec: {spec!r}. Known ids/names: {known!r}"
+    )
+
+
 def to_svg(home: Home, *,
            padding: float = 50,
            scale: float = 1.0,
@@ -90,10 +106,12 @@ def to_svg(home: Home, *,
 
     `padding` is the surrounding margin in cm.
     `scale` is a unit multiplier (1.0 = 1 cm per SVG unit).
-    `level` filters to a single level id; None shows the unfiltered top level.
+    `level` filters to a single level (accepts a level id or name);
+    None shows the unfiltered top level.
     """
     if level is not None:
-        filt = lambda obj: obj.level == level  # noqa: E731
+        resolved = _resolve_level(home, level)
+        filt = lambda obj: obj.level == resolved  # noqa: E731
     else:
         filt = lambda obj: True  # noqa: E731
 

@@ -1018,6 +1018,45 @@ class TestExport:
         walls_g = root.find(".//{*}g[@id='walls']")
         assert len(walls_g.findall("{*}polygon")) == 1
 
+    def test_level_filter_by_name(self):
+        """Filtering by level NAME must keep exactly that level's geometry."""
+        h = proj_core.new_home()
+        ground = lvl_core.add_level(h, "Ground")
+        first = lvl_core.add_level(h, "First")
+        walls_core.add_wall(h, 0, 0, 100, 0, level=ground.id)
+        walls_core.add_wall(h, 0, 100, 100, 100, level=first.id)
+        rooms_core.add_rectangle_room(h, 0, 0, 100, 100, level=ground.id)
+        rooms_core.add_rectangle_room(h, 0, 100, 100, 100, level=first.id)
+        # Filter by NAME (not id)
+        svg = export_core.to_svg(h, level="First")
+        root = ET.fromstring(svg)
+        walls_g = root.find(".//{*}g[@id='walls']")
+        rooms_g = root.find(".//{*}g[@id='rooms']")
+        # Only the "First" level has 1 wall and 1 room
+        assert len(walls_g.findall("{*}polygon")) == 1
+        assert len(rooms_g.findall("{*}polygon")) == 1
+
+    def test_level_filter_by_name_case_insensitive(self):
+        """Level name matching should be case-insensitive."""
+        h = proj_core.new_home()
+        ground = lvl_core.add_level(h, "Ground")
+        first = lvl_core.add_level(h, "First")
+        walls_core.add_wall(h, 0, 0, 100, 0, level=ground.id)
+        walls_core.add_wall(h, 0, 100, 100, 100, level=first.id)
+        svg = export_core.to_svg(h, level="first")
+        root = ET.fromstring(svg)
+        walls_g = root.find(".//{*}g[@id='walls']")
+        assert len(walls_g.findall("{*}polygon")) == 1
+
+    def test_level_filter_unknown_name_raises(self):
+        """An unknown level name must raise ValueError, not silently
+        produce an empty plan."""
+        h = proj_core.new_home()
+        ground = lvl_core.add_level(h, "Ground")
+        walls_core.add_wall(h, 0, 0, 100, 0, level=ground.id)
+        with pytest.raises(ValueError, match="unknown level spec"):
+            export_core.to_svg(h, level="Nonexistent")
+
 
 # ─── session ────────────────────────────────────────────────────────────────
 
