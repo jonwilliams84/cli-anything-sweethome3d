@@ -16,6 +16,7 @@ setup(
     ],
     extras_require={
         "watch": ["watchdog>=3.0.0"],
+        "pdf": ["PyMuPDF>=1.23.0"],  # vector floorplan PDF -> sh3d (core.pdf_import)
     },
     entry_points={
         "console_scripts": [
