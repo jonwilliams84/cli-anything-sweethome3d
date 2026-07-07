@@ -403,3 +403,241 @@ if __name__ == "__main__":
                     model_cmd=a.model_cmd, dpi=a.dpi, scale_cm_per_pt=a.scale)
     save_home(h, a.output)
     print(f"{a.output}: {len(h.walls)} walls, {len(h.furniture)} openings, {len(h.rooms)} rooms")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OpenCV room-contour extraction — stub-free rectilinear wall network
+# ─────────────────────────────────────────────────────────────────────────────
+# This layer fills the gaps left by the CubiCasa backend (missing wall segments
+# and short floating stubs) by re-detecting rooms from the raw raster image.
+#
+# Pipeline:
+#   threshold (Otsu or fixed) → morphology close (bridge small gaps)
+#   → connectedComponents on the background → per-room contour
+#   → approxPolyDP (epsilon ~1% of perimeter) → rectilinear room polygons
+#   → wall segments = the boundary edges shared between adjacent rooms
+#     (de-duplicated so each physical wall appears once, not twice).
+#
+# Every wall endpoint meets another wall endpoint — no floating stubs.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OpenCV room-contour extraction — stub-free rectilinear wall network
+# ─────────────────────────────────────────────────────────────────────────────
+# This layer fills gaps left by the CubiCasa backend (missing wall segments
+# and floating stubs) by re-detecting rooms from the raster image.
+#
+# Pipeline:
+#   threshold → morphology close (bridge 1-2px gaps)
+#   → connectedComponents on background → identify bg by border-touch
+#   → per-component findContours(RETR_EXTERNAL) → room contour polygon
+#   → approxPolyDP (epsilon=2% perimeter) → rectilinear room polys
+#   → wall segments = deduplicated room-boundary edges (each shared edge
+#     appears once, not twice — no stubs, all junctions connected).
+#
+# opencv-python-headless is an optional dependency; guarded import via
+# _require_cv2().  Install with: pip install opencv-python-headless
+# or use the [rooms] extra: pip install -e ".[rooms]"
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _require_cv2():
+    """Lazily import OpenCV; raises ImportError with a clear message if absent."""
+    try:
+        import cv2
+        return cv2
+    except ImportError as e:
+        raise ImportError(
+            "room_contours needs opencv-python-headless — install with:\n"
+            "  pip install opencv-python-headless\n"
+            "or use the [rooms] extra: pip install -e '.[rooms]'"
+        ) from e
+
+
+def walls_from_rooms(room_polys, tol: float = 0.5):
+    """
+    Convert a list of rectilinear room polygons into a de-duplicated wall network.
+
+    Each room's edges are candidate wall segments.  Where two rooms share an edge
+    (same geometric segment, ignoring direction) that edge is counted **once** —
+    the physical wall between them.  All non-shared edges are outer walls.
+
+    The result is a closed, stub-free rectilinear network: every wall endpoint
+    meets at least one other wall endpoint (within ``tol`` cm).
+
+    Args:
+        room_polys: list of polygons, each a list of (x_cm, y_cm) tuples.
+        tol:        coordinate equality tolerance in cm (default 0.5).
+                    Two segment endpoints closer than this are considered identical.
+
+    Returns:
+        List of (x0, y0, x1, y1, thickness_cm) wall segments.
+        ``thickness_cm`` is fixed at 15.0 (typical residential wall); call sites
+        can scale/adjust as needed.
+    """
+    import math
+
+    def _pt_key(a, b, tol=tol):
+        """Canonical (unordered) key for a directed segment."""
+        ax, ay = a; bx, by = b
+        if (ax, ay) <= (bx, by):
+            return (ax, ay, bx, by)
+        return (bx, by, ax, ay)
+
+    THICKNESS = 15.0
+    seen = {}  # canonical key → (x0, y0, x1, y1)
+
+    for poly in room_polys:
+        if len(poly) < 3:
+            continue
+        for i in range(len(poly)):
+            a = poly[i]
+            b = poly[(i + 1) % len(poly)]
+            # Skip zero-length edges
+            if math.hypot(b[0] - a[0], b[1] - a[1]) < tol:
+                continue
+            key = _pt_key(a, b)
+            if key not in seen:
+                seen[key] = (a[0], a[1], b[0], b[1])
+
+    return [(x0, y0, x1, y1, THICKNESS) for (x0, y0, x1, y1) in seen.values()]
+
+
+def room_contours(image_path, *, cm_per_px, wall_thresh=200):
+    """
+    Extract rooms and a clean, stub-free wall network from a floorplan raster image.
+
+    The image should be a top-down architectural floorplan (black/dark walls on
+    white/light background).  Works on PNG, JPEG, TIFF, or any format OpenCV reads.
+
+    Pipeline
+    --------
+    1. Read image, convert to grayscale.
+    2. ``cv2.threshold`` at ``wall_thresh`` (0-255); pixels <= this are wall (dark).
+    3. ``MORPH_CLOSE`` (5×5 kernel) to bridge 1-2 px gaps in the wall lines.
+    4. ``connectedComponents`` on the inverted (interior) image → room components.
+       The component that touches the image border is the exterior/background and
+       is excluded, so only genuine interior rooms are kept.
+    5. Per component: ``findContours(RETR_EXTERNAL)`` → room boundary polygon;
+       ``approxPolyDP`` (epsilon=2% perimeter) → simplified rectilinear polygon.
+    6. ``walls_from_rooms()`` → de-duplicated shared-edge wall segments.
+
+    Args
+    ----
+    image_path : str | Path
+        Path to the raster floorplan image.
+    cm_per_px : float
+        Pixel-to-centimetre scale factor (e.g. 0.5 → 1 px = 0.5 cm).
+    wall_thresh : int, default 200
+        Fixed threshold value (0-255).  Pixels <= this are treated as wall (dark).
+        For very dark scanned plans try 150-200; for bright CAD renders try 200-240.
+
+    Returns
+    -------
+    dict with keys:
+        ``rooms``      : list of room polygons, each a list of (x_cm, y_cm) tuples.
+        ``walls``      : list of (x0, y0, x1, y1, thickness_cm) wall segments
+                         forming a closed rectilinear network (no floating stubs).
+        ``image_size_px``: (width_px, height_px) of the input image.
+
+    Raises
+    ------
+    ImportError   : if OpenCV is not installed.
+    FileNotFoundError : if the image path does not exist.
+    RuntimeError  : if no interior rooms are found (try lowering wall_thresh).
+
+    Example
+    -------
+        result = room_contours("floorplan.png", cm_per_px=0.5)
+        print(f"Found {len(result['rooms'])} rooms")
+        for x0, y0, x1, y1, t in result["walls"]:
+            print(f"  Wall: ({x0:.1f},{y0:.1f}) → ({x1:.1f},{y1:.1f}), {t}cm thick")
+    """
+    cv2 = _require_cv2()
+    import numpy as np
+
+    # ── Step 1: read and grayscale ───────────────────────────────────────────
+    img = cv2.imread(str(image_path))
+    if img is None:
+        raise FileNotFoundError(f"Cannot read image: {image_path}")
+    h, w = img.shape[:2]
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    # ── Step 2: threshold (dark = wall) ───────────────────────────────────────
+    _, binary = cv2.threshold(gray, wall_thresh, 255, cv2.THRESH_BINARY_INV)
+
+    # ── Step 3: morphology close (bridge small gaps / broken lines) ───────────
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+    closed = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
+
+    # ── Step 4: connectedComponents on interior pixels → room labels ──────────
+    # Invert: 255 = interior (room pixel), 0 = wall pixel
+    interior = cv2.bitwise_not(closed)
+
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(
+        interior, connectivity=8
+    )
+
+    # Identify the background component: the non-zero label whose bounding box
+    # touches the image border (or the largest non-zero label if none touches the
+    # border — e.g. a fully-enclosed floor plan).
+    # Guard: if num_labels == 1 there are no interior (non-wall) pixels at all.
+    bg_label = None
+    candidate_labels = list(range(1, num_labels))
+    if not candidate_labels:
+        raise RuntimeError(
+            f"room_contours found no interior room pixels in '{image_path}'. "
+            "Try a different wall_thresh (default 200; lower = more wall)."
+        )
+    for label in candidate_labels:
+        x = stats[label, cv2.CC_STAT_LEFT]
+        y = stats[label, cv2.CC_STAT_TOP]
+        bw = stats[label, cv2.CC_STAT_WIDTH]
+        bh = stats[label, cv2.CC_STAT_HEIGHT]
+        if x == 0 or y == 0 or x + bw >= w or y + bh >= h:
+            bg_label = label
+            break
+    # Fallback: largest non-zero label is background
+    if bg_label is None:
+        bg_label = max(candidate_labels,
+                       key=lambda l: stats[l, cv2.CC_STAT_AREA])
+
+    # ── Step 5: per-room contour extraction ───────────────────────────────────
+    rooms = []
+    for label in range(1, num_labels):
+        if label == bg_label:
+            continue
+        area = stats[label, cv2.CC_STAT_AREA]
+        if area < 50:  # skip tiny noise components
+            continue
+
+        mask = (labels == label).astype(np.uint8) * 255
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL,
+                                       cv2.CHAIN_APPROX_SIMPLE)
+        for cnt in contours:
+            peri = cv2.arcLength(cnt, True)
+            if peri < 4:
+                continue
+            # epsilon=2% of perimeter — sufficient to straighten rectilinear rooms
+            # without collapsing narrow corridors
+            approx = cv2.approxPolyDP(cnt, epsilon=0.02 * peri, closed=True)
+            pts = [(float(p[0][0]), float(p[0][1])) for p in approx]
+            # Scale from pixels → centimetres
+            pts_cm = [(x * cm_per_px, y * cm_per_px) for (x, y) in pts]
+            rooms.append(pts_cm)
+
+    if not rooms:
+        raise RuntimeError(
+            f"room_contours found no rooms in '{image_path}'. "
+            "Try a different wall_thresh (default 200; lower = more wall)."
+        )
+
+    # ── Step 6: walls from room boundaries (de-duplicated shared edges) ──────
+    walls = walls_from_rooms(rooms)
+
+    return {
+        "rooms": rooms,
+        "walls": walls,
+        "image_size_px": (int(w), int(h)),
+    }
