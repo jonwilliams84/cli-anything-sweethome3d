@@ -91,14 +91,16 @@ def find_plan_region(page, plan_title, pad=45, window=300):
     return fitz.Rect(min(xs) - pad, min(yy) - pad, max(xs) + pad, max(yy) + pad)
 
 
-def extract_wall_rects(page, region):
-    """Return [(cls, rect)] wall poché rectangles inside `region`, arrowheads removed."""
-    fitz = _require_fitz()
-    out = []
+def extract_wall_polygons(page, region):
+    """Return each wall poché as a list of (x, y) vertex polygons (in PDF points),
+    inside `region`, with dimension arrowheads removed. These outlines are the wall
+    *faces* — feeding them to the SVG wall-pairing pipeline recovers centrelines."""
+    polys = []
     for path in page.get_drawings():
-        cls = classify_fill(path)
+        if not classify_fill(path):
+            continue
         r = path.get("rect")
-        if not cls or not r:
+        if not r:
             continue
         cx, cy = (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2
         area = r.width * r.height
@@ -106,63 +108,87 @@ def extract_wall_rects(page, region):
             continue
         if r.width > 700 or r.height > 700 or _is_dimension_mark(path, area):
             continue
-        out.append((cls, r))
-    return out
+        cur = []
+        for it in path["items"]:
+            if it[0] == "l":
+                if not cur:
+                    cur.append((it[1].x, it[1].y))
+                cur.append((it[2].x, it[2].y))
+            elif it[0] == "re":
+                rr = it[1]
+                if cur:
+                    polys.append(cur); cur = []
+                polys.append([(rr.x0, rr.y0), (rr.x1, rr.y0), (rr.x1, rr.y1), (rr.x0, rr.y1), (rr.x0, rr.y0)])
+            elif it[0] == "qu":
+                q = it[1]
+                if cur:
+                    polys.append(cur); cur = []
+                polys.append([(q.ul.x, q.ul.y), (q.ur.x, q.ur.y), (q.lr.x, q.lr.y), (q.ll.x, q.ll.y), (q.ul.x, q.ul.y)])
+            elif it[0] == "c":
+                if not cur:
+                    cur.append((it[1].x, it[1].y))
+                cur.append((it[4].x, it[4].y))
+        if cur:
+            polys.append(cur)
+    return polys
 
 
-def _merge_runs(rects, axis, cross_tol_frac=0.8, gap=10):
-    """Merge poché rectangles into wall centreline runs.
+def skeleton_walls(polys, scale_cm_per_pt, *, min_wall_cm=25, weld_cm=20, ss=2):
+    """Recover connected wall centrelines from messy architect poché via the
+    medial axis: rasterise the filled poché -> morphological close (heal hatching)
+    -> skeletonise -> Hough-vectorise -> snap to H/V + merge collinear (reusing
+    walls.py) -> weld junctions. Thickness comes from the distance transform.
 
-    axis 0 = horizontal walls (constant y); axis 1 = vertical (constant x).
-    Returns [(cross, a0, a1, thickness, cls)] in PDF points."""
-    segs = []
-    for cls, r in rects:
-        if axis == 0:
-            segs.append([(r.y0 + r.y1) / 2, r.x0, r.x1, r.height, cls])
-        else:
-            segs.append([(r.x0 + r.x1) / 2, r.y0, r.y1, r.width, cls])
-    segs.sort()
-    merged = []
-    for cross, a0, a1, th, cls in segs:
-        for m in merged:
-            if abs(m[0] - cross) <= max(m[3], th) * cross_tol_frac and a0 <= m[2] + gap and a1 >= m[1] - gap:
-                m[1], m[2] = min(m[1], a0), max(m[2], a1)
-                m[3] = max(m[3], th)
-                m[0] = (m[0] + cross) / 2
-                if cls == "existing":
-                    m[4] = "existing"
-                break
-        else:
-            merged.append([cross, a0, a1, th, cls])
-    return merged
+    Returns [(xStart, yStart, xEnd, yEnd, thickness)] in cm. Robust where naive
+    bbox-merge (disconnected) and edge-pairing (under-reads real poché) fail.
+    """
+    import numpy as np
+    from skimage.draw import polygon as draw_polygon
+    from skimage.morphology import skeletonize, closing, footprint_rectangle
+    from skimage.transform import probabilistic_hough_line
+    from scipy.ndimage import distance_transform_edt
+    from cli_anything.sweethome3d.core.svg.walls import axis_aligned, close_corners, join_walls, grid_snap
 
+    ox = min(x for po in polys for x, _ in po)
+    oy = min(y for po in polys for _, y in po)
+    w = int((max(x for po in polys for x, _ in po) - ox) * ss) + 4
+    h = int((max(y for po in polys for _, y in po) - oy) * ss) + 4
+    mask = np.zeros((h, w), bool)
+    for po in polys:
+        xs = np.array([(x - ox) * ss for x, _ in po])
+        ys = np.array([(y - oy) * ss for _, y in po])
+        rr, cc = draw_polygon(ys, xs, shape=mask.shape)
+        mask[rr, cc] = True
+    mask = closing(mask, footprint_rectangle((3, 3)))         # heal hatching / hairline gaps
+    dist = distance_transform_edt(mask)
+    skel = skeletonize(mask)
+    px_per_cm = ss / scale_cm_per_pt
+    segs = probabilistic_hough_line(
+        skel, threshold=8,
+        line_length=max(6, int(min_wall_cm * 0.5 * px_per_cm)),
+        line_gap=max(3, int(6 * px_per_cm)))
+    if not segs:
+        return []
+    # px -> cm segments for the repo's axis snapper/merger
+    cm = scale_cm_per_pt / ss
+    xy = [(a[0] * cm, a[1] * cm, b[0] * cm, b[1] * cm) for a, b in segs]
 
-def _weld(walls, tol):
-    """Snap wall endpoints that are within `tol` (cm) to a shared point, so
-    junctions actually meet (Sweet Home 3D needs connected walls for rooms)."""
-    pts = []
-    for w in walls:
-        pts += [(w.xStart, w.yStart), (w.xEnd, w.yEnd)]
-    clusters = []
-    for x, y in pts:
-        for c in clusters:
-            if abs(c[0] - x) <= tol and abs(c[1] - y) <= tol:
-                c[2].append((x, y))
-                c[0] = sum(p[0] for p in c[2]) / len(c[2])
-                c[1] = sum(p[1] for p in c[2]) / len(c[2])
-                break
-        else:
-            clusters.append([x, y, [(x, y)]])
+    def thickness_cm(xcm, ycm):
+        ix = min(w - 1, max(0, int(xcm / cm))); iy = min(h - 1, max(0, int(ycm / cm)))
+        return max(5.0, round(dist[iy, ix] * 2 / ss * scale_cm_per_pt, 1))
 
-    def snap(x, y):
-        for c in clusters:
-            if abs(c[0] - x) <= tol and abs(c[1] - y) <= tol:
-                return round(c[0], 1), round(c[1], 1)
-        return x, y
-    for w in walls:
-        w.xStart, w.yStart = snap(w.xStart, w.yStart)
-        w.xEnd, w.yEnd = snap(w.xEnd, w.yEnd)
-    return walls
+    # merge collinear Hough fragments with a SMALL min length (keep short partitions),
+    # then a gentle weld — the repo's grid_snap is too aggressive for skeleton output.
+    walls = []
+    for mid, lo, hi in axis_aligned(xy, "h", 6.0, 8.0):
+        walls.append((lo, mid, hi, mid, thickness_cm((lo + hi) / 2, mid)))
+    for mid, lo, hi in axis_aligned(xy, "v", 6.0, 8.0):
+        walls.append((mid, lo, mid, hi, thickness_cm(mid, (lo + hi) / 2)))
+    if walls:
+        walls = close_corners(walls, snap_distance=max(weld_cm, 25.0))
+        walls = join_walls(walls, join_tolerance=max(weld_cm, 25.0))
+    # final: drop stubs shorter than min_wall_cm (spurs) but keep everything else
+    return [w for w in walls if math.hypot(w[2] - w[0], w[3] - w[1]) >= min_wall_cm]
 
 
 def pdf_to_home(pdf_path, *, page_index=0, plan_title=None, region=None,
@@ -188,41 +214,18 @@ def pdf_to_home(pdf_path, *, page_index=0, plan_title=None, region=None,
             if region is None:
                 raise ValueError(f"plan titled {plan_title!r} not found on page {page_index}")
 
-    rects = extract_wall_rects(page, region)
-    if not rects:
+    polys = extract_wall_polygons(page, region)
+    if not polys:
         raise ValueError("no wall poché found in the region — is this a vector plan?")
-    hor = [(c, r) for c, r in rects if r.width >= r.height]
-    ver = [(c, r) for c, r in rects if r.height > r.width]
-    runs = [("h", m) for m in _merge_runs(hor, 0)] + [("v", m) for m in _merge_runs(ver, 1)]
-
-    # origin = min x and min y, taking coords per run TYPE (h-run m[1:3] are x, v-run m[1:3] are y)
-    xs, ys = [], []
-    for kind, m in runs:
-        if kind == "h":
-            ys.append(m[0]); xs += [m[1], m[2]]
-        else:
-            xs.append(m[0]); ys += [m[1], m[2]]
-    ox, oy = min(xs), min(ys)
-    s = scale_cm_per_pt
+    walls = skeleton_walls(polys, scale_cm_per_pt, min_wall_cm=min_wall_cm, weld_cm=weld_cm)
 
     home = Home()
     lvl = Level(name=level_name, elevation=0)
     home.levels.append(lvl)
     home.selectedLevel = lvl.id
-    for kind, (cross, a0, a1, th, cls) in runs:
-        if (a1 - a0) * s < min_wall_cm:      # drop stray poché fragments / corner blocks
-            continue
-        thickness = max(5.0, round(th * s, 1))
-        if kind == "h":
-            w = Wall(round((a0 - ox) * s, 1), round((cross - oy) * s, 1),
-                     round((a1 - ox) * s, 1), round((cross - oy) * s, 1),
-                     thickness=thickness, level=lvl.id, height=250)
-        else:
-            w = Wall(round((cross - ox) * s, 1), round((a0 - oy) * s, 1),
-                     round((cross - ox) * s, 1), round((a1 - oy) * s, 1),
-                     thickness=thickness, level=lvl.id, height=250)
-        home.walls.append(w)
-    _weld(home.walls, weld_cm)
+    for xs_, ys_, xe_, ye_, thick in walls:
+        home.walls.append(Wall(round(xs_, 1), round(ys_, 1), round(xe_, 1), round(ye_, 1),
+                               thickness=max(5.0, round(thick, 1)), level=lvl.id, height=250))
     return home
 
 
