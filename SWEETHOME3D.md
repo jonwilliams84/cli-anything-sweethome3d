@@ -293,3 +293,35 @@ now 407 / 407 pass.
 - **Model joint transformations** (`<transformation>`): data layer round-trips
   but no CLI command group yet — agents must construct `Transformation`
   objects in code if they need to rig a model.
+
+## Floorplan PDF → .sh3d — 2026-07-07 (the USP)
+
+Turn a **vector** architect/estate-agent floorplan PDF into a `.sh3d` with walls,
+doors and windows in place. `core/pdf_import.py` + `sweethome3d import pdf`.
+
+Pipeline: `find_plan_region()` isolates one plan on a busy multi-drawing A0 sheet
+(title anchor → y-band cluster in the title's column → full-width fill bbox; passes
+neighbours/elevations by; override with an explicit `region`). Then two backends:
+
+- **`--backend geometry`** (default, offline, light deps): medial-axis extraction of
+  the wall poché — **walls only**, no model. Deps: `pip install .[pdf]` (PyMuPDF,
+  scikit-image, scipy).
+- **`--backend model`** (high accuracy): renders the region (grey `NEW`/proposed walls
+  → black so the model reads them) and runs an **external floorplan model** for walls +
+  doors + windows + rooms. `polygons_to_home()` maps the pixel polygons → `Home`
+  (px→cm via `dpi × 3.5278`; openings bound to nearest wall).
+
+The reference model is **CubiCasa5k** — *not shipped* (CC BY-NC 4.0, ~200 MB weights +
+torch). The user supplies it and points the backend at
+`tools/cubicasa_runner.py` (original code that imports the user's `floortrans`):
+
+```bash
+export CUBICASA_HOME=/path/to/CubiCasa5k          # user's checkout + weights
+export SH3D_MODEL_CMD="/path/CubiCasa5k/.venv/bin/python \
+  cli_anything/sweethome3d/tools/cubicasa_runner.py {in} {out}"
+sweethome3d import pdf plan.pdf --plan "Ground Floor - Proposed" -o gf.sh3d --backend model
+```
+
+Notes: input must be a *vector* PDF (poché fills + real text), not a scan. Solid-walled
+rooms read well; heavily glazed open-plan areas (bifold/patio doors) under-read — model
+vocab + little wall to see. `core/floorplan_eval.py` scores accuracy vs a truth `Home`.

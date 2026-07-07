@@ -82,3 +82,66 @@ def test_grey_new_walls_classified(tmp_path):
     p = tmp_path / "mixed.pdf"; doc.save(str(p))
     home = pi.pdf_to_home(str(p), scale_cm_per_pt=1.0, min_wall_cm=10, weld_cm=6)
     assert len(home.walls) == 2
+
+
+# ---- model-backend polygon -> Home mapping (no model/GPU needed) --------------
+
+def _pred():
+    """A synthetic model prediction: 4 wall rects (a box) + 1 window on the top
+    wall + 1 door on the left wall, in pixel coords."""
+    t = 8
+    walls = [
+        {"points": [[50, 50], [350, 50], [350, 50 + t], [50, 50 + t]], "class": 2},   # top
+        {"points": [[50, 250 - t], [350, 250 - t], [350, 250], [50, 250]], "class": 2},  # bottom
+        {"points": [[50, 50], [50 + t, 50], [50 + t, 250], [50, 250]], "class": 2},   # left
+        {"points": [[350 - t, 50], [350, 50], [350, 250], [350 - t, 250]], "class": 2},  # right
+    ]
+    openings = [
+        {"points": [[180, 47], [220, 47], [220, 61], [180, 61]], "class": 1},   # window on top
+        {"points": [[46, 140], [60, 140], [60, 190], [46, 190]], "class": 2},   # door on left
+    ]
+    return {"w": 400, "h": 300, "walls": walls, "openings": openings, "rooms": []}
+
+
+def test_polygons_to_home_walls_and_openings():
+    home = pi.polygons_to_home(_pred(), cm_per_px=1.0, min_wall_cm=10, weld_cm=8)
+    assert 4 <= len(home.walls) <= 6                     # box perimeter (welded)
+    dw = [f for f in home.furniture if f.kind == "doorOrWindow"]
+    assert len(dw) == 2
+    assert any("window" in (f.name or "").lower() for f in dw)
+    assert any("door" in (f.name or "").lower() for f in dw)
+    # openings are bound onto walls
+    assert all(f.boundToWall for f in dw)
+
+
+def test_polygons_to_home_scale():
+    home = pi.polygons_to_home(_pred(), cm_per_px=2.0, min_wall_cm=10)  # 2 cm/px; 300px box, 8px walls
+    xs = [c for w in home.walls for c in (w.xStart, w.xEnd)]
+    assert 560 <= (max(xs) - min(xs)) <= 600   # centreline-to-centreline width (~584)
+
+
+def test_model_home_roundtrips(tmp_path):
+    home = pi.polygons_to_home(_pred(), cm_per_px=1.0, min_wall_cm=10)
+    out = tmp_path / "m.sh3d"
+    save_home(home, str(out))
+    r = open_home(str(out))
+    assert len(r.walls) == len(home.walls)
+    assert len([f for f in r.furniture if f.kind == "doorOrWindow"]) == 2
+
+
+def test_grey_to_black(tmp_path):
+    np = pytest.importorskip("numpy")
+    Image = pytest.importorskip("PIL.Image")
+    from PIL import Image as I
+    p = tmp_path / "g.png"
+    arr = np.zeros((20, 20, 3), np.uint8)
+    arr[:] = [128, 128, 128]            # grey extension wall
+    I.fromarray(arr).save(str(p))
+    pi._grey_to_black(str(p))
+    out = np.asarray(I.open(str(p)).convert("RGB"))
+    assert out.max() == 0               # grey -> black
+
+
+def test_run_model_needs_config():
+    with pytest.raises(RuntimeError):
+        pi.run_model("x.png", "y.json", model_cmd=None)

@@ -2453,6 +2453,39 @@ def import_svg(ctx, spec_path, output_path, name):
     _emit(ctx, result)
 
 
+@import_grp.command("pdf")
+@click.argument("pdf_path", type=click.Path(exists=True))
+@click.option("--output", "-o", "output_path", required=True, type=click.Path(),
+              help="Output .sh3d path")
+@click.option("--plan", default=None,
+              help="Plan title to isolate on a multi-drawing sheet, e.g. 'Ground Floor - Proposed'")
+@click.option("--backend", type=click.Choice(["geometry", "model"]), default="geometry",
+              help="geometry = offline poché extraction (walls); model = external floorplan "
+                   "model (walls+doors+windows+rooms, needs --model-cmd/$SH3D_MODEL_CMD)")
+@click.option("--model-cmd", default=None,
+              help="Model backend command with {in}/{out} placeholders (or set $SH3D_MODEL_CMD)")
+@click.option("--dpi", type=int, default=200, help="Render DPI for the model backend")
+@click.option("--page", type=int, default=0)
+@_json_flag
+@click.pass_context
+def import_pdf(ctx, pdf_path, output_path, plan, backend, model_cmd, dpi, page):
+    """Convert a vector architect/estate-agent floorplan PDF into a new .sh3d."""
+    from cli_anything.sweethome3d.core.pdf_import import pdf_to_home
+    try:
+        home = pdf_to_home(pdf_path, page_index=page, plan_title=plan,
+                           backend=backend, model_cmd=model_cmd, dpi=dpi)
+    except Exception as e:
+        raise click.ClickException(f"PDF import failed: {e}")
+    try:
+        proj_core.save_home(home, output_path)
+    except Exception as e:
+        raise click.ClickException(f"save failed: {e}")
+    summary = proj_core.info(home)
+    _emit(ctx, {"created": output_path, "backend": backend, "plan": plan,
+                "walls": summary["walls"], "rooms": summary["rooms"],
+                "doors_and_windows": summary["doors_and_windows"]})
+
+
 # ─────────────────────────────────────────────────────── render group
 
 @cli.group()
