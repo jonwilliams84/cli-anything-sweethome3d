@@ -16,7 +16,9 @@ setup(
     ],
     extras_require={
         "watch": ["watchdog>=3.0.0"],
-        "pdf": ["PyMuPDF>=1.23.0", "scikit-image>=0.22", "scipy>=1.10"],  # vector floorplan PDF -> sh3d (core.pdf_import)
+        "pdf": ["PyMuPDF>=1.23.0", "scikit-image>=0.22", "scipy>=1.10"],
+        # OpenCV raster room-contour layer (core.pdf_import.room_contours)
+        "rooms": ["opencv-python-headless>=4.8"],
     },
     entry_points={
         "console_scripts": [
