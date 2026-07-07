@@ -285,24 +285,35 @@ def _place_opening(walls, cx, cy, w_cm, name, cat, level):
                             catalogId=cat, level=level, boundToWall=True)
 
 
-def polygons_to_home(pred, *, cm_per_px, level_name="Ground Floor", min_wall_cm=20, weld_cm=20):
+def polygons_to_home(pred, *, cm_per_px, level_name="Ground Floor", min_wall_cm=20, weld_cm=20,
+                                 override_walls=None):
     """Convert a model prediction (pixel polygons) into a Home — walls (axis-aligned
-    centrelines + thickness, welded) and doors/windows (bound to walls). Rooms if present."""
+    centrelines + thickness, welded) and doors/windows (bound to walls). Rooms if present.
+
+    If ``override_walls`` is provided as a list of (x0,y0,x1,y1,thickness_cm) segments,
+    those wall segments are used instead of deriving walls from ``pred['walls']``.
+    Openings from ``pred['openings']`` are still bound onto the override walls via
+    ``_place_opening``.  This makes the model backend testable and fusable with the
+    room-contour wall network.
+    """
     from cli_anything.sweethome3d.core.model import Home, Wall, Level, Room, Point
     from cli_anything.sweethome3d.core.svg.walls import close_corners, join_walls
     s = cm_per_px
     raw = []
-    for wp in pred.get("walls", []):
-        pts = wp.get("points", [])
-        if len(pts) < 2:
-            continue
-        x0, y0, x1, y1 = _poly_bbox(pts)
-        ww, hh = x1 - x0, y1 - y0
-        cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
-        if ww >= hh:
-            raw.append((x0 * s, cy * s, x1 * s, cy * s, max(6.0, hh * s)))
-        else:
-            raw.append((cx * s, y0 * s, cx * s, y1 * s, max(6.0, ww * s)))
+    if override_walls is not None:
+        raw = list(override_walls)
+    else:
+        for wp in pred.get("walls", []):
+            pts = wp.get("points", [])
+            if len(pts) < 2:
+                continue
+            x0, y0, x1, y1 = _poly_bbox(pts)
+            ww, hh = x1 - x0, y1 - y0
+            cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+            if ww >= hh:
+                raw.append((x0 * s, cy * s, x1 * s, cy * s, max(6.0, hh * s)))
+            else:
+                raw.append((cx * s, y0 * s, cx * s, y1 * s, max(6.0, ww * s)))
     if raw:
         raw = close_corners(raw, snap_distance=max(weld_cm, 25.0))
         raw = join_walls(raw, join_tolerance=max(weld_cm, 25.0))
@@ -337,7 +348,7 @@ def polygons_to_home(pred, *, cm_per_px, level_name="Ground Floor", min_wall_cm=
 def pdf_to_home(pdf_path, *, page_index=0, plan_title=None, region=None,
                 scale_cm_per_pt=CM_PER_PT_1TO100, backend="geometry", dpi=200,
                 grey_to_black=True, model_cmd=None, min_wall_cm=25, weld_cm=20,
-                level_name="Ground Floor"):
+                level_name="Ground Floor", wall_source="model"):
     """Convert one plan on a vector floorplan PDF into a Home.
 
     `plan_title` (e.g. 'Ground Floor - Proposed') auto-locates the plan on a
@@ -369,8 +380,51 @@ def pdf_to_home(pdf_path, *, page_index=0, plan_title=None, region=None,
         png, out = os.path.join(d, "plan.png"), os.path.join(d, "pred.json")
         render_region_png(page, region, png, dpi=dpi, grey_to_black=grey_to_black)
         pred = run_model(png, out, model_cmd=model_cmd)
-        return polygons_to_home(pred, cm_per_px=(72.0 / dpi) * scale_cm_per_pt,
-                                level_name=level_name, min_wall_cm=min_wall_cm, weld_cm=weld_cm)
+        cm_per_px = (72.0 / dpi) * scale_cm_per_pt
+        override_walls = None
+        if wall_source in ("rooms", "fused"):
+            rc = room_contours(png, cm_per_px=cm_per_px)
+            room_walls = rc.get("walls", [])
+            if wall_source == "rooms":
+                override_walls = room_walls
+            else:
+                # fused: start with room walls, add model walls that have no nearby room wall
+                model_walls = []
+                for wp in pred.get("walls", []):
+                    pts = wp.get("points", [])
+                    if len(pts) < 2:
+                        continue
+                    x0, y0, x1, y1 = _poly_bbox(pts)
+                    ww, hh = x1 - x0, y1 - y0
+                    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+                    if ww >= hh:
+                        model_walls.append((x0 * cm_per_px, cy * cm_per_px,
+                                            x1 * cm_per_px, cy * cm_per_px,
+                                            max(6.0, hh * cm_per_px)))
+                    else:
+                        model_walls.append((cx * cm_per_px, y0 * cm_per_px,
+                                            cx * cm_per_px, y1 * cm_per_px,
+                                            max(6.0, ww * cm_per_px)))
+                fused = list(room_walls)
+                for mw in model_walls:
+                    mx0, my0, mx1, my1, mt = mw
+                    mmx, mmy = (mx0 + mx1) / 2.0, (my0 + my1) / 2.0
+                    near = False
+                    for rw in room_walls:
+                        rx0, ry0, rx1, ry1, _rt = rw
+                        rlen = math.hypot(rx1 - rx0, ry1 - ry0) or 1.0
+                        t = max(0.0, min(1.0, ((mmx - rx0) * (rx1 - rx0) +
+                                               (mmy - ry0) * (ry1 - ry0)) / (rlen * rlen)))
+                        rpx, rpy = rx0 + t * (rx1 - rx0), ry0 + t * (ry1 - ry0)
+                        if math.hypot(mmx - rpx, mmy - rpy) <= max(25.0, mt):
+                            near = True
+                            break
+                    if not near:
+                        fused.append(mw)
+                override_walls = fused
+        return polygons_to_home(pred, cm_per_px=cm_per_px,
+                                level_name=level_name, min_wall_cm=min_wall_cm,
+                                weld_cm=weld_cm, override_walls=override_walls)
 
     polys = extract_wall_polygons(page, region)
     if not polys:
