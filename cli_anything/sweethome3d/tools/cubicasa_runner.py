@@ -23,10 +23,35 @@ class: openings 1=window 2=door. NB: loads the model's .pkl (a pickle) — only 
 import os, sys, json
 
 
+def _sanitise_path(path, *, must_exist=False):
+    """Validate a filesystem path before it is used in any file operation or
+    subprocess argument.  Rejects ``None``, empty strings, and paths containing
+    null bytes or line breaks — characters that can break out of a single argv
+    slot or cause unexpected behaviour in downstream tools.  When
+    *must_exist* is true the path must also exist on disk.
+    """
+    if path is None:
+        raise ValueError("path must not be None")
+    p = str(path)
+    if not p:
+        raise ValueError("path must not be empty")
+    if "\x00" in p or "\n" in p or "\r" in p:
+        raise ValueError(f"unsafe characters in path: {p!r}")
+    if must_exist and not os.path.exists(p):
+        raise ValueError(f"path does not exist: {p!r}")
+    return p
+
+
 def main(inp, out):
+    # Sanitise all inputs before any file or model operation — never pass
+    # unsanitised paths/args into a shell or subprocess invocation.
+    inp = _sanitise_path(inp, must_exist=True)
+    out = _sanitise_path(out)
+
     home = os.environ.get("CUBICASA_HOME")
     if not home or not os.path.isdir(home):
         sys.exit("set $CUBICASA_HOME to your CubiCasa5k checkout")
+    home = _sanitise_path(home)
     os.chdir(home)          # the model's init loads a backbone via a relative path
     sys.path.insert(0, home)
 
@@ -42,6 +67,7 @@ def main(inp, out):
     from floortrans.loaders.augmentations import RotateNTurns
 
     weights = os.environ.get("CUBICASA_WEIGHTS", os.path.join(home, "model_best_val_loss_var.pkl"))
+    weights = _sanitise_path(weights, must_exist=True)
     model = get_model("hg_furukawa_original", 51)
     model.conv4_ = torch.nn.Conv2d(256, 44, bias=True, kernel_size=1)
     model.upsample = torch.nn.ConvTranspose2d(44, 44, kernel_size=4, stride=4)
