@@ -20,10 +20,34 @@ It reads a floorplan PNG and writes a polygons JSON:
     {"w","h","walls":[{"points","class"}],"openings":[{"points","class"}],"rooms":[{"points","name"}]}
 class: openings 1=window 2=door. NB: loads the model's .pkl (a pickle) — only run weights you trust.
 """
-import os, sys, json
+import os, sys, json, re
+
+
+def _sanitise_path(p, name):
+    """Validate a filesystem path received from argv/env before use.
+
+    The runner is invoked as a subprocess by ``pdf_import.run_model`` with
+    ``{in}``/``{out}`` placeholders substituted from user-supplied paths.
+    Although the caller uses ``shell=False`` (list argv), we defensively
+    reject null bytes (which truncate C strings and can fool argument
+    parsing) and shell metacharacters so that a future refactor that
+    accidentally enables ``shell=True`` cannot turn a filename into a
+    command-injection vector.
+    """
+    if not isinstance(p, str) or not p:
+        raise ValueError(f"{name} must be a non-empty string")
+    if "\x00" in p:
+        raise ValueError(f"{name} contains a null byte")
+    if any(ch in p for ch in "\n\r\t"):
+        raise ValueError(f"{name} contains a control character")
+    if re.search(r"[|;&`$()<>]", p):
+        raise ValueError(f"{name} contains a shell metacharacter")
+    return p
 
 
 def main(inp, out):
+    inp = _sanitise_path(inp, "input path")
+    out = _sanitise_path(out, "output path")
     home = os.environ.get("CUBICASA_HOME")
     if not home or not os.path.isdir(home):
         sys.exit("set $CUBICASA_HOME to your CubiCasa5k checkout")
@@ -41,7 +65,7 @@ def main(inp, out):
     from floortrans.post_prosessing import split_prediction, get_polygons
     from floortrans.loaders.augmentations import RotateNTurns
 
-    weights = os.environ.get("CUBICASA_WEIGHTS", os.path.join(home, "model_best_val_loss_var.pkl"))
+    weights = _sanitise_path(os.environ.get("CUBICASA_WEIGHTS", os.path.join(home, "model_best_val_loss_var.pkl")), "CUBICASA_WEIGHTS")
     model = get_model("hg_furukawa_original", 51)
     model.conv4_ = torch.nn.Conv2d(256, 44, bias=True, kernel_size=1)
     model.upsample = torch.nn.ConvTranspose2d(44, 44, kernel_size=4, stride=4)
