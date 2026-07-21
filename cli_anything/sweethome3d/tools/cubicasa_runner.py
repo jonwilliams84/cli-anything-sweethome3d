@@ -20,10 +20,28 @@ It reads a floorplan PNG and writes a polygons JSON:
     {"w","h","walls":[{"points","class"}],"openings":[{"points","class"}],"rooms":[{"points","name"}]}
 class: openings 1=window 2=door. NB: loads the model's .pkl (a pickle) — only run weights you trust.
 """
-import os, sys, json
+import os, sys, json, re
+
+
+def _sanitise_path(p):
+    """Validate a file path before use in file operations or subprocess contexts.
+
+    Rejects None, null bytes, and shell metacharacters / control characters that
+    could allow injection if the path is ever passed to a shell or subprocess.
+    Returns the path unchanged if safe.
+    """
+    if p is None:
+        raise ValueError("path must not be None")
+    if "\x00" in p:
+        raise ValueError("path contains null byte")
+    if re.search(r"[\x00-\x1f<>|;&`$]", p):
+        raise ValueError(f"unsafe characters in path: {p!r}")
+    return p
 
 
 def main(inp, out):
+    inp = _sanitise_path(inp)
+    out = _sanitise_path(out)
     home = os.environ.get("CUBICASA_HOME")
     if not home or not os.path.isdir(home):
         sys.exit("set $CUBICASA_HOME to your CubiCasa5k checkout")
