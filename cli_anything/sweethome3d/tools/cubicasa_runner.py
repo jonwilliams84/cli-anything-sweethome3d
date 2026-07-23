@@ -20,13 +20,33 @@ It reads a floorplan PNG and writes a polygons JSON:
     {"w","h","walls":[{"points","class"}],"openings":[{"points","class"}],"rooms":[{"points","name"}]}
 class: openings 1=window 2=door. NB: loads the model's .pkl (a pickle) — only run weights you trust.
 """
-import os, sys, json
+import os, sys, json, re
+
+# Shell metacharacters that must never appear in a path argument — if this script
+# is ever invoked via a shell (e.g. through pdf_import.run_model with shell=True,
+# or directly from a user's shell), unsanitised paths could break out of their
+# argument slot and execute arbitrary commands.
+_SHELL_META_RE = re.compile(r"[<>|;&`$\\\n\r]")
+
+
+def _sanitize_path(p, label):
+    """Validate a file path before it is used. Rejects empty strings, NUL bytes,
+    and shell metacharacters — defence-in-depth so unsanitised input never
+    reaches a shell or file operation."""
+    if not p or "\x00" in p:
+        raise ValueError(f"invalid {label} path: empty or contains NUL")
+    if _SHELL_META_RE.search(p):
+        raise ValueError(f"invalid {label} path: contains shell metacharacters")
+    return p
 
 
 def main(inp, out):
+    inp = _sanitize_path(inp, "input")
+    out = _sanitize_path(out, "output")
     home = os.environ.get("CUBICASA_HOME")
     if not home or not os.path.isdir(home):
         sys.exit("set $CUBICASA_HOME to your CubiCasa5k checkout")
+    home = _sanitize_path(home, "CUBICASA_HOME")
     os.chdir(home)          # the model's init loads a backbone via a relative path
     sys.path.insert(0, home)
 
@@ -42,6 +62,7 @@ def main(inp, out):
     from floortrans.loaders.augmentations import RotateNTurns
 
     weights = os.environ.get("CUBICASA_WEIGHTS", os.path.join(home, "model_best_val_loss_var.pkl"))
+    weights = _sanitize_path(weights, "CUBICASA_WEIGHTS")
     model = get_model("hg_furukawa_original", 51)
     model.conv4_ = torch.nn.Conv2d(256, 44, bias=True, kernel_size=1)
     model.upsample = torch.nn.ConvTranspose2d(44, 44, kernel_size=4, stride=4)
