@@ -20,6 +20,7 @@ import os
 import zipfile
 from typing import Optional
 from xml.etree import ElementTree as ET
+from defusedxml import ElementTree as DefusedET
 
 from cli_anything.sweethome3d.core.model import (
     CURRENT_VERSION,
@@ -1477,7 +1478,7 @@ def open_home(path: str) -> Home:
         names = z.namelist()
         if HOME_XML_ENTRY in names:
             with z.open(HOME_XML_ENTRY) as f:
-                tree = ET.parse(f)
+                tree = DefusedET.parse(f)
             return xml_to_home(tree)
         if HOME_BINARY_ENTRY in names:
             raise ValueError(
