@@ -162,7 +162,7 @@ def _find_sh3d_home() -> Path:
 
 
 def _find_javac() -> Path:
-    """Return path to a javac binary, checking JAVA_HOME, /tmp/jdk8u402-b06, then PATH."""
+    """Return path to a javac binary, checking JAVA_HOME, the XDG cache dir, then PATH."""
     # 1. JAVA_HOME env var
     java_home = os.environ.get("JAVA_HOME")
     if java_home:
@@ -174,8 +174,8 @@ def _find_javac() -> Path:
             "Ensure JAVA_HOME points to a full JDK (not a JRE)."
         )
 
-    # 2. Known download location
-    bundled = Path("/tmp/jdk8u402-b06/bin/javac")
+    # 2. Known download location (per-user XDG cache dir, not world-writable /tmp)
+    bundled = _cache_dir() / "jdk8u402-b06" / "bin" / "javac"
     if bundled.is_file():
         return bundled
 
@@ -189,7 +189,7 @@ def _find_javac() -> Path:
         "  * Set JAVA_HOME to a JDK directory.\n"
         "  * Download a JDK: wget -qO- https://github.com/adoptium/temurin8-binaries/"
         "releases/download/jdk8u402-b06/OpenJDK8U-jdk_x64_linux_hotspot_8u402b06.tar.gz"
-        " | tar -xz -C /tmp && mv /tmp/jdk8u402-b06 /tmp/jdk8u402-b06\n"
+        f" | tar -xz -C {_cache_dir()} && mv {_cache_dir()}/jdk8u402-b06 {_cache_dir()}/jdk8u402-b06\n"
         "  * Or install via: sudo apt install default-jdk"
     )
 
