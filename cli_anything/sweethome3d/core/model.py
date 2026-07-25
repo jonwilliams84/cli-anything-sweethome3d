@@ -33,19 +33,21 @@ class TextStyle:
     `attribute` is one of: 'nameStyle' | 'areaStyle' | 'lengthStyle' | None
     (None means the style applies directly to the label or furniture name).
     """
+
     fontSize: float
     fontName: Optional[str] = None
     bold: bool = False
     italic: bool = False
-    alignment: str = "CENTER"   # LEFT | CENTER | RIGHT
+    alignment: str = "CENTER"  # LEFT | CENTER | RIGHT
 
 
 @dataclass
 class Material:
     """Per-material colour/shininess/texture override within a 3D model."""
+
     name: str
     key: Optional[str] = None
-    color: Optional[int] = None        # AARRGGBB
+    color: Optional[int] = None  # AARRGGBB
     shininess: Optional[float] = None
     texture: Optional["Texture"] = None
 
@@ -56,18 +58,23 @@ class Transformation:
 
     `matrix` is a space-separated string of 12 floats: m00 m01 m02 m03 ...
     """
+
     name: str
     matrix: str  # "m00 m01 m02 m03 m10 m11 m12 m13 m20 m21 m22 m23"
 
     def __post_init__(self) -> None:
         parts = self.matrix.strip().split()
         if len(parts) != 12:
-            raise ValueError(f"Transformation matrix must contain exactly 12 floats, got {len(parts)}")
+            raise ValueError(
+                f"Transformation matrix must contain exactly 12 floats, got {len(parts)}"
+            )
         for part in parts:
             try:
                 float(part)
             except ValueError as exc:
-                raise ValueError(f"Transformation matrix contains non-numeric value: {part!r}") from exc
+                raise ValueError(
+                    f"Transformation matrix contains non-numeric value: {part!r}"
+                ) from exc
 
 
 @dataclass
@@ -76,16 +83,18 @@ class LightSource:
 
     Positions are in the model's local coordinate space (0–1 normalised).
     """
+
     x: float
     y: float
     z: float
-    color: int           # AARRGGBB
+    color: int  # AARRGGBB
     diameter: Optional[float] = None
 
 
 @dataclass
 class LightSourceMaterial:
     """Names a material group in the light's 3D model that glows."""
+
     name: str
 
 
@@ -95,6 +104,7 @@ class Sash:
 
     Coordinates are fractions of the door/window dimensions (0–1).
     """
+
     xAxis: float
     yAxis: float
     width: float
@@ -108,6 +118,7 @@ class Baseboard:
 
     `attribute` is either 'leftSideBaseboard' or 'rightSideBaseboard'.
     """
+
     thickness: float
     height: float
     color: Optional[int] = None
@@ -117,6 +128,7 @@ class Baseboard:
 @dataclass
 class Point:
     """A 2D point used inside room/polyline `<point>` children."""
+
     x: float
     y: float
 
@@ -124,6 +136,7 @@ class Point:
 @dataclass
 class Texture:
     """An external texture reference (file path or catalog id)."""
+
     catalogId: Optional[str] = None
     name: Optional[str] = None
     image: Optional[str] = None  # CONTENT path (zip entry name)
@@ -149,12 +162,13 @@ class BackgroundImage:
     is the two clicked points (XStart, YStart, XEnd, YEnd) in image pixel
     coordinates, plus the real distance (cm) the line represents.
     """
-    image: str                                  # ZIP entry name
-    scaleDistance: float                        # cm
-    scaleDistanceXStart: float                  # px
-    scaleDistanceYStart: float                  # px
-    scaleDistanceXEnd: float                    # px
-    scaleDistanceYEnd: float                    # px
+
+    image: str  # ZIP entry name
+    scaleDistance: float  # cm
+    scaleDistanceXStart: float  # px
+    scaleDistanceYStart: float  # px
+    scaleDistanceXEnd: float  # px
+    scaleDistanceYEnd: float  # px
     xOrigin: float = 0
     yOrigin: float = 0
     visible: bool = True
@@ -181,9 +195,9 @@ class Wall:
     xEnd: float
     yEnd: float
     id: str = field(default_factory=_gen_id)
-    level: Optional[str] = None        # level id
+    level: Optional[str] = None  # level id
     height: float = 250
-    heightAtEnd: float = 0             # 0 = same as height
+    heightAtEnd: float = 0  # 0 = same as height
     thickness: float = 7.5
     arcExtent: float = 0
     pattern: Optional[str] = "hatchUp"
@@ -236,6 +250,7 @@ class PieceOfFurniture:
     differs accordingly; specialized fields (e.g. wallThickness for doors,
     power for lights) live on the same class for simplicity.
     """
+
     name: str
     x: float
     y: float
@@ -250,7 +265,7 @@ class PieceOfFurniture:
     angle: float = 0
     pitch: float = 0
     roll: float = 0
-    model: Optional[str] = None        # CONTENT path
+    model: Optional[str] = None  # CONTENT path
     icon: Optional[str] = None
     color: Optional[int] = None
     shininess: float = 0
@@ -262,42 +277,42 @@ class PieceOfFurniture:
     # door/window only
     wallThickness: Optional[float] = None  # fraction of opening width
     wallDistance: Optional[float] = None
-    wallWidth: Optional[float] = None      # length of the host wall (cm)
-    wallLeft: Optional[float] = None       # offset from wall start to door's left edge (cm)
-    wallTop: Optional[float] = None        # offset from top of wall to top of cut (cm)
-    wallHeight: Optional[float] = None     # height of the wall cut (cm)
+    wallWidth: Optional[float] = None  # length of the host wall (cm)
+    wallLeft: Optional[float] = None  # offset from wall start to door's left edge (cm)
+    wallTop: Optional[float] = None  # offset from top of wall to top of cut (cm)
+    wallHeight: Optional[float] = None  # height of the wall cut (cm)
     cutOutShape: Optional[str] = None
-    boundToWall: Optional[bool] = None     # None = default (true); false = unbind explicitly
+    boundToWall: Optional[bool] = None  # None = default (true); false = unbind explicitly
     # light only
     power: Optional[float] = None
     # additional piece attributes (schema completeness)
-    planIcon: Optional[str] = None           # CONTENT path for plan-view icon
-    widthInPlan: Optional[float] = None      # override width in 2D plan view
-    depthInPlan: Optional[float] = None      # override depth in 2D plan view
-    heightInPlan: Optional[float] = None     # override height in 2D plan view
-    modelFlags: Optional[int] = None         # bitfield: 1=backFaceShown
-    modelSize: Optional[int] = None          # hint: original file size in bytes
-    modelMirrored: bool = False              # mirror model along width axis
-    modelRotation: Optional[str] = None      # 3×3 matrix, 9 space-separated floats
+    planIcon: Optional[str] = None  # CONTENT path for plan-view icon
+    widthInPlan: Optional[float] = None  # override width in 2D plan view
+    depthInPlan: Optional[float] = None  # override depth in 2D plan view
+    heightInPlan: Optional[float] = None  # override height in 2D plan view
+    modelFlags: Optional[int] = None  # bitfield: 1=backFaceShown
+    modelSize: Optional[int] = None  # hint: original file size in bytes
+    modelMirrored: bool = False  # mirror model along width axis
+    modelRotation: Optional[str] = None  # 3×3 matrix, 9 space-separated floats
     modelCenteredAtOrigin: Optional[bool] = None  # whether model origin is centred
-    staircaseCutOutShape: Optional[str] = None   # SVG path for staircase cut-out
-    dropOnTopElevation: float = 1.0          # relative elevation for drop-on-top
-    resizable: bool = True                   # whether dimensions can be changed
-    deformable: bool = True                  # whether W/D/H can be set independently
-    texturable: bool = True                  # whether texture can be applied
-    horizontallyRotatable: bool = True       # whether pitch/roll can be set
-    doorOrWindowFlag: bool = False           # behaves as door/window (cuts walls)
-    nameAngle: float = 0                     # name label rotation (rad)
-    nameXOffset: float = 0                   # name label X offset from centre (cm)
-    nameYOffset: float = 0                   # name label Y offset from centre (cm)
-    information: Optional[str] = None        # additional info (URL etc.)
-    license: Optional[str] = None            # license text
-    price: Optional[str] = None             # unit price (decimal string)
+    staircaseCutOutShape: Optional[str] = None  # SVG path for staircase cut-out
+    dropOnTopElevation: float = 1.0  # relative elevation for drop-on-top
+    resizable: bool = True  # whether dimensions can be changed
+    deformable: bool = True  # whether W/D/H can be set independently
+    texturable: bool = True  # whether texture can be applied
+    horizontallyRotatable: bool = True  # whether pitch/roll can be set
+    doorOrWindowFlag: bool = False  # behaves as door/window (cuts walls)
+    nameAngle: float = 0  # name label rotation (rad)
+    nameXOffset: float = 0  # name label X offset from centre (cm)
+    nameYOffset: float = 0  # name label Y offset from centre (cm)
+    information: Optional[str] = None  # additional info (URL etc.)
+    license: Optional[str] = None  # license text
+    price: Optional[str] = None  # unit price (decimal string)
     valueAddedTaxPercentage: Optional[str] = None  # VAT percentage (decimal string)
-    currency: Optional[str] = None          # ISO 4217 currency code
-    wallCutOutOnBothSides: bool = False      # cut through both sides of wall
-    widthDepthDeformable: bool = True        # width/depth can be resized independently
-    lockedInBasePlan: bool = False           # locked in base plan
+    currency: Optional[str] = None  # ISO 4217 currency code
+    wallCutOutOnBothSides: bool = False  # cut through both sides of wall
+    widthDepthDeformable: bool = True  # width/depth can be resized independently
+    lockedInBasePlan: bool = False  # locked in base plan
     # door/window sashes
     sashes: list[Sash] = field(default_factory=list)
     # light sources and light-emitting materials
@@ -318,16 +333,17 @@ class PieceOfFurniture:
 @dataclass
 class Camera:
     """Top-down (plan) or observer (first-person) camera."""
-    kind: str = "topCamera"            # topCamera | observerCamera
+
+    kind: str = "topCamera"  # topCamera | observerCamera
     id: Optional[str] = None
     x: float = 0
     y: float = 0
     z: float = 1000
-    yaw: float = 0                     # radians
-    pitch: float = 0                   # radians (downward positive for topCamera)
-    fieldOfView: float = 1.0           # radians
-    time: Optional[int] = None         # millis-since-epoch (sun position)
-    lens: str = "PINHOLE"              # PINHOLE | NORMAL | FISHEYE | SPHERICAL
+    yaw: float = 0  # radians
+    pitch: float = 0  # radians (downward positive for topCamera)
+    fieldOfView: float = 1.0  # radians
+    time: Optional[int] = None  # millis-since-epoch (sun position)
+    lens: str = "PINHOLE"  # PINHOLE | NORMAL | FISHEYE | SPHERICAL
     name: Optional[str] = None
     fixedSize: bool = False
     renderer: Optional[str] = None
@@ -363,7 +379,7 @@ class Label:
     pitch: Optional[float] = None
     color: Optional[int] = None
     outlineColor: Optional[int] = None
-    style: Optional["TextStyle"] = None   # the label's own textStyle (no attribute)
+    style: Optional["TextStyle"] = None  # the label's own textStyle (no attribute)
 
 
 @dataclass
@@ -375,7 +391,7 @@ class Polyline:
     capStyle: str = "BUTT"
     joinStyle: str = "MITER"
     dashStyle: str = "SOLID"
-    dashPattern: Optional[str] = None   # space-separated floats for CUSTOMIZED dash
+    dashPattern: Optional[str] = None  # space-separated floats for CUSTOMIZED dash
     dashOffset: float = 0
     startArrowStyle: str = "NONE"
     endArrowStyle: str = "NONE"
@@ -390,7 +406,7 @@ class Compass:
     x: float = 50
     y: float = 50
     diameter: float = 100
-    northDirection: float = 0          # radians
+    northDirection: float = 0  # radians
     longitude: Optional[float] = None
     latitude: Optional[float] = None
     timeZone: Optional[str] = None
@@ -401,12 +417,13 @@ class Compass:
 @dataclass
 class Environment:
     """Home-level environment: sky, ground, lighting, photo settings."""
-    skyColor: Optional[int] = None         # ARGB int
+
+    skyColor: Optional[int] = None  # ARGB int
     groundColor: Optional[int] = None
     lightColor: Optional[int] = None
     ceilingLightColor: Optional[int] = None
     wallsAlpha: float = 0
-    drawingMode: str = "FILL"              # FILL | OUTLINE | FILL_AND_OUTLINE
+    drawingMode: str = "FILL"  # FILL | OUTLINE | FILL_AND_OUTLINE
     subpartSizeUnderLight: float = 0
     allLevelsVisible: bool = False
     observerCameraElevationAdjusted: bool = True
@@ -431,6 +448,7 @@ class Print:
 
     `printedLevels` is a list of level IDs to include in the printout.
     """
+
     paperWidth: float
     paperHeight: float
     paperTopMargin: float
@@ -453,6 +471,7 @@ class Shelf:
 
     Either `elevation` (flat shelf) or the 6 box-bound attributes are set.
     """
+
     elevation: Optional[float] = None
     xLower: Optional[float] = None
     yLower: Optional[float] = None
@@ -469,6 +488,7 @@ class FurnitureGroup:
     The `furniture` list may contain `PieceOfFurniture` or nested `FurnitureGroup`
     instances (heterogeneous via Union — both are valid).
     """
+
     name: str
     furniture: list = field(default_factory=list)  # list[PieceOfFurniture | FurnitureGroup]
     id: str = field(default_factory=_gen_id)
@@ -502,14 +522,15 @@ class FurnitureGroup:
 @dataclass
 class Home:
     """Root container — corresponds to <home> XML element."""
+
     name: Optional[str] = None
     version: int = CURRENT_VERSION
-    camera: str = "topCamera"              # which camera is active
+    camera: str = "topCamera"  # which camera is active
     wallHeight: float = 250
     basePlanLocked: bool = False
     furnitureSortedProperty: Optional[str] = None
     furnitureDescendingSorted: bool = False
-    selectedLevel: Optional[str] = None    # level id
+    selectedLevel: Optional[str] = None  # level id
 
     levels: list[Level] = field(default_factory=list)
     walls: list[Wall] = field(default_factory=list)
@@ -563,6 +584,7 @@ class Home:
                 if (not want_id) and f.name and f.name.lower() == ident.lower():
                     return f
             return None
+
         # Search top-level + groups by id first; then by name.
         for source in (self.furniture, self.furnitureGroups):
             hit = _scan(source, want_id=True)

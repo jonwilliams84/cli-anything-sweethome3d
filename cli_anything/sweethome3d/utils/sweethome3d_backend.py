@@ -33,7 +33,7 @@ def find_sweethome3d() -> list[str]:
 
     Caller appends ['-open', 'path.sh3d'] and runs subprocess.
     """
-    if (env := os.environ.get("SWEETHOME3D_BIN")):
+    if env := os.environ.get("SWEETHOME3D_BIN"):
         if os.path.isfile(env):
             return [env]
     path = shutil.which("sweethome3d") or shutil.which("SweetHome3D")
@@ -42,11 +42,10 @@ def find_sweethome3d() -> list[str]:
     macos = "/Applications/Sweet Home 3D.app/Contents/MacOS/SweetHome3D"
     if os.path.isfile(macos):
         return [macos]
-    for candidate in ("/opt/sweethome3d/SweetHome3D",
-                       "/usr/share/sweethome3d/SweetHome3D"):
+    for candidate in ("/opt/sweethome3d/SweetHome3D", "/usr/share/sweethome3d/SweetHome3D"):
         if os.path.isfile(candidate):
             return [candidate]
-    if (jar := os.environ.get("SWEETHOME3D_JAR")):
+    if jar := os.environ.get("SWEETHOME3D_JAR"):
         if os.path.isfile(jar):
             java = shutil.which("java")
             if not java:
@@ -63,19 +62,16 @@ def find_sweethome3d() -> list[str]:
     )
 
 
-def open_in_app(sh3d_path: str, *, wait: bool = False,
-                  timeout: Optional[float] = None) -> int:
+def open_in_app(sh3d_path: str, *, wait: bool = False, timeout: Optional[float] = None) -> int:
     """Launch SH3D with the given file open. Returns exit code (or pid if !wait).
 
     SH3D is GUI-only — this will pop a window unless run with a virtual display.
     """
-    argv = find_sweethome3d() + ["-open", os.path.abspath(sh3d_path)]
+    argv = [*find_sweethome3d(), "-open", os.path.abspath(sh3d_path)]
     if wait:
         proc = subprocess.run(argv, timeout=timeout)
         return proc.returncode
-    proc = subprocess.Popen(argv,
-                              stdout=subprocess.DEVNULL,
-                              stderr=subprocess.DEVNULL)
+    proc = subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return proc.pid
 
 
@@ -96,7 +92,7 @@ def version() -> Optional[str]:
             # bare "SweetHome3D-.jar" yields an empty version, which is not a
             # usable answer, so keep looking at the remaining tokens.
             base = os.path.basename(token)
-            inner = base[len("SweetHome3D-"):-len(".jar")]
+            inner = base[len("SweetHome3D-") : -len(".jar")]
             if inner:
                 return inner
     return None

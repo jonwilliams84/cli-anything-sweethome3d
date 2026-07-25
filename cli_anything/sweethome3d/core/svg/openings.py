@@ -76,8 +76,7 @@ def extract_openings(svg_root: ET.Element):
                 cx, cy = apply(my_xform, cx, cy)
                 a, b, c, d_, _, _ = my_xform
                 scale = math.hypot(a, b)
-                out.append((kinds[fill], cx, cy,
-                             w * scale, d * scale, angle, fill))
+                out.append((kinds[fill], cx, cy, w * scale, d * scale, angle, fill))
         elif el.tag == "path":
             # Inkscape's compressed export emits opening rects as paths.
             # A single coloured path can contain MULTIPLE openings as
@@ -87,8 +86,10 @@ def extract_openings(svg_root: ET.Element):
             fill = classify_fill(el)
             if fill in kinds:
                 from cli_anything.sweethome3d.core.svg.parse import (
-                    parse_path, walk_path,
+                    parse_path,
+                    walk_path,
                 )
+
                 cmds = parse_path(el.get("d", ""))
                 # Split commands at each M/m into subpath chunks.
                 subpaths: list[list] = []
@@ -100,7 +101,7 @@ def extract_openings(svg_root: ET.Element):
                     cur.append((cmd, args))
                 if cur:
                     subpaths.append(cur)
-                a, b, c, d_, _, _ = my_xform
+                a, b, _c, d_, _, _ = my_xform
                 scale = math.hypot(a, b)
                 for sub in subpaths:
                     segs = walk_path(sub)
@@ -116,11 +117,9 @@ def extract_openings(svg_root: ET.Element):
                     cx, cy = (minx + maxx) / 2, (miny + maxy) / 2
                     cx, cy = apply(my_xform, cx, cy)
                     if w >= h:
-                        out.append((kinds[fill], cx, cy,
-                                     w * scale, h * scale, 0.0, fill))
+                        out.append((kinds[fill], cx, cy, w * scale, h * scale, 0.0, fill))
                     else:
-                        out.append((kinds[fill], cx, cy,
-                                     h * scale, w * scale, math.pi / 2, fill))
+                        out.append((kinds[fill], cx, cy, h * scale, w * scale, math.pi / 2, fill))
         for child in el:
             visit(child, my_xform)
 
@@ -161,11 +160,19 @@ def drop_walls_inside_openings(walls, openings, *, margin: float = 10.0):
             continue
         op_h = abs(ang) < 0.1 or abs(abs(ang) - math.pi) < 0.1
         if op_h:
-            bbox = (cx - ow / 2 - margin, cy - od / 2 - margin,
-                    cx + ow / 2 + margin, cy + od / 2 + margin)
+            bbox = (
+                cx - ow / 2 - margin,
+                cy - od / 2 - margin,
+                cx + ow / 2 + margin,
+                cy + od / 2 + margin,
+            )
         else:
-            bbox = (cx - od / 2 - margin, cy - ow / 2 - margin,
-                    cx + od / 2 + margin, cy + ow / 2 + margin)
+            bbox = (
+                cx - od / 2 - margin,
+                cy - ow / 2 - margin,
+                cx + od / 2 + margin,
+                cy + ow / 2 + margin,
+            )
         bboxes.append((op_h, *bbox))
 
     out = []
@@ -187,10 +194,15 @@ def drop_walls_inside_openings(walls, openings, *, margin: float = 10.0):
     return out
 
 
-def snap_opening_to_wall(cx: float, cy: float, opening_angle: float,
-                            opening_width: float,
-                            walls, *, max_perp_distance: float = 80.0
-                            ) -> Optional[tuple[float, float, float, float, float, float, float]]:
+def snap_opening_to_wall(
+    cx: float,
+    cy: float,
+    opening_angle: float,
+    opening_width: float,
+    walls,
+    *,
+    max_perp_distance: float = 80.0,
+) -> Optional[tuple[float, float, float, float, float, float, float]]:
     """Project a door/window centre onto the nearest wall's centreline.
 
     Returns ``(snapped_cx, snapped_cy, wall_thickness, wall_angle,

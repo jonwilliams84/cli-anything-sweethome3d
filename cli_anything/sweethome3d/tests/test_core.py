@@ -27,19 +27,13 @@ from cli_anything.sweethome3d.core.model import (
     CURRENT_VERSION,
     Baseboard,
     Camera,
-    Compass,
-    DimensionLine,
-    Environment,
     FurnitureGroup,
     Home,
-    Label,
-    Level,
     LightSource,
     LightSourceMaterial,
     Material,
     PieceOfFurniture,
     Point,
-    Polyline,
     Print,
     Room,
     Sash,
@@ -53,6 +47,7 @@ from cli_anything.sweethome3d.utils import sweethome3d_backend as backend
 
 
 # ─── model ──────────────────────────────────────────────────────────────────
+
 
 class TestModel:
     def test_current_version(self):
@@ -73,15 +68,14 @@ class TestModel:
 
     def test_find_furniture_by_name(self):
         h = Home()
-        h.furniture.append(PieceOfFurniture(
-            name="Sofa", x=0, y=0, width=200, depth=80, height=80))
+        h.furniture.append(PieceOfFurniture(name="Sofa", x=0, y=0, width=200, depth=80, height=80))
         # case-insensitive
         assert h.find_furniture("SOFA") is not None
         assert h.find_furniture("sofa").name == "Sofa"
 
     def test_find_room_by_name_or_id(self):
         h = Home()
-        r = Room(points=[Point(0,0), Point(10,0), Point(10,10)], name="Lounge")
+        r = Room(points=[Point(0, 0), Point(10, 0), Point(10, 10)], name="Lounge")
         h.rooms.append(r)
         assert h.find_room("Lounge") is r
         assert h.find_room(r.id) is r
@@ -89,6 +83,7 @@ class TestModel:
 
 
 # ─── project (XML) ──────────────────────────────────────────────────────────
+
 
 class TestProjectXML:
     def test_new_home_empty(self):
@@ -116,7 +111,7 @@ class TestProjectXML:
 
     def test_explicit_zero_float_attr_is_not_coerced_to_default(self):
         """Regression: _float_attr result must not be post-processed with `or default`."""
-        xml = b'''<home version="6005"><room nameYOffset="0"><point x="0" y="0"/><point x="100" y="0"/><point x="100" y="100"/></room></home>'''
+        xml = b"""<home version="6005"><room nameYOffset="0"><point x="0" y="0"/><point x="100" y="0"/><point x="100" y="100"/></room></home>"""
         tree = DefusedET.parse(io.BytesIO(xml))
         home = proj_core.xml_to_home(tree)
         assert len(home.rooms) == 1
@@ -136,8 +131,7 @@ class TestProjectXML:
 
     def test_roundtrip_rooms(self):
         h = proj_core.new_home("R")
-        rooms_core.add_rectangle_room(h, 0, 0, 500, 400,
-                                        name="Living", areaVisible=True)
+        rooms_core.add_rectangle_room(h, 0, 0, 500, 400, name="Living", areaVisible=True)
         with tempfile.TemporaryDirectory() as td:
             p = os.path.join(td, "r.sh3d")
             proj_core.save_home(h, p)
@@ -148,9 +142,7 @@ class TestProjectXML:
 
     def test_roundtrip_furniture(self):
         h = proj_core.new_home("F")
-        furn_core.add_piece(h, "Sofa", 100, 100,
-                              width=200, depth=80, height=80,
-                              color=0xC0C0C0)
+        furn_core.add_piece(h, "Sofa", 100, 100, width=200, depth=80, height=80, color=0xC0C0C0)
         furn_core.add_door(h, "Door1", 250, 0)
         furn_core.add_window(h, "Win1", 250, 400)
         furn_core.add_light(h, "Lamp", 250, 200)
@@ -159,8 +151,7 @@ class TestProjectXML:
             proj_core.save_home(h, p)
             h2 = proj_core.open_home(p)
         kinds = sorted(f.kind for f in h2.furniture)
-        assert kinds == ["doorOrWindow", "doorOrWindow", "light",
-                          "pieceOfFurniture"]
+        assert kinds == ["doorOrWindow", "doorOrWindow", "light", "pieceOfFurniture"]
         light = next(f for f in h2.furniture if f.kind == "light")
         assert light.power == 0.5
 
@@ -168,7 +159,7 @@ class TestProjectXML:
         h = proj_core.new_home("ANN")
         ann_core.add_dimension(h, 0, 0, 100, 0)
         ann_core.add_label(h, "North", 50, 50)
-        ann_core.add_polyline(h, [(0,0), (50,50), (100, 0)])
+        ann_core.add_polyline(h, [(0, 0), (50, 50), (100, 0)])
         with tempfile.TemporaryDirectory() as td:
             p = os.path.join(td, "a.sh3d")
             proj_core.save_home(h, p)
@@ -218,7 +209,7 @@ class TestProjectXML:
     def test_lightsource_black_color_is_preserved(self):
         """HIGH-1: explicit black (#000000) light source color must not be
         coerced to the default white because 0x000000 is falsy."""
-        xml = b'''<home version="6005">
+        xml = b"""<home version="6005">
   <light name="lamp" x="100" y="200" angle="0"
          width="10" depth="10" height="10"
          visible="true" movable="true"
@@ -227,13 +218,12 @@ class TestProjectXML:
          horizontallyRotatable="true">
     <lightSource x="0" y="0" z="10" color="#000000"/>
   </light>
-</home>'''
+</home>"""
         tree = DefusedET.parse(io.BytesIO(xml))
         home = proj_core.xml_to_home(tree)
         piece = home.furniture[0]
         assert len(piece.lightSources) == 1
         assert piece.lightSources[0].color == 0x000000
-
 
     def test_parse_rejects_external_entity_xxe(self):
         """Regression: XML parsing must use defusedxml so XXE is blocked.
@@ -243,28 +233,32 @@ class TestProjectXML:
         on DTD/entity declarations that the stdlib parser would silently
         resolve.
         """
-        xxe = (b'<?xml version="1.0"?>'
-               b'<!DOCTYPE home [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>'
-               b'<home version="6005"><room name="&xxe;"/></home>')
+        xxe = (
+            b'<?xml version="1.0"?>'
+            b'<!DOCTYPE home [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>'
+            b'<home version="6005"><room name="&xxe;"/></home>'
+        )
         with pytest.raises(Exception):
             DefusedET.parse(io.BytesIO(xxe))
 
     def test_parse_rejects_entity_expansion_bomb(self):
         """Regression: XML parsing must use defusedxml so billion-laughs /
         entity-expansion bombs are blocked instead of being expanded."""
-        bomb = (b'<?xml version="1.0"?>'
-                b'<!DOCTYPE home ['
-                b'<!ENTITY a "AAAA">'
-                b'<!ENTITY b "&a;&a;&a;&a;&a;&a;&a;&a;">'
-                b'<!ENTITY c "&b;&b;&b;&b;&b;&b;&b;&b;">'
-                b']>'
-                b'<home version="6005"><room name="&c;"/></home>')
+        bomb = (
+            b'<?xml version="1.0"?>'
+            b"<!DOCTYPE home ["
+            b'<!ENTITY a "AAAA">'
+            b'<!ENTITY b "&a;&a;&a;&a;&a;&a;&a;&a;">'
+            b'<!ENTITY c "&b;&b;&b;&b;&b;&b;&b;&b;">'
+            b"]>"
+            b'<home version="6005"><room name="&c;"/></home>'
+        )
         with pytest.raises(Exception):
             DefusedET.parse(io.BytesIO(bomb))
 
 
-
 # ─── walls ──────────────────────────────────────────────────────────────────
+
 
 class TestChunk18ShelfUnit:
     def test_shelfunit_roundtrip(self):
@@ -272,14 +266,16 @@ class TestChunk18ShelfUnit:
         shelf_unit = PieceOfFurniture(
             kind="shelfUnit",
             name="Billy Bookcase",
-            x=100, y=50,
-            width=80, depth=28, height=202,
+            x=100,
+            y=50,
+            width=80,
+            depth=28,
+            height=202,
         )
         shelf_unit.shelves = [
             Shelf(elevation=50.0),
             Shelf(elevation=100.0),
-            Shelf(xLower=0.0, yLower=0.0, zLower=0.0,
-                  xUpper=80.0, yUpper=28.0, zUpper=50.0),
+            Shelf(xLower=0.0, yLower=0.0, zLower=0.0, xUpper=80.0, yUpper=28.0, zUpper=50.0),
         ]
         h.furniture.append(shelf_unit)
         with tempfile.TemporaryDirectory() as td:
@@ -338,10 +334,26 @@ class TestChunk17Properties:
         # <camera attribute="storedCamera">). The `attribute` is always
         # "storedCamera"; the kind must reflect the underlying camera type.
         h = proj_core.new_home("SC")
-        top_view = Camera(kind="topCamera", name="Plan overview",
-                          x=400, y=600, z=1500, yaw=0, pitch=-1.5, fieldOfView=1.0472)
-        obs_view = Camera(kind="observerCamera", name="Kitchen entry",
-                          x=200, y=300, z=170, yaw=2.1, pitch=-0.1, fieldOfView=1.0472)
+        top_view = Camera(
+            kind="topCamera",
+            name="Plan overview",
+            x=400,
+            y=600,
+            z=1500,
+            yaw=0,
+            pitch=-1.5,
+            fieldOfView=1.0472,
+        )
+        obs_view = Camera(
+            kind="observerCamera",
+            name="Kitchen entry",
+            x=200,
+            y=300,
+            z=170,
+            yaw=2.1,
+            pitch=-0.1,
+            fieldOfView=1.0472,
+        )
         h.storedCameras.extend([top_view, obs_view])
         with tempfile.TemporaryDirectory() as td:
             p = os.path.join(td, "sc.sh3d")
@@ -369,8 +381,7 @@ class TestChunk16Environment:
 
     def test_video_camera_path_roundtrip(self):
         h = proj_core.new_home("VCP")
-        cp_cam = Camera(kind="topCamera", x=100, y=100, z=170,
-                        yaw=0, pitch=0, fieldOfView=1.0)
+        cp_cam = Camera(kind="topCamera", x=100, y=100, z=170, yaw=0, pitch=0, fieldOfView=1.0)
         h.environment.videoCameraPath = [cp_cam]
         with tempfile.TemporaryDirectory() as td:
             p = os.path.join(td, "vcp.sh3d")
@@ -404,8 +415,7 @@ class TestChunk14Polyline:
 class TestChunk8PieceMissingFields:
     def test_piece_extended_fields_roundtrip(self):
         h = proj_core.new_home("P8")
-        f = furn_core.add_piece(h, "Staircase", 100, 100,
-                                 width=90, depth=200, height=250)
+        f = furn_core.add_piece(h, "Staircase", 100, 100, width=90, depth=200, height=250)
         f.planIcon = "42"
         f.widthInPlan = 95.0
         f.depthInPlan = 210.0
@@ -470,13 +480,19 @@ class TestChunk7Print:
     def test_print_roundtrip(self):
         h = proj_core.new_home("PR")
         h.printSettings = Print(
-            paperWidth=210.0, paperHeight=297.0,
-            paperTopMargin=10.0, paperLeftMargin=10.0,
-            paperBottomMargin=10.0, paperRightMargin=10.0,
+            paperWidth=210.0,
+            paperHeight=297.0,
+            paperTopMargin=10.0,
+            paperLeftMargin=10.0,
+            paperBottomMargin=10.0,
+            paperRightMargin=10.0,
             paperOrientation="PORTRAIT",
-            headerFormat="{name}", footerFormat="Page {page}",
+            headerFormat="{name}",
+            footerFormat="Page {page}",
             planScale=0.01,
-            furniturePrinted=True, planPrinted=True, view3DPrinted=False,
+            furniturePrinted=True,
+            planPrinted=True,
+            view3DPrinted=False,
         )
         with tempfile.TemporaryDirectory() as td:
             p = os.path.join(td, "pr.sh3d")
@@ -495,9 +511,12 @@ class TestChunk7Print:
         h = proj_core.new_home("PRL")
         lvl = lvl_core.add_level(h, "Ground")
         h.printSettings = Print(
-            paperWidth=210.0, paperHeight=297.0,
-            paperTopMargin=10.0, paperLeftMargin=10.0,
-            paperBottomMargin=10.0, paperRightMargin=10.0,
+            paperWidth=210.0,
+            paperHeight=297.0,
+            paperTopMargin=10.0,
+            paperLeftMargin=10.0,
+            paperBottomMargin=10.0,
+            paperRightMargin=10.0,
             paperOrientation="LANDSCAPE",
             printedLevels=[lvl.id],
         )
@@ -524,12 +543,10 @@ class TestChunk6FurnitureGroup:
         h = proj_core.new_home("GRP")
         grp = FurnitureGroup(name="Kitchen Set")
         grp.furniture.append(
-            PieceOfFurniture(name="Worktop", x=300, y=600,
-                             width=200, depth=60, height=90)
+            PieceOfFurniture(name="Worktop", x=300, y=600, width=200, depth=60, height=90)
         )
         grp.furniture.append(
-            PieceOfFurniture(name="Hob", x=350, y=600,
-                             width=60, depth=60, height=91)
+            PieceOfFurniture(name="Hob", x=350, y=600, width=60, depth=60, height=91)
         )
         h.furnitureGroups.append(grp)
         with tempfile.TemporaryDirectory() as td:
@@ -745,7 +762,8 @@ class TestWalls:
             walls_core.add_wall(h, 0, 0, 0, 0)
 
     def test_add_inherits_wall_height(self):
-        h = proj_core.new_home(); h.wallHeight = 300
+        h = proj_core.new_home()
+        h.wallHeight = 300
         w = walls_core.add_wall(h, 0, 0, 100, 0)
         assert w.height == 300
 
@@ -787,11 +805,12 @@ class TestWalls:
 
 # ─── rooms ──────────────────────────────────────────────────────────────────
 
+
 class TestRooms:
     def test_requires_3_points(self):
         h = proj_core.new_home()
         with pytest.raises(ValueError):
-            rooms_core.add_room(h, [(0,0),(10,0)])
+            rooms_core.add_room(h, [(0, 0), (10, 0)])
 
     def test_rectangle_validates_dims(self):
         h = proj_core.new_home()
@@ -799,11 +818,11 @@ class TestRooms:
             rooms_core.add_rectangle_room(h, 0, 0, -1, 100)
 
     def test_area_square(self):
-        r = Room(points=[Point(0,0), Point(10,0), Point(10,10), Point(0,10)])
+        r = Room(points=[Point(0, 0), Point(10, 0), Point(10, 10), Point(0, 10)])
         assert rooms_core.area(r) == 100
 
     def test_area_triangle(self):
-        r = Room(points=[Point(0,0), Point(10,0), Point(0,10)])
+        r = Room(points=[Point(0, 0), Point(10, 0), Point(0, 10)])
         assert rooms_core.area(r) == 50
 
     def test_delete_missing(self):
@@ -812,6 +831,7 @@ class TestRooms:
 
 
 # ─── furniture ──────────────────────────────────────────────────────────────
+
 
 class TestFurniture:
     def test_kinds_constant(self):
@@ -827,8 +847,7 @@ class TestFurniture:
     def test_add_validates_kind(self):
         h = proj_core.new_home()
         with pytest.raises(ValueError):
-            furn_core.add_piece(h, "X", 0, 0,
-                                  width=10, depth=10, height=10, kind="bogus")
+            furn_core.add_piece(h, "X", 0, 0, width=10, depth=10, height=10, kind="bogus")
 
     def test_door_defaults(self):
         h = proj_core.new_home()
@@ -863,13 +882,13 @@ class TestFurniture:
 
     def test_move_only_updates_passed(self):
         h = proj_core.new_home()
-        f = furn_core.add_piece(h, "X", 0, 0,
-                                  width=10, depth=10, height=10)
+        f = furn_core.add_piece(h, "X", 0, 0, width=10, depth=10, height=10)
         furn_core.move_piece(h, f.id, x=100, angle=1.57)
         assert f.x == 100 and f.y == 0 and f.angle == 1.57
 
 
 # ─── levels ─────────────────────────────────────────────────────────────────
+
 
 class TestLevels:
     def test_add_rejects_duplicate(self):
@@ -911,6 +930,7 @@ class TestLevels:
 
 # ─── cameras ────────────────────────────────────────────────────────────────
 
+
 class TestCameras:
     def test_get_validates_kind(self):
         h = proj_core.new_home()
@@ -924,8 +944,7 @@ class TestCameras:
 
     def test_set_updates(self):
         h = proj_core.new_home()
-        cam_core.set_camera(h, kind="observerCamera",
-                              x=100, y=200, z=170, yaw=1.57, pitch=0.1)
+        cam_core.set_camera(h, kind="observerCamera", x=100, y=200, z=170, yaw=1.57, pitch=0.1)
         assert h.observerCamera.x == 100
         assert h.observerCamera.yaw == 1.57
 
@@ -938,6 +957,7 @@ class TestCameras:
 
 
 # ─── annotations ────────────────────────────────────────────────────────────
+
 
 class TestAnnotations:
     def test_dimension_rejects_coincident(self):
@@ -972,6 +992,7 @@ class TestAnnotations:
 
 # ─── environment ────────────────────────────────────────────────────────────
 
+
 class TestEnvironment:
     def test_set_unknown_field(self):
         h = proj_core.new_home()
@@ -992,6 +1013,7 @@ class TestEnvironment:
 
 # ─── export (SVG) ───────────────────────────────────────────────────────────
 
+
 class TestExport:
     def test_empty_home_svg_parseable(self):
         h = proj_core.new_home()
@@ -1004,8 +1026,7 @@ class TestExport:
         h = proj_core.new_home("Demo")
         walls_core.rectangle(h, 0, 0, 500, 400)
         rooms_core.add_rectangle_room(h, 0, 0, 500, 400, name="Studio")
-        furn_core.add_piece(h, "Sofa", 200, 200,
-                              width=200, depth=80, height=80)
+        furn_core.add_piece(h, "Sofa", 200, 200, width=200, depth=80, height=80)
         furn_core.add_door(h, "Door1", 250, 0)
         furn_core.add_light(h, "Lamp", 250, 200)
         ann_core.add_dimension(h, 0, 0, 500, 0)
@@ -1013,8 +1034,7 @@ class TestExport:
         svg = export_core.to_svg(h)
         root = ET.fromstring(svg)
         ids = {g.get("id") for g in root.findall(".//{*}g")}
-        assert {"rooms", "walls", "furniture", "dimensions",
-                  "labels", "compass"}.issubset(ids)
+        assert {"rooms", "walls", "furniture", "dimensions", "labels", "compass"}.issubset(ids)
 
     def test_svg_bounds_includes_padding(self):
         h = proj_core.new_home()
@@ -1101,6 +1121,7 @@ class TestExport:
         from unittest import mock
         import defusedxml
         from cli_anything.sweethome3d.core import export as export_mod
+
         with mock.patch.object(defusedxml, "defuse_stdlib", autospec=True) as spy:
             importlib.reload(export_mod)
             spy.assert_called_once_with()
@@ -1114,13 +1135,14 @@ class TestExport:
         payloads with external entities / DTDs — proving defuse_stdlib() took
         effect (bandit B405 mitigation)."""
         import xml.etree.ElementTree as _ET
+
         # defuse_stdlib() monkeypatches the stdlib parser forbidding DTDs,
         # entities and external references. A parse of a payload with an
         # external entity / DTD must now raise.
         xxe = (
             b'<?xml version="1.0"?>'
             b'<!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd"> ]>'
-            b'<foo>&xxe;</foo>'
+            b"<foo>&xxe;</foo>"
         )
         with pytest.raises(Exception):
             _ET.fromstring(xxe)
@@ -1137,6 +1159,7 @@ class TestExport:
 
 
 # ─── session ────────────────────────────────────────────────────────────────
+
 
 class TestSession:
     def test_new_session(self):
@@ -1189,6 +1212,7 @@ class TestSession:
 
 # ─── backend ────────────────────────────────────────────────────────────────
 
+
 class TestBackend:
     def test_not_installed_raises(self, monkeypatch):
         monkeypatch.delenv("SWEETHOME3D_BIN", raising=False)
@@ -1209,8 +1233,9 @@ class TestBackend:
         jar.write_text("x")
         monkeypatch.delenv("SWEETHOME3D_BIN", raising=False)
         monkeypatch.setenv("SWEETHOME3D_JAR", str(jar))
-        monkeypatch.setattr(backend.shutil, "which",
-                              lambda x: "/usr/bin/java" if x == "java" else None)
+        monkeypatch.setattr(
+            backend.shutil, "which", lambda x: "/usr/bin/java" if x == "java" else None
+        )
         monkeypatch.setattr(backend.os.path, "isfile", lambda p: p == str(jar))
         argv = backend.find_sweethome3d()
         assert argv == ["/usr/bin/java", "-jar", str(jar)]
@@ -1220,9 +1245,8 @@ class TestBackend:
         jar.write_text("x")
         monkeypatch.setenv("SWEETHOME3D_JAR", str(jar))
         monkeypatch.delenv("SWEETHOME3D_BIN", raising=False)
-        monkeypatch.setattr(backend.shutil, "which",
-                              lambda x: "/usr/bin/java" if x == "java" else None)
+        monkeypatch.setattr(
+            backend.shutil, "which", lambda x: "/usr/bin/java" if x == "java" else None
+        )
         monkeypatch.setattr(backend.os.path, "isfile", lambda p: p == str(jar))
         assert backend.version() == "7.5"
-
-

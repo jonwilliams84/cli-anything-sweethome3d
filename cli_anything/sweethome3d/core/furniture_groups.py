@@ -22,8 +22,7 @@ from cli_anything.sweethome3d.core.model import (
 )
 
 
-def list_groups(home: Home, *,
-                  level: Optional[str] = None) -> list[FurnitureGroup]:
+def list_groups(home: Home, *, level: Optional[str] = None) -> list[FurnitureGroup]:
     """Return all furniture groups, optionally filtered by level id/name."""
     groups = list(home.furnitureGroups)
     if level is not None:
@@ -90,9 +89,9 @@ def _recompute_bounds(group: FurnitureGroup) -> None:
     group.height = max(zs_hi) - min(zs_lo)
 
 
-def create_group(home: Home, name: str, *,
-                  piece_idents: Iterable[str],
-                  level: Optional[str] = None) -> FurnitureGroup:
+def create_group(
+    home: Home, name: str, *, piece_idents: Iterable[str], level: Optional[str] = None
+) -> FurnitureGroup:
     """Build a new group from existing pieces and move them into it.
 
     `piece_idents` are resolved via `Home.find_furniture` (id or
@@ -141,8 +140,7 @@ def ungroup(home: Home, ident: str) -> list[PieceOfFurniture]:
     return released
 
 
-def add_to_group(home: Home, group_ident: str,
-                   piece_idents: Iterable[str]) -> FurnitureGroup:
+def add_to_group(home: Home, group_ident: str, piece_idents: Iterable[str]) -> FurnitureGroup:
     """Move existing top-level pieces into an existing group."""
     group = find_group(home, group_ident)
     if group is None:
@@ -157,8 +155,7 @@ def add_to_group(home: Home, group_ident: str,
     return group
 
 
-def remove_from_group(home: Home, group_ident: str,
-                        piece_idents: Iterable[str]) -> FurnitureGroup:
+def remove_from_group(home: Home, group_ident: str, piece_idents: Iterable[str]) -> FurnitureGroup:
     """Move pieces out of a group, back into `home.furniture`."""
     group = find_group(home, group_ident)
     if group is None:
@@ -167,8 +164,7 @@ def remove_from_group(home: Home, group_ident: str,
     for ident in piece_idents:
         for member in group.furniture:
             if isinstance(member, PieceOfFurniture) and (
-                member.id == ident
-                or (member.name and member.name.lower() == ident.lower())
+                member.id == ident or (member.name and member.name.lower() == ident.lower())
             ):
                 targets.add(id(member))
                 break
@@ -203,10 +199,26 @@ def delete_group(home: Home, ident: str) -> list[PieceOfFurniture]:
 
 
 _SETTABLE_FIELDS = {
-    "name", "x", "y", "elevation", "angle", "width", "depth", "height",
-    "visible", "movable", "modelMirrored", "nameVisible", "nameAngle",
-    "nameXOffset", "nameYOffset", "price", "description", "information",
-    "license", "creator",
+    "name",
+    "x",
+    "y",
+    "elevation",
+    "angle",
+    "width",
+    "depth",
+    "height",
+    "visible",
+    "movable",
+    "modelMirrored",
+    "nameVisible",
+    "nameAngle",
+    "nameXOffset",
+    "nameYOffset",
+    "price",
+    "description",
+    "information",
+    "license",
+    "creator",
 }
 
 

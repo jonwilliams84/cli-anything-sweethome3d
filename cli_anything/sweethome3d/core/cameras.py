@@ -15,25 +15,38 @@ def get_camera(home: Home, *, kind: str = "topCamera") -> Camera:
     raise ValueError(f"kind must be 'topCamera' or 'observerCamera', got {kind!r}")
 
 
-def set_camera(home: Home, *, kind: str = "topCamera",
-                x: Optional[float] = None, y: Optional[float] = None,
-                z: Optional[float] = None,
-                yaw: Optional[float] = None, pitch: Optional[float] = None,
-                fieldOfView: Optional[float] = None,
-                lens: Optional[str] = None,
-                time: Optional[int] = None) -> Camera:
+def set_camera(
+    home: Home,
+    *,
+    kind: str = "topCamera",
+    x: Optional[float] = None,
+    y: Optional[float] = None,
+    z: Optional[float] = None,
+    yaw: Optional[float] = None,
+    pitch: Optional[float] = None,
+    fieldOfView: Optional[float] = None,
+    lens: Optional[str] = None,
+    time: Optional[int] = None,
+) -> Camera:
     cam = get_camera(home, kind=kind)
-    if x is not None: cam.x = x
-    if y is not None: cam.y = y
-    if z is not None: cam.z = z
-    if yaw is not None: cam.yaw = yaw
-    if pitch is not None: cam.pitch = pitch
-    if fieldOfView is not None: cam.fieldOfView = fieldOfView
+    if x is not None:
+        cam.x = x
+    if y is not None:
+        cam.y = y
+    if z is not None:
+        cam.z = z
+    if yaw is not None:
+        cam.yaw = yaw
+    if pitch is not None:
+        cam.pitch = pitch
+    if fieldOfView is not None:
+        cam.fieldOfView = fieldOfView
     if lens is not None:
         if lens not in ("PINHOLE", "NORMAL", "FISHEYE", "SPHERICAL"):
             raise ValueError(f"invalid lens: {lens!r}")
         cam.lens = lens
-    if time is not None: cam.time = time
+    if time is not None:
+        cam.time = time
     return cam
 
 

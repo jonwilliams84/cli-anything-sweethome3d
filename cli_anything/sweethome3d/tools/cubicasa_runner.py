@@ -20,7 +20,11 @@ It reads a floorplan PNG and writes a polygons JSON:
     {"w","h","walls":[{"points","class"}],"openings":[{"points","class"}],"rooms":[{"points","name"}]}
 class: openings 1=window 2=door. NB: loads the model's .pkl (a pickle) — only run weights you trust.
 """
-import os, sys, json, re
+
+import os
+import sys
+import json
+import re
 
 # Shell metacharacters that must never appear in a path argument — if this script
 # is ever invoked via a shell (e.g. through pdf_import.run_model with shell=True,
@@ -47,14 +51,17 @@ def main(inp, out):
     if not home or not os.path.isdir(home):
         sys.exit("set $CUBICASA_HOME to your CubiCasa5k checkout")
     home = _sanitize_path(home, "CUBICASA_HOME")
-    os.chdir(home)          # the model's init loads a backbone via a relative path
+    os.chdir(home)  # the model's init loads a backbone via a relative path
     sys.path.insert(0, home)
 
     import numpy as np
-    import torch, torch.nn.functional as F
+    import torch
+    import torch.nn.functional as F
     from PIL import Image
+
     # CubiCasa post-processing predates scipy's mode(keepdims) change
     import scipy.stats as _ss
+
     _o = _ss.mode
     _ss.mode = lambda *a, **k: _o(*a, **{**k, "keepdims": True})
     from floortrans.models import get_model
@@ -105,15 +112,28 @@ def main(inp, out):
     thr = float(os.environ.get("CUBICASA_THRESHOLD", "0.2"))
     polygons, types, room_polygons, room_types = get_polygons((heatmaps, rooms, icons), thr, [1, 2])
 
-    ROOM = ["Background", "Outdoor", "Wall", "Kitchen", "Living Room", "Bed Room", "Bath",
-            "Entry", "Railing", "Storage", "Garage", "Undefined"]
+    ROOM = [
+        "Background",
+        "Outdoor",
+        "Wall",
+        "Kitchen",
+        "Living Room",
+        "Bed Room",
+        "Bath",
+        "Entry",
+        "Railing",
+        "Storage",
+        "Garage",
+        "Undefined",
+    ]
     walls, openings = [], []
-    for poly, ty in zip(polygons, types):
+    for poly, ty in zip(polygons, types, strict=False):
         pts = [[float(p[0]), float(p[1])] for p in np.array(poly).reshape(-1, 2)]
         (walls if ty["type"] == "wall" else openings).append(
-            {"points": pts, "class": int(ty["class"])})
+            {"points": pts, "class": int(ty["class"])}
+        )
     rooms_out = []
-    for poly, rt in zip(room_polygons, room_types):
+    for poly, rt in zip(room_polygons, room_types, strict=False):
         pts = None
         try:
             geom = max(poly.geoms, key=lambda g: g.area) if hasattr(poly, "geoms") else poly
@@ -125,8 +145,12 @@ def main(inp, out):
             continue
         cls = int(rt["class"]) if isinstance(rt, dict) else int(rt)
         rooms_out.append({"points": pts, "name": ROOM[cls] if 0 <= cls < len(ROOM) else None})
-    json.dump({"w": W, "h": H, "walls": walls, "openings": openings, "rooms": rooms_out}, open(out, "w"))
-    print(f"{os.path.basename(out)}: walls={len(walls)} openings={len(openings)} rooms={len(rooms_out)}")
+    json.dump(
+        {"w": W, "h": H, "walls": walls, "openings": openings, "rooms": rooms_out}, open(out, "w")
+    )
+    print(
+        f"{os.path.basename(out)}: walls={len(walls)} openings={len(openings)} rooms={len(rooms_out)}"
+    )
 
 
 if __name__ == "__main__":

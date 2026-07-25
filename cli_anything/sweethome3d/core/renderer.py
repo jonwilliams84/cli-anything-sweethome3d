@@ -10,19 +10,18 @@ valid but lower-quality PNG.
 
 from __future__ import annotations
 
-import math
-import os
 import struct
 import zlib
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from cli_anything.sweethome3d.core.designer import Designer, _Level
+    from cli_anything.sweethome3d.core.designer import Designer
 
 # -------------------------------------------------------------------------
 # Public entry point
 # -------------------------------------------------------------------------
+
 
 def render_floorplan(
     designer: "Designer",
@@ -66,9 +65,14 @@ def render_floorplan(
     # Fall back to SVG → PNG via cairosvg
     try:
         import cairosvg  # type: ignore
+
         svg = designer._to_svg()
-        cairosvg.svg2png(bytestring=svg.encode(), write_to=str(path),
-                         output_width=canvas_width, output_height=canvas_height)
+        cairosvg.svg2png(
+            bytestring=svg.encode(),
+            write_to=str(path),
+            output_width=canvas_width,
+            output_height=canvas_height,
+        )
         return path
     except ImportError:
         pass
@@ -81,6 +85,7 @@ def render_floorplan(
 # -------------------------------------------------------------------------
 # Pillow renderer
 # -------------------------------------------------------------------------
+
 
 def _render_with_pillow(
     designer: "Designer",
@@ -188,6 +193,7 @@ def _hex_to_rgb(h: str) -> tuple:
 # Pure-stdlib PNG renderer
 # -------------------------------------------------------------------------
 
+
 def _render_stdlib(
     designer: "Designer",
     path: Path,
@@ -201,7 +207,7 @@ def _render_stdlib(
     pixels = bytearray(width * height * 3)
     # Background: #f8f8f0
     for i in range(width * height):
-        pixels[i * 3]     = 248
+        pixels[i * 3] = 248
         pixels[i * 3 + 1] = 248
         pixels[i * 3 + 2] = 240
 
@@ -210,7 +216,7 @@ def _render_stdlib(
     def set_px(x: int, y: int, r: int, g: int, b: int):
         if 0 <= x < width and 0 <= y < height:
             off = (y * width + x) * 3
-            pixels[off]     = r
+            pixels[off] = r
             pixels[off + 1] = g
             pixels[off + 2] = b
 
@@ -294,7 +300,7 @@ def _encode_png_rgb(pixels: bytearray, width: int, height: int) -> bytes:
     for row in range(height):
         raw += b"\x00"
         start = row * row_bytes
-        raw += pixels[start:start + row_bytes]
+        raw += pixels[start : start + row_bytes]
 
     idat = chunk(b"IDAT", zlib.compress(bytes(raw), level=6))
     iend = chunk(b"IEND", b"")

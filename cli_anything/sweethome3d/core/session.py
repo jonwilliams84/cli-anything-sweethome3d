@@ -9,7 +9,6 @@ to prevent corruption on concurrent saves.
 
 from __future__ import annotations
 
-import os
 from copy import deepcopy
 from typing import Optional
 
@@ -73,9 +72,12 @@ class Session:
         target = path or self.path
         if not target:
             raise ValueError("no path: call save(path) the first time")
-        save_home(self.home, target,
-                   copy_content_from=self._content_source,
-                   extra_content=self._pending_content or None)
+        save_home(
+            self.home,
+            target,
+            copy_content_from=self._content_source,
+            extra_content=self._pending_content or None,
+        )
         self.path = target
         self._content_source = target
         self._pending_content = {}

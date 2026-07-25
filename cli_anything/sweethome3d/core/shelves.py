@@ -14,7 +14,6 @@ since this is rarely a hot edit surface.
 
 from __future__ import annotations
 
-from typing import Optional
 
 from cli_anything.sweethome3d.core.model import Home, PieceOfFurniture, Shelf
 
@@ -25,8 +24,7 @@ def _resolve_shelf_unit(home: Home, ident: str) -> PieceOfFurniture:
         raise KeyError(f"furniture not found: {ident}")
     if piece.kind != "shelfUnit":
         raise ValueError(
-            f"shelves apply to shelfUnit pieces only; {piece.name!r} is "
-            f"kind={piece.kind!r}"
+            f"shelves apply to shelfUnit pieces only; {piece.name!r} is kind={piece.kind!r}"
         )
     return piece
 
@@ -35,8 +33,7 @@ def list_shelves(home: Home, piece_ident: str) -> list[Shelf]:
     return list(_resolve_shelf_unit(home, piece_ident).shelves)
 
 
-def add_flat_shelf(home: Home, piece_ident: str,
-                     elevation: float) -> Shelf:
+def add_flat_shelf(home: Home, piece_ident: str, elevation: float) -> Shelf:
     """Append a flat shelf at the given Z (cm)."""
     piece = _resolve_shelf_unit(home, piece_ident)
     shelf = Shelf(elevation=elevation)
@@ -44,17 +41,24 @@ def add_flat_shelf(home: Home, piece_ident: str,
     return shelf
 
 
-def add_box_shelf(home: Home, piece_ident: str, *,
-                    xLower: float, yLower: float, zLower: float,
-                    xUpper: float, yUpper: float, zUpper: float) -> Shelf:
+def add_box_shelf(
+    home: Home,
+    piece_ident: str,
+    *,
+    xLower: float,
+    yLower: float,
+    zLower: float,
+    xUpper: float,
+    yUpper: float,
+    zUpper: float,
+) -> Shelf:
     """Append a 3D box-bound shelf compartment."""
     piece = _resolve_shelf_unit(home, piece_ident)
     if xUpper <= xLower or yUpper <= yLower or zUpper <= zLower:
-        raise ValueError(
-            "upper bounds must be strictly greater than lower bounds"
-        )
-    shelf = Shelf(xLower=xLower, yLower=yLower, zLower=zLower,
-                   xUpper=xUpper, yUpper=yUpper, zUpper=zUpper)
+        raise ValueError("upper bounds must be strictly greater than lower bounds")
+    shelf = Shelf(
+        xLower=xLower, yLower=yLower, zLower=zLower, xUpper=xUpper, yUpper=yUpper, zUpper=zUpper
+    )
     piece.shelves.append(shelf)
     return shelf
 
@@ -63,8 +67,7 @@ def delete_shelf(home: Home, piece_ident: str, index: int) -> Shelf:
     piece = _resolve_shelf_unit(home, piece_ident)
     if index < 0 or index >= len(piece.shelves):
         raise IndexError(
-            f"shelf index {index} out of range "
-            f"(piece has {len(piece.shelves)} shelves)"
+            f"shelf index {index} out of range (piece has {len(piece.shelves)} shelves)"
         )
     return piece.shelves.pop(index)
 

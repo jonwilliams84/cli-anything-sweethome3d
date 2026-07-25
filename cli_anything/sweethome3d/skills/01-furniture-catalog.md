@@ -121,11 +121,9 @@ ids = d.list_catalog_furniture()
 kitchen_items = d.list_catalog_furniture(category="kitchen")
 
 # Place an item
-d.place_furniture(ground,
-    catalog_id="SOFA_3_SEATS",
-    x=150, y=300,
-    rotation_deg=0,
-    label="Main Sofa")
+d.place_furniture(
+    ground, catalog_id="SOFA_3_SEATS", x=150, y=300, rotation_deg=0, label="Main Sofa"
+)
 ```
 
 ## Notes for LLM agents

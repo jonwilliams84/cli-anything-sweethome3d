@@ -10,8 +10,6 @@ import sys
 import zipfile
 from xml.etree import ElementTree as ET
 
-import pytest
-
 
 def _resolve_cli(name):
     """Resolve installed CLI; fall back to python -m for dev runs."""
@@ -21,9 +19,7 @@ def _resolve_cli(name):
         print(f"[_resolve_cli] Using installed command: {path}")
         return [path]
     if force:
-        raise RuntimeError(
-            f"{name} not found in PATH. Install with: pip install -e ."
-        )
+        raise RuntimeError(f"{name} not found in PATH. Install with: pip install -e .")
     module = "cli_anything.sweethome3d.sweethome3d_cli"
     print(f"[_resolve_cli] Falling back to: {sys.executable} -m {module}")
     return [sys.executable, "-m", "cli_anything.sweethome3d"]
@@ -33,8 +29,7 @@ class TestCLISubprocess:
     CLI = _resolve_cli("cli-anything-sweethome3d")
 
     def _run(self, args, check=True):
-        return subprocess.run(self.CLI + args,
-                                capture_output=True, text=True, check=check)
+        return subprocess.run(self.CLI + args, capture_output=True, text=True, check=check)
 
     def test_help(self):
         r = self._run(["--help"])
@@ -48,8 +43,7 @@ class TestCLISubprocess:
 
     def test_project_new_json(self, tmp_path):
         out = str(tmp_path / "n.sh3d")
-        r = self._run(["--json", "project", "new", "-n", "TestHouse",
-                       "-o", out])
+        r = self._run(["--json", "project", "new", "-n", "TestHouse", "-o", out])
         assert r.returncode == 0
         data = json.loads(r.stdout)
         assert data["created"] == out
@@ -62,8 +56,9 @@ class TestCLISubprocess:
         # Clear any pointers so the binary truly looks missing
         for k in ("SWEETHOME3D_BIN", "SWEETHOME3D_JAR"):
             env.pop(k, None)
-        r = subprocess.run(self.CLI + ["--json", "render", "status"],
-                             capture_output=True, text=True, env=env)
+        r = subprocess.run(
+            [*self.CLI, "--json", "render", "status"], capture_output=True, text=True, env=env
+        )
         # Don't crash — return a useful JSON status either way.
         assert r.returncode == 0
         data = json.loads(r.stdout)
@@ -80,9 +75,7 @@ class TestFullWorkflow:
     def _run(self, args):
         r = subprocess.run(self.CLI + args, capture_output=True, text=True)
         if r.returncode != 0:
-            raise AssertionError(
-                f"CLI failed: {args}\nstdout:\n{r.stdout}\nstderr:\n{r.stderr}"
-            )
+            raise AssertionError(f"CLI failed: {args}\nstdout:\n{r.stdout}\nstderr:\n{r.stderr}")
         return r
 
     def test_studio_workflow(self, tmp_path):
@@ -92,21 +85,31 @@ class TestFullWorkflow:
         # 1. new project
         self._run(["project", "new", "-n", "Studio", "-o", sh3d])
         # 2. four walls
-        self._run(["--project", sh3d, "wall", "rectangle", "0", "0",
-                    "500", "400"])
+        self._run(["--project", sh3d, "wall", "rectangle", "0", "0", "500", "400"])
         # 3. labelled room
-        self._run(["--project", sh3d, "room", "rectangle", "0", "0",
-                    "500", "400", "-n", "Studio", "--area-visible"])
+        self._run(
+            [
+                "--project",
+                sh3d,
+                "room",
+                "rectangle",
+                "0",
+                "0",
+                "500",
+                "400",
+                "-n",
+                "Studio",
+                "--area-visible",
+            ]
+        )
         # 4. door + window + light
-        self._run(["--project", sh3d, "furniture", "add-door",  "Door1",
-                    "250", "0"])
-        self._run(["--project", sh3d, "furniture", "add-window", "Win1",
-                    "250", "400"])
-        self._run(["--project", sh3d, "furniture", "add-light",
-                    "Ceiling", "250", "200", "--power", "0.8"])
+        self._run(["--project", sh3d, "furniture", "add-door", "Door1", "250", "0"])
+        self._run(["--project", sh3d, "furniture", "add-window", "Win1", "250", "400"])
+        self._run(
+            ["--project", sh3d, "furniture", "add-light", "Ceiling", "250", "200", "--power", "0.8"]
+        )
         # 5. dimension annotation
-        self._run(["--project", sh3d, "dimension", "add", "0", "0",
-                    "500", "0", "--offset", "40"])
+        self._run(["--project", sh3d, "dimension", "add", "0", "0", "500", "0", "--offset", "40"])
         # 6. label
         self._run(["--project", sh3d, "label", "add", "North", "250", "50"])
         # 7. SVG export
@@ -118,8 +121,9 @@ class TestFullWorkflow:
         with zipfile.ZipFile(sh3d) as z:
             names = z.namelist()
             assert "Home.xml" in names
-            assert all(n == "Home.xml" or n.isdigit() for n in names), \
+            assert all(n == "Home.xml" or n.isdigit() for n in names), (
                 f"unexpected entries: {names}"
+            )
             xml = z.read("Home.xml").decode("utf-8")
         # Schema sanity
         root = ET.fromstring(xml)
@@ -131,8 +135,7 @@ class TestFullWorkflow:
         svg_root = ET.parse(svg).getroot()
         assert svg_root.tag.endswith("svg")
         ids = {g.get("id") for g in svg_root.findall(".//{*}g")}
-        for required in ("rooms", "walls", "furniture", "dimensions",
-                          "labels", "compass"):
+        for required in ("rooms", "walls", "furniture", "dimensions", "labels", "compass"):
             assert required in ids, f"missing <g id={required!r}> in SVG"
 
         # Verify counts via the CLI's --json project info
@@ -154,16 +157,15 @@ class TestFullWorkflow:
         sh3d = str(tmp_path / "dry.sh3d")
         self._run(["project", "new", "-n", "Dry", "-o", sh3d])
         # baseline: 0 walls
-        before = json.loads(
-            self._run(["--project", sh3d, "--json",
-                        "project", "info"]).stdout)["walls"]
+        before = json.loads(self._run(["--project", sh3d, "--json", "project", "info"]).stdout)[
+            "walls"
+        ]
         # add a wall with --dry-run
-        self._run(["--project", sh3d, "--dry-run",
-                    "wall", "add", "0", "0", "100", "0"])
+        self._run(["--project", sh3d, "--dry-run", "wall", "add", "0", "0", "100", "0"])
         # nothing changed on disk
-        after = json.loads(
-            self._run(["--project", sh3d, "--json",
-                        "project", "info"]).stdout)["walls"]
+        after = json.loads(self._run(["--project", sh3d, "--json", "project", "info"]).stdout)[
+            "walls"
+        ]
         assert before == after == 0
 
     def test_undo_via_two_level_create(self, tmp_path):
@@ -176,18 +178,17 @@ class TestFullWorkflow:
         r = self._run(["--project", sh3d, "--json", "level", "list"])
         levels = json.loads(r.stdout)
         first = next(l for l in levels if l["name"] == "First")
-        self._run(["--project", sh3d, "wall", "add", "0", "0", "100", "0",
-                    "-l", first["id"]])
+        self._run(["--project", sh3d, "wall", "add", "0", "0", "100", "0", "-l", first["id"]])
         # delete-level --keep-attached must fail since wall is attached
-        proc = subprocess.run(self.CLI + ["--project", sh3d, "level",
-                                            "delete", "First",
-                                            "--keep-attached"],
-                              capture_output=True, text=True)
+        proc = subprocess.run(
+            [*self.CLI, "--project", sh3d, "level", "delete", "First", "--keep-attached"],
+            capture_output=True,
+            text=True,
+        )
         assert proc.returncode != 0
         # default delete detaches and succeeds
         self._run(["--project", sh3d, "level", "delete", "First"])
-        info = json.loads(self._run(["--project", sh3d, "--json",
-                                      "project", "info"]).stdout)
+        info = json.loads(self._run(["--project", sh3d, "--json", "project", "info"]).stdout)
         assert info["levels"] == 1
         assert info["walls"] == 1
 
@@ -206,17 +207,18 @@ class TestSchemaRoundtrip:
             rooms as rooms,
             walls as walls,
         )
+
         h = proj.new_home("Complete")
         # levels
         g = lvl.add_level(h, "Ground", elevation=0)
-        f = lvl.add_level(h, "First", elevation=270)
+        lvl.add_level(h, "First", elevation=270)
         # walls + room
         walls.rectangle(h, 0, 0, 500, 400)
-        rooms.add_rectangle_room(h, 0, 0, 500, 400, name="Studio",
-                                   level=g.id, areaVisible=True)
+        rooms.add_rectangle_room(h, 0, 0, 500, 400, name="Studio", level=g.id, areaVisible=True)
         # furniture
-        furn.add_piece(h, "Sofa", 200, 200, width=200, depth=80, height=80,
-                        color=0xC8A878, level=g.id)
+        furn.add_piece(
+            h, "Sofa", 200, 200, width=200, depth=80, height=80, color=0xC8A878, level=g.id
+        )
         furn.add_door(h, "Door1", 250, 0, level=g.id)
         furn.add_window(h, "Win1", 250, 400, level=g.id)
         furn.add_light(h, "Ceiling", 250, 200, level=g.id, power=0.7)
@@ -224,15 +226,14 @@ class TestSchemaRoundtrip:
         ann.add_dimension(h, 0, 0, 500, 0)
         ann.add_label(h, "Studio plan v1", 50, 50)
         ann.add_polyline(h, [(50, 50), (450, 50), (450, 350)], thickness=2)
-        ann.set_compass(h, x=450, y=50, northDirection=0.5,
-                          latitude=51.5, longitude=-0.1)
+        ann.set_compass(h, x=450, y=50, northDirection=0.5, latitude=51.5, longitude=-0.1)
         # environment
-        env.set_environment(h, skyColor=0x87CEEB, groundColor=0x654321,
-                              drawingMode="OUTLINE", wallsAlpha=0.1)
+        env.set_environment(
+            h, skyColor=0x87CEEB, groundColor=0x654321, drawingMode="OUTLINE", wallsAlpha=0.1
+        )
         env.set_photo_size(h, 800, 600)
         # cameras
-        cam.set_camera(h, kind="observerCamera",
-                         x=250, y=200, z=170, yaw=0, pitch=0)
+        cam.set_camera(h, kind="observerCamera", x=250, y=200, z=170, yaw=0, pitch=0)
         cam.activate_camera(h, "observerCamera")
 
         # roundtrip
@@ -274,8 +275,7 @@ class TestImportSvg:
     CLI = _resolve_cli("cli-anything-sweethome3d")
 
     def _run(self, args, check=True):
-        return subprocess.run(self.CLI + args,
-                              capture_output=True, text=True, check=check)
+        return subprocess.run(self.CLI + args, capture_output=True, text=True, check=check)
 
     # ------------------------------------------------------------------
     # Minimal SVG that the importer accepts: a single black filled rect
@@ -323,8 +323,7 @@ input:
         """--json flag returns a dict with the expected keys."""
         spec = self._write_fixture(tmp_path)
         out = str(tmp_path / "json_test.sh3d")
-        r = self._run(["--json", "import", "svg", "--spec", spec,
-                       "--output", out])
+        r = self._run(["--json", "import", "svg", "--spec", spec, "--output", out])
         assert r.returncode == 0, f"stderr: {r.stderr}"
         data = json.loads(r.stdout)
         assert data["created"] == out
@@ -337,8 +336,9 @@ input:
         """--name overrides meta.name from the spec."""
         spec = self._write_fixture(tmp_path)
         out = str(tmp_path / "named.sh3d")
-        r = self._run(["--json", "import", "svg", "--spec", spec,
-                       "--output", out, "--name", "OverrideName"])
+        r = self._run(
+            ["--json", "import", "svg", "--spec", spec, "--output", out, "--name", "OverrideName"]
+        )
         assert r.returncode == 0, f"stderr: {r.stderr}"
         data = json.loads(r.stdout)
         assert data["name"] == "OverrideName"
@@ -353,12 +353,13 @@ input:
         spec = self._write_fixture(tmp_path)
         # Run from tmp_path so the fallback file lands there
         r = subprocess.run(
-            self.CLI + ["import", "svg", "--spec", spec],
-            capture_output=True, text=True, cwd=str(tmp_path),
+            [*self.CLI, "import", "svg", "--spec", spec],
+            capture_output=True,
+            text=True,
+            cwd=str(tmp_path),
         )
         assert r.returncode == 0, f"stderr: {r.stderr}"
         expected = tmp_path / "MinimalImport.sh3d"
         assert expected.exists(), (
-            f"expected fallback file {expected} — cwd files: "
-            f"{list(tmp_path.iterdir())}"
+            f"expected fallback file {expected} — cwd files: {list(tmp_path.iterdir())}"
         )

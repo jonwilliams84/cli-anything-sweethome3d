@@ -30,8 +30,7 @@ def point_in_polygon(px, py, poly) -> bool:
     for i in range(n):
         xi, yi = poly[i]
         xj, yj = poly[j]
-        if ((yi > py) != (yj > py)) and \
-                (px < (xj - xi) * (py - yi) / (yj - yi + 1e-12) + xi):
+        if ((yi > py) != (yj > py)) and (px < (xj - xi) * (py - yi) / (yj - yi + 1e-12) + xi):
             inside = not inside
         j = i
     return inside

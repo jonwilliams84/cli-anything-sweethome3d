@@ -15,10 +15,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-import sys
 import time
-import zipfile
-from xml.etree import ElementTree as ET
 
 import pytest
 
@@ -36,8 +33,7 @@ def cli_with_render():
 
     # Also check if SH3D is installed
     cli = _resolve_cli("cli-anything-sweethome3d")
-    r = subprocess.run(cli + ["--json", "render", "status"],
-                       capture_output=True, text=True)
+    r = subprocess.run([*cli, "--json", "render", "status"], capture_output=True, text=True)
     if r.returncode != 0:
         pytest.skip("render status check failed")
 
@@ -48,6 +44,19 @@ def cli_with_render():
 
     if not data.get("installed", False):
         pytest.skip("SH3D not installed")
+
+    # `installed` only reports that the launcher script was found on PATH. Sweet
+    # Home 3D is a Java application, so a box with the launcher but no JRE still
+    # reports installed=true and then every render fails with
+    # "No java runtime was found" / ExceptionInInitializerError - an environment
+    # problem being reported as a test failure.
+    #
+    # A launcher that cannot start also cannot report its version, so a null
+    # version alongside installed=true is the signal for "present but not
+    # runnable". Verified against this exact state on a box with the Debian
+    # package installed and no JRE.
+    if data.get("version") is None:
+        pytest.skip("Sweet Home 3D launcher found but not runnable (no JRE?)")
 
     return cli
 
@@ -60,16 +69,14 @@ class TestRenderCommands:
     def _run(self, args, check=True, timeout=30):
         """Run CLI with subprocess; raise on non-zero return if check=True."""
         try:
-            r = subprocess.run(self.CLI + args,
-                               capture_output=True, text=True,
-                               check=False, timeout=timeout)
+            r = subprocess.run(
+                self.CLI + args, capture_output=True, text=True, check=False, timeout=timeout
+            )
         except subprocess.TimeoutExpired:
             raise AssertionError(f"CLI command timed out: {args}")
 
         if check and r.returncode != 0:
-            raise AssertionError(
-                f"CLI failed: {args}\nstdout:\n{r.stdout}\nstderr:\n{r.stderr}"
-            )
+            raise AssertionError(f"CLI failed: {args}\nstdout:\n{r.stdout}\nstderr:\n{r.stderr}")
         return r
 
     def _build_tiny_home(self, path):
@@ -79,8 +86,7 @@ class TestRenderCommands:
         """
         self._run(["project", "new", "-n", "TinyHome", "-o", path])
         self._run(["--project", path, "wall", "rectangle", "0", "0", "300", "300"])
-        self._run(["--project", path, "room", "rectangle", "0", "0", "300", "300",
-                   "-n", "Studio"])
+        self._run(["--project", path, "room", "rectangle", "0", "0", "300", "300", "-n", "Studio"])
         self._run(["--project", path, "furniture", "add-door", "Door1", "150", "0"])
         return path
 
@@ -96,8 +102,7 @@ class TestRenderCommands:
         self._build_tiny_home(sh3d)
 
         # Invoke: render photo OUTPUT --gpu
-        r = self._run(["--project", sh3d, "render", "photo", output_png,
-                       "--gpu"], timeout=120)
+        r = self._run(["--project", sh3d, "render", "photo", output_png, "--gpu"], timeout=120)
         assert r.returncode == 0, f"render failed: {r.stderr}"
 
         # Verify output file exists and is substantial
@@ -114,8 +119,10 @@ class TestRenderCommands:
         self._build_tiny_home(sh3d)
 
         # Invoke: render photo OUTPUT --no-gpu --quality LOW
-        r = self._run(["--project", sh3d, "render", "photo", output_png,
-                       "--no-gpu", "--quality", "LOW"], timeout=60)
+        r = self._run(
+            ["--project", sh3d, "render", "photo", output_png, "--no-gpu", "--quality", "LOW"],
+            timeout=60,
+        )
         assert r.returncode == 0, f"render failed: {r.stderr}"
 
         assert os.path.exists(output_png), f"output PNG not created: {output_png}"
@@ -135,19 +142,32 @@ class TestRenderCommands:
         self._build_tiny_home(sh3d)
 
         # Invoke: edit floor --room Studio --color "#1E3F66" --output EDITED
-        r = self._run(["--project", sh3d, "edit", "floor",
-                       "--room", "Studio", "--color", "#1E3F66",
-                       "--output", edited_sh3d], check=False)
+        r = self._run(
+            [
+                "--project",
+                sh3d,
+                "edit",
+                "floor",
+                "--room",
+                "Studio",
+                "--color",
+                "#1E3F66",
+                "--output",
+                edited_sh3d,
+            ],
+            check=False,
+        )
 
         # If the command doesn't exist yet, skip
         if r.returncode != 0 and "edit" in r.stderr:
             pytest.skip("edit floor command not yet implemented")
 
         assert r.returncode == 0, f"edit floor failed: {r.stderr}"
-        assert os.path.exists(edited_sh3d), f"output file not created"
+        assert os.path.exists(edited_sh3d), "output file not created"
 
         # Open the saved file via Python API and check floorColor
         from cli_anything.sweethome3d.core import project as proj_core
+
         home = proj_core.open_home(edited_sh3d)
 
         # Find the Studio room and check its floor color
@@ -157,8 +177,9 @@ class TestRenderCommands:
         # Expected color: 0xFF1E3F66 (alpha=FF for opaque)
         expected_color = 0xFF1E3F66
         actual_color = studio.floorColor
-        assert actual_color == expected_color, \
+        assert actual_color == expected_color, (
             f"floor color mismatch: got 0x{actual_color:08X}, expected 0x{expected_color:08X}"
+        )
 
         print(f"\n  Floor color changed: 0x{actual_color:08X}")
 
@@ -175,21 +196,33 @@ class TestRenderCommands:
 
         # Get the original door angle before flip
         from cli_anything.sweethome3d.core import project as proj_core
+
         home_before = proj_core.open_home(sh3d)
         door_before = next((f for f in home_before.furniture if f.name == "Door1"), None)
         assert door_before is not None, "Door1 not found in initial home"
         angle_before = door_before.angle
 
         # Invoke: edit door --name Door1 --flip --output EDITED
-        r = self._run(["--project", sh3d, "edit", "door",
-                       "--name", "Door1", "--flip",
-                       "--output", edited_sh3d], check=False)
+        r = self._run(
+            [
+                "--project",
+                sh3d,
+                "edit",
+                "door",
+                "--name",
+                "Door1",
+                "--flip",
+                "--output",
+                edited_sh3d,
+            ],
+            check=False,
+        )
 
         if r.returncode != 0 and "edit" in r.stderr:
             pytest.skip("edit door command not yet implemented")
 
         assert r.returncode == 0, f"edit door failed: {r.stderr}"
-        assert os.path.exists(edited_sh3d), f"output file not created"
+        assert os.path.exists(edited_sh3d), "output file not created"
 
         # Open edited file and check door angle
         home_after = proj_core.open_home(edited_sh3d)
@@ -201,8 +234,9 @@ class TestRenderCommands:
         angle_diff = abs((angle_after - angle_before) % (2 * 3.14159265359))
         # Allow tolerance: π ± 0.1 radians
         expected_flip = 3.14159265359
-        assert abs(angle_diff - expected_flip) < 0.2 or abs(angle_diff - 0) < 0.1, \
+        assert abs(angle_diff - expected_flip) < 0.2 or abs(angle_diff - 0) < 0.1, (
             f"angle didn't flip as expected: before={angle_before}, after={angle_after}, diff={angle_diff}"
+        )
 
         print(f"\n  Door angle flipped: {angle_before} -> {angle_after}")
 
@@ -225,8 +259,10 @@ class TestRenderCommands:
 
         # Spawn watch subprocess
         proc = subprocess.Popen(
-            self.CLI + ["watch", sh3d, "--output", watch_png],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            [*self.CLI, "watch", sh3d, "--output", watch_png],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
         )
 
         try:
@@ -236,14 +272,24 @@ class TestRenderCommands:
             # Verify proc is still running
             if proc.poll() is not None:
                 stdout, stderr = proc.communicate()
-                pytest.skip(
-                    f"watch process exited immediately. stdout: {stdout}, stderr: {stderr}"
-                )
+                pytest.skip(f"watch process exited immediately. stdout: {stdout}, stderr: {stderr}")
 
             # Modify the project file (edit floor color)
-            self._run(["--project", sh3d, "edit", "floor",
-                       "--room", "Studio", "--color", "#FF0000",
-                       "--output", sh3d], check=False)
+            self._run(
+                [
+                    "--project",
+                    sh3d,
+                    "edit",
+                    "floor",
+                    "--room",
+                    "Studio",
+                    "--color",
+                    "#FF0000",
+                    "--output",
+                    sh3d,
+                ],
+                check=False,
+            )
 
             # Give watch time to detect the change and re-render
             time.sleep(2)

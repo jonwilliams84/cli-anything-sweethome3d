@@ -23,9 +23,7 @@ import pytest
 
 SH3D_DEFAULT = Path("/home/jonwi/sh3d/SweetHome3D-7.5")
 SH3D_HOME_ENV = os.environ.get("SWEETHOME3D_HOME", "")
-SH3D_AVAILABLE = bool(
-    (SH3D_HOME_ENV and Path(SH3D_HOME_ENV).is_dir()) or SH3D_DEFAULT.is_dir()
-)
+SH3D_AVAILABLE = bool((SH3D_HOME_ENV and Path(SH3D_HOME_ENV).is_dir()) or SH3D_DEFAULT.is_dir())
 
 TEST_HOME = Path("/mnt/c/Users/jonwi/Documents/Home-Clean-Base.sh3d")
 HOME_AVAILABLE = TEST_HOME.exists()
@@ -33,7 +31,7 @@ HOME_AVAILABLE = TEST_HOME.exists()
 skip_no_sh3d = pytest.mark.skipif(
     not SH3D_AVAILABLE,
     reason="SweetHome3D not found — set SWEETHOME3D_HOME or ensure "
-           "/home/jonwi/sh3d/SweetHome3D-7.5 exists",
+    "/home/jonwi/sh3d/SweetHome3D-7.5 exists",
 )
 skip_no_home = pytest.mark.skipif(
     not HOME_AVAILABLE,
@@ -45,6 +43,7 @@ skip_no_home = pytest.mark.skipif(
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _room_ids_from_xml(sh3d_path: str) -> list[str]:
     """Extract room id attributes from the Home.xml entry inside a .sh3d ZIP."""
     import xml.etree.ElementTree as ET
@@ -55,11 +54,7 @@ def _room_ids_from_xml(sh3d_path: str) -> list[str]:
         with zf.open(xml_entry) as f:
             tree = ET.parse(f)
     root = tree.getroot()
-    return [
-        elem.get("id")
-        for elem in root.iter("room")
-        if elem.get("id")
-    ]
+    return [elem.get("id") for elem in root.iter("room") if elem.get("id")]
 
 
 def _get_room_attrs(sh3d_path: str, room_id: str) -> dict:
@@ -82,6 +77,7 @@ def _get_room_attrs(sh3d_path: str, room_id: str) -> dict:
 # Tests
 # ---------------------------------------------------------------------------
 
+
 @skip_no_sh3d
 @skip_no_home
 def test_modify_rooms_by_id(tmp_path):
@@ -93,7 +89,7 @@ def test_modify_rooms_by_id(tmp_path):
 
     # Use the first room (largest area) — id known from earlier probe
     target_id = "room-0a445bae-b423-483b-91f6-7f7d3f61d8e4"
-    floor_color_argb = "FFD8C6A4"           # ARGB hex input
+    floor_color_argb = "FFD8C6A4"  # ARGB hex input
     expected_rgb = int(floor_color_argb[2:], 16)  # 0xD8C6A4 after stripping alpha
 
     spec = {
@@ -108,7 +104,9 @@ def test_modify_rooms_by_id(tmp_path):
 
     result = modify_rooms(src, spec, out_path=out)
 
-    assert result["rooms_modified"] == 1, f"Expected 1 room modified, got {result['rooms_modified']}"
+    assert result["rooms_modified"] == 1, (
+        f"Expected 1 room modified, got {result['rooms_modified']}"
+    )
     assert result["output"] == str(Path(out).resolve())
     assert result["elapsed_s"] >= 0
     assert Path(out).exists(), "Output .sh3d file not created"
@@ -137,7 +135,7 @@ def test_modify_rooms_wall_sides(tmp_path):
     out = str(tmp_path / "wall_sides.sh3d")
 
     target_id = "room-0a445bae-b423-483b-91f6-7f7d3f61d8e4"
-    wall_color_argb = "FFFFC0CB"   # pink
+    wall_color_argb = "FFFFC0CB"  # pink
     expected_rgb = int(wall_color_argb[2:], 16)  # 0xFFC0CB
 
     spec = {
@@ -192,7 +190,7 @@ def test_modify_rooms_baseboard(tmp_path):
                     "color": "FFFFFFFF",
                     "thickness_cm": 1.0,
                     "height_cm": 10.0,
-                }
+                },
             }
         ]
     }
@@ -210,7 +208,7 @@ def test_modify_rooms_baseboard(tmp_path):
 
     baseboard_count = 0
     for wall in tree.getroot().iter("wall"):
-        for bb in wall.iter("baseboard"):
+        for _bb in wall.iter("baseboard"):
             baseboard_count += 1
     assert baseboard_count > 0, (
         "No baseboard elements found after applying baseboard spec — "
@@ -284,7 +282,7 @@ def test_modify_rooms_inplace(tmp_path):
     # Copy test file to a writable tmp location
     src_copy = str(tmp_path / "copy.sh3d")
     shutil.copy2(str(TEST_HOME), src_copy)
-    original_size = Path(src_copy).stat().st_size
+    Path(src_copy).stat().st_size
 
     spec = {
         "rooms": [
@@ -425,6 +423,7 @@ def test_modify_rooms_wall_sides_texture(tmp_path):
 # list-form commands. These do NOT require SweetHome3D to be installed.
 # ---------------------------------------------------------------------------
 
+
 class TestRunValidatedSecurity:
     """Regression tests for bandit B404/B603 fix in modify_rooms.py.
 
@@ -435,11 +434,13 @@ class TestRunValidatedSecurity:
 
     def test_rejects_non_absolute_executable(self):
         from cli_anything.sweethome3d.core import modify_rooms as mr
+
         with pytest.raises(RuntimeError, match="non-absolute"):
             mr._run_validated(["python3", "--version"])
 
     def test_rejects_nonexistent_executable(self):
         from cli_anything.sweethome3d.core import modify_rooms as mr
+
         with pytest.raises(RuntimeError, match="not found"):
             mr._run_validated(["/usr/bin/this-does-not-exist-12345"])
 
@@ -447,6 +448,7 @@ class TestRunValidatedSecurity:
         """A valid absolute executable must run and return a CompletedProcess."""
         import sys
         from cli_anything.sweethome3d.core import modify_rooms as mr
+
         result = mr._run_validated([sys.executable, "-c", "print('ok')"])
         assert result.returncode == 0
         assert "ok" in result.stdout
@@ -457,6 +459,7 @@ class TestRunValidatedSecurity:
         (no shell interpretation)."""
         import sys
         from cli_anything.sweethome3d.core import modify_rooms as mr
+
         # If shell=True were used, '; echo pwned' would execute a second command.
         result = mr._run_validated(
             [sys.executable, "-c", "import sys; print(repr(sys.argv[1]))", "; echo pwned"]

@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import re
 from defusedxml import ElementTree as ET
-from typing import Optional
 
 # defusedxml.ElementTree does not re-export the Element class; derive it
 # from a minimal parsed document so type annotations resolve without
@@ -44,8 +43,10 @@ def extract_corner_markers(svg_root: Element) -> list[tuple[float, float, float,
         my_xform = mul(parent_xform, parse_transform(el.get("transform", "")))
         if classify_fill(el) == CORNER_MARKER:
             if el.tag == "rect":
-                x = float(el.get("x", 0)); y = float(el.get("y", 0))
-                w = float(el.get("width", 0)); h = float(el.get("height", 0))
+                x = float(el.get("x", 0))
+                y = float(el.get("y", 0))
+                w = float(el.get("width", 0))
+                h = float(el.get("height", 0))
                 ax, ay = apply(my_xform, x, y)
                 bx, by = apply(my_xform, x + w, y + h)
                 xmin, xmax = min(ax, bx), max(ax, bx)
@@ -55,8 +56,10 @@ def extract_corner_markers(svg_root: Element) -> list[tuple[float, float, float,
                 # Inkscape's compressed export emits marker rects as paths;
                 # walk the path's line segments and use the axis-aligned bbox.
                 from cli_anything.sweethome3d.core.svg.parse import (
-                    parse_path, walk_path,
+                    parse_path,
+                    walk_path,
                 )
+
                 # Split into subpaths at each M/m so each marker square is
                 # its own bbox (one compound path may carry several).
                 cmds = parse_path(el.get("d", ""))
@@ -64,7 +67,8 @@ def extract_corner_markers(svg_root: Element) -> list[tuple[float, float, float,
                 cur: list = []
                 for cmd, args in cmds:
                     if cmd in ("M", "m") and cur:
-                        subs.append(cur); cur = []
+                        subs.append(cur)
+                        cur = []
                     cur.append((cmd, args))
                 if cur:
                     subs.append(cur)
@@ -80,8 +84,7 @@ def extract_corner_markers(svg_root: Element) -> list[tuple[float, float, float,
                         continue
                     ax, ay = apply(my_xform, minx, miny)
                     bx, by = apply(my_xform, maxx, maxy)
-                    out.append((min(ax, bx), min(ay, by),
-                                 max(ax, bx), max(ay, by)))
+                    out.append((min(ax, bx), min(ay, by), max(ax, bx), max(ay, by)))
         for child in el:
             visit(child, my_xform)
 
@@ -89,9 +92,9 @@ def extract_corner_markers(svg_root: Element) -> list[tuple[float, float, float,
     return out
 
 
-def fit_uniform_affine(src: list[tuple[float, float]],
-                        dst: list[tuple[float, float]]
-                        ) -> tuple[float, float, float]:
+def fit_uniform_affine(
+    src: list[tuple[float, float]], dst: list[tuple[float, float]]
+) -> tuple[float, float, float]:
     """Closed-form least-squares fit of ``target = s * source + (tx, ty)``.
 
     Used to align one floor's green-marker centres onto the canonical
@@ -111,9 +114,9 @@ def fit_uniform_affine(src: list[tuple[float, float]],
     dy = sum(p[1] for p in dst) / n
     if n == 1:
         return 1.0, dx - sx, dy - sy
-    num = sum((src[i][0] - sx) * (dst[i][0] - dx)
-               + (src[i][1] - sy) * (dst[i][1] - dy)
-               for i in range(n))
+    num = sum(
+        (src[i][0] - sx) * (dst[i][0] - dx) + (src[i][1] - sy) * (dst[i][1] - dy) for i in range(n)
+    )
     den = sum((src[i][0] - sx) ** 2 + (src[i][1] - sy) ** 2 for i in range(n))
     s = num / den if den > 1e-12 else 1.0
     tx = dx - s * sx

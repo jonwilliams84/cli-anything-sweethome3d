@@ -40,19 +40,21 @@ def _read_image_bytes(path: str) -> bytes:
     return data
 
 
-def set_background(home: Home, *,
-                     image_path: str,
-                     scale_distance_cm: float,
-                     scale_x_start: float,
-                     scale_y_start: float,
-                     scale_x_end: float,
-                     scale_y_end: float,
-                     x_origin: float = 0,
-                     y_origin: float = 0,
-                     visible: bool = True,
-                     level: Optional[str] = None,
-                     session_add_content=None
-                     ) -> tuple[BackgroundImage, dict[str, bytes]]:
+def set_background(
+    home: Home,
+    *,
+    image_path: str,
+    scale_distance_cm: float,
+    scale_x_start: float,
+    scale_y_start: float,
+    scale_x_end: float,
+    scale_y_end: float,
+    x_origin: float = 0,
+    y_origin: float = 0,
+    visible: bool = True,
+    level: Optional[str] = None,
+    session_add_content=None,
+) -> tuple[BackgroundImage, dict[str, bytes]]:
     """Attach a background image to the home or to a level.
 
     Returns ``(BackgroundImage, extra_content)`` — the dataclass plus a
@@ -66,9 +68,7 @@ def set_background(home: Home, *,
     if scale_distance_cm <= 0:
         raise ValueError("scale_distance_cm must be positive")
     if (scale_x_start == scale_x_end) and (scale_y_start == scale_y_end):
-        raise ValueError(
-            "scale line endpoints are identical — pick two distinct points"
-        )
+        raise ValueError("scale line endpoints are identical — pick two distinct points")
     data = _read_image_bytes(image_path)
     entry = next_content_id(home)
     bg = BackgroundImage(
@@ -92,8 +92,7 @@ def set_background(home: Home, *,
     return bg, {entry: data}
 
 
-def clear_background(home: Home, *,
-                       level: Optional[str] = None) -> bool:
+def clear_background(home: Home, *, level: Optional[str] = None) -> bool:
     """Drop the home's or a level's background image. Returns True when
     something was actually cleared."""
     if level is None:
@@ -108,9 +107,7 @@ def clear_background(home: Home, *,
     return True
 
 
-def set_visibility(home: Home, *,
-                     visible: bool,
-                     level: Optional[str] = None) -> BackgroundImage:
+def set_visibility(home: Home, *, visible: bool, level: Optional[str] = None) -> BackgroundImage:
     """Toggle a background image's visibility without dropping it."""
     if level is None:
         if home.backgroundImage is None:
@@ -124,8 +121,7 @@ def set_visibility(home: Home, *,
     return lvl.backgroundImage
 
 
-def get_background(home: Home, *,
-                     level: Optional[str] = None) -> Optional[BackgroundImage]:
+def get_background(home: Home, *, level: Optional[str] = None) -> Optional[BackgroundImage]:
     """Return the home-level or per-level background image (None if unset)."""
     if level is None:
         return home.backgroundImage

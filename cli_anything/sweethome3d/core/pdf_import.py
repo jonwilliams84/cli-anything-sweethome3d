@@ -17,16 +17,18 @@ Typical use:
     home = pdf_to_home("plans.pdf", plan_title="Ground Floor - Proposed")
     save_home(home, "ground_floor.sh3d")
 """
+
 from __future__ import annotations
 import math
 
 # 1:100 on a true-size sheet: 1 PDF point (1/72") = 0.352778 mm paper × 100 = 3.5278 cm real.
-CM_PER_PT_1TO100 = 72 ** -1 * 25.4 * 100 / 10  # = 3.5278
+CM_PER_PT_1TO100 = 72**-1 * 25.4 * 100 / 10  # = 3.5278
 
 
 def _require_fitz():
     try:
         import fitz  # PyMuPDF
+
         return fitz
     except ImportError as e:  # pragma: no cover - dependency guard
         raise ImportError("pdf_import needs PyMuPDF — `pip install PyMuPDF`") from e
@@ -63,8 +65,12 @@ def find_plan_region(page, plan_title, pad=45, gap=80):
     title = None
     for i in range(len(words) - len(seq) + 1):
         if [words[i + k][4] for k in range(len(seq))] == seq:
-            xs = [words[i + k][0] for k in range(len(seq))] + [words[i + k][2] for k in range(len(seq))]
-            ys = [words[i + k][1] for k in range(len(seq))] + [words[i + k][3] for k in range(len(seq))]
+            xs = [words[i + k][0] for k in range(len(seq))] + [
+                words[i + k][2] for k in range(len(seq))
+            ]
+            ys = [words[i + k][1] for k in range(len(seq))] + [
+                words[i + k][3] for k in range(len(seq))
+            ]
             title = fitz.Rect(min(xs), min(ys), max(xs), max(ys))
             break
     if title is None:
@@ -87,11 +93,13 @@ def find_plan_region(page, plan_title, pad=45, gap=80):
         return None
     # Stage 1 — find the plan's y-band by clustering fills in the TITLE'S COLUMN (there the
     # inter-drawing whitespace is clean; across the full width, dimension leaders bridge it).
-    col = sorted((r for r in fills if abs((r.x0 + r.x1) / 2 - tx) < 300),
-                 key=lambda r: (r.y0 + r.y1) / 2)
+    col = sorted(
+        (r for r in fills if abs((r.x0 + r.x1) / 2 - tx) < 300), key=lambda r: (r.y0 + r.y1) / 2
+    )
     if not col:
         col = sorted(fills, key=lambda r: (r.y0 + r.y1) / 2)
-    ylo = yhi = None; start = 0
+    ylo = yhi = None
+    start = 0
     for i in range(1, len(col) + 1):
         prev_cy = (col[i - 1].y0 + col[i - 1].y1) / 2
         nxt_cy = (col[i].y0 + col[i].y1) / 2 if i < len(col) else 1e18
@@ -137,13 +145,25 @@ def extract_wall_polygons(page, region):
             elif it[0] == "re":
                 rr = it[1]
                 if cur:
-                    polys.append(cur); cur = []
-                polys.append([(rr.x0, rr.y0), (rr.x1, rr.y0), (rr.x1, rr.y1), (rr.x0, rr.y1), (rr.x0, rr.y0)])
+                    polys.append(cur)
+                    cur = []
+                polys.append(
+                    [(rr.x0, rr.y0), (rr.x1, rr.y0), (rr.x1, rr.y1), (rr.x0, rr.y1), (rr.x0, rr.y0)]
+                )
             elif it[0] == "qu":
                 q = it[1]
                 if cur:
-                    polys.append(cur); cur = []
-                polys.append([(q.ul.x, q.ul.y), (q.ur.x, q.ur.y), (q.lr.x, q.lr.y), (q.ll.x, q.ll.y), (q.ul.x, q.ul.y)])
+                    polys.append(cur)
+                    cur = []
+                polys.append(
+                    [
+                        (q.ul.x, q.ul.y),
+                        (q.ur.x, q.ur.y),
+                        (q.lr.x, q.lr.y),
+                        (q.ll.x, q.ll.y),
+                        (q.ul.x, q.ul.y),
+                    ]
+                )
             elif it[0] == "c":
                 if not cur:
                     cur.append((it[1].x, it[1].y))
@@ -167,7 +187,7 @@ def skeleton_walls(polys, scale_cm_per_pt, *, min_wall_cm=25, weld_cm=20, ss=2):
     from skimage.morphology import skeletonize, closing, footprint_rectangle
     from skimage.transform import probabilistic_hough_line
     from scipy.ndimage import distance_transform_edt
-    from cli_anything.sweethome3d.core.svg.walls import axis_aligned, close_corners, join_walls, grid_snap
+    from cli_anything.sweethome3d.core.svg.walls import axis_aligned, close_corners, join_walls
 
     ox = min(x for po in polys for x, _ in po)
     oy = min(y for po in polys for _, y in po)
@@ -179,14 +199,16 @@ def skeleton_walls(polys, scale_cm_per_pt, *, min_wall_cm=25, weld_cm=20, ss=2):
         ys = np.array([(y - oy) * ss for _, y in po])
         rr, cc = draw_polygon(ys, xs, shape=mask.shape)
         mask[rr, cc] = True
-    mask = closing(mask, footprint_rectangle((3, 3)))         # heal hatching / hairline gaps
+    mask = closing(mask, footprint_rectangle((3, 3)))  # heal hatching / hairline gaps
     dist = distance_transform_edt(mask)
     skel = skeletonize(mask)
     px_per_cm = ss / scale_cm_per_pt
     segs = probabilistic_hough_line(
-        skel, threshold=8,
+        skel,
+        threshold=8,
         line_length=max(6, int(min_wall_cm * 0.5 * px_per_cm)),
-        line_gap=max(3, int(6 * px_per_cm)))
+        line_gap=max(3, int(6 * px_per_cm)),
+    )
     if not segs:
         return []
     # px -> cm segments for the repo's axis snapper/merger
@@ -194,7 +216,8 @@ def skeleton_walls(polys, scale_cm_per_pt, *, min_wall_cm=25, weld_cm=20, ss=2):
     xy = [(a[0] * cm, a[1] * cm, b[0] * cm, b[1] * cm) for a, b in segs]
 
     def thickness_cm(xcm, ycm):
-        ix = min(w - 1, max(0, int(xcm / cm))); iy = min(h - 1, max(0, int(ycm / cm)))
+        ix = min(w - 1, max(0, int(xcm / cm)))
+        iy = min(h - 1, max(0, int(ycm / cm)))
         return max(5.0, round(dist[iy, ix] * 2 / ss * scale_cm_per_pt, 1))
 
     # merge collinear Hough fragments with a SMALL min length (keep short partitions),
@@ -238,7 +261,8 @@ def render_region_png(page, region, out_path, *, dpi=200, grey_to_black=True):
 # ---- external model backend (e.g. CubiCasa5k, user-supplied — see cubicasa_runner) --
 # B404/B603: subprocess is used intentionally for launching user-supplied model scripts.
 # Shell metacharacters and path injection are blocked by _validate_shell_safe().
-import os, re
+import os
+import re
 
 _SHELL_META = re.compile(
     r"[;&|`$<>!\"'\s]"
@@ -258,9 +282,7 @@ def _validate_shell_safe(value: str, label: str) -> None:
     where a maliciously crafted path argument could bleed into adjacent tokens.
     """
     if _SHELL_META.search(value):
-        raise ValueError(
-            f"{label} contains shell metacharacter or control byte: {value!r}"
-        )
+        raise ValueError(f"{label} contains shell metacharacter or control byte: {value!r}")
 
 
 def run_model(png_path, out_json, *, model_cmd=None):
@@ -268,7 +290,8 @@ def run_model(png_path, out_json, *, model_cmd=None):
     {w,h,walls:[{points,class}],openings:[{points,class}],rooms:[...]}. `model_cmd` is a
     command (list or string) with `{in}`/`{out}` placeholders; falls back to $SH3D_MODEL_CMD.
     The model itself is NOT shipped with this package (licence/size) — the user supplies it."""
-    import json, shlex  # noqa: F401 (kept for the public API; only json is used below)
+    import json
+    import shlex  # noqa: F401 (kept for the public API; only json is used below)
     import subprocess  # nosec B404 — intentionally launches user model scripts; B603 blocked by _validate_shell_safe()
 
     cmd = model_cmd or os.environ.get("SH3D_MODEL_CMD")
@@ -276,7 +299,8 @@ def run_model(png_path, out_json, *, model_cmd=None):
         raise RuntimeError(
             "no model backend configured. Set --model-cmd or $SH3D_MODEL_CMD, e.g.\n"
             "  '/path/to/torch-venv/bin/python /path/to/cubicasa_runner.py {in} {out}'\n"
-            "(see cli_anything/sweethome3d/tools/cubicasa_runner.py). Or use backend='geometry'.")
+            "(see cli_anything/sweethome3d/tools/cubicasa_runner.py). Or use backend='geometry'."
+        )
 
     # B603: validate the command template before any substitution.
     if isinstance(cmd, str):
@@ -307,13 +331,15 @@ _OPENING_CAT = {1: ("eTeks#window", "Window"), 2: ("eTeks#doubleDoor", "Door")}
 
 
 def _poly_bbox(pts):
-    xs = [p[0] for p in pts]; ys = [p[1] for p in pts]
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
     return min(xs), min(ys), max(xs), max(ys)
 
 
 def _place_opening(walls, cx, cy, w_cm, name, cat, level):
     """Bind a door/window piece to the nearest wall (projected onto it)."""
     from cli_anything.sweethome3d.core.model import PieceOfFurniture
+
     best, bd = None, 1e18
     for w in walls:
         dx, dy = w.xEnd - w.xStart, w.yEnd - w.yStart
@@ -326,14 +352,24 @@ def _place_opening(walls, cx, cy, w_cm, name, cat, level):
     if not best or bd > max(70.0, w_cm):
         return None
     w, px, py, dx, dy = best
-    return PieceOfFurniture(name=name, x=round(px, 1), y=round(py, 1), width=round(max(20.0, w_cm), 1),
-                            depth=round(w.thickness + 2, 1), height=200, kind="doorOrWindow",
-                            angle=round(math.degrees(math.atan2(dy, dx)), 1),
-                            catalogId=cat, level=level, boundToWall=True)
+    return PieceOfFurniture(
+        name=name,
+        x=round(px, 1),
+        y=round(py, 1),
+        width=round(max(20.0, w_cm), 1),
+        depth=round(w.thickness + 2, 1),
+        height=200,
+        kind="doorOrWindow",
+        angle=round(math.degrees(math.atan2(dy, dx)), 1),
+        catalogId=cat,
+        level=level,
+        boundToWall=True,
+    )
 
 
-def polygons_to_home(pred, *, cm_per_px, level_name="Ground Floor", min_wall_cm=20, weld_cm=20,
-                                 override_walls=None):
+def polygons_to_home(
+    pred, *, cm_per_px, level_name="Ground Floor", min_wall_cm=20, weld_cm=20, override_walls=None
+):
     """Convert a model prediction (pixel polygons) into a Home — walls (axis-aligned
     centrelines + thickness, welded) and doors/windows (bound to walls). Rooms if present.
 
@@ -345,6 +381,7 @@ def polygons_to_home(pred, *, cm_per_px, level_name="Ground Floor", min_wall_cm=
     """
     from cli_anything.sweethome3d.core.model import Home, Wall, Level, Room, Point
     from cli_anything.sweethome3d.core.svg.walls import close_corners, join_walls
+
     s = cm_per_px
     raw = []
     if override_walls is not None:
@@ -371,8 +408,17 @@ def polygons_to_home(pred, *, cm_per_px, level_name="Ground Floor", min_wall_cm=
     home.levels.append(lvl)
     home.selectedLevel = lvl.id
     for xs_, ys_, xe_, ye_, th in raw:
-        home.walls.append(Wall(round(xs_, 1), round(ys_, 1), round(xe_, 1), round(ye_, 1),
-                               thickness=max(5.0, round(th, 1)), level=lvl.id, height=250))
+        home.walls.append(
+            Wall(
+                round(xs_, 1),
+                round(ys_, 1),
+                round(xe_, 1),
+                round(ye_, 1),
+                thickness=max(5.0, round(th, 1)),
+                level=lvl.id,
+                height=250,
+            )
+        )
     for op in pred.get("openings", []):
         pts = op.get("points", [])
         if len(pts) < 2:
@@ -387,15 +433,32 @@ def polygons_to_home(pred, *, cm_per_px, level_name="Ground Floor", min_wall_cm=
     for rp in pred.get("rooms", []):
         pts = rp.get("points", []) if isinstance(rp, dict) else rp
         if len(pts) >= 3:
-            home.rooms.append(Room(points=[Point(round(p[0] * s, 1), round(p[1] * s, 1)) for p in pts],
-                                   level=lvl.id, name=(rp.get("name") if isinstance(rp, dict) else None)))
+            home.rooms.append(
+                Room(
+                    points=[Point(round(p[0] * s, 1), round(p[1] * s, 1)) for p in pts],
+                    level=lvl.id,
+                    name=(rp.get("name") if isinstance(rp, dict) else None),
+                )
+            )
     return home
 
 
-def pdf_to_home(pdf_path, *, page_index=0, plan_title=None, region=None,
-                scale_cm_per_pt=CM_PER_PT_1TO100, backend="geometry", dpi=200,
-                grey_to_black=True, model_cmd=None, min_wall_cm=25, weld_cm=20,
-                level_name="Ground Floor", wall_source="model"):
+def pdf_to_home(
+    pdf_path,
+    *,
+    page_index=0,
+    plan_title=None,
+    region=None,
+    scale_cm_per_pt=CM_PER_PT_1TO100,
+    backend="geometry",
+    dpi=200,
+    grey_to_black=True,
+    model_cmd=None,
+    min_wall_cm=25,
+    weld_cm=20,
+    level_name="Ground Floor",
+    wall_source="model",
+):
     """Convert one plan on a vector floorplan PDF into a Home.
 
     `plan_title` (e.g. 'Ground Floor - Proposed') auto-locates the plan on a
@@ -408,6 +471,7 @@ def pdf_to_home(pdf_path, *, page_index=0, plan_title=None, region=None,
                      (walls only). No model required.
     """
     from cli_anything.sweethome3d.core.model import Home, Wall, Level
+
     fitz = _require_fitz()
     doc = fitz.open(pdf_path)
     page = doc[page_index]
@@ -422,7 +486,9 @@ def pdf_to_home(pdf_path, *, page_index=0, plan_title=None, region=None,
                 raise ValueError(f"plan titled {plan_title!r} not found on page {page_index}")
 
     if backend == "model":
-        import os, tempfile
+        import os
+        import tempfile
+
         d = tempfile.mkdtemp(prefix="sh3d-pdf-")
         png, out = os.path.join(d, "plan.png"), os.path.join(d, "pred.json")
         render_region_png(page, region, png, dpi=dpi, grey_to_black=grey_to_black)
@@ -445,13 +511,25 @@ def pdf_to_home(pdf_path, *, page_index=0, plan_title=None, region=None,
                     ww, hh = x1 - x0, y1 - y0
                     cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
                     if ww >= hh:
-                        model_walls.append((x0 * cm_per_px, cy * cm_per_px,
-                                            x1 * cm_per_px, cy * cm_per_px,
-                                            max(6.0, hh * cm_per_px)))
+                        model_walls.append(
+                            (
+                                x0 * cm_per_px,
+                                cy * cm_per_px,
+                                x1 * cm_per_px,
+                                cy * cm_per_px,
+                                max(6.0, hh * cm_per_px),
+                            )
+                        )
                     else:
-                        model_walls.append((cx * cm_per_px, y0 * cm_per_px,
-                                            cx * cm_per_px, y1 * cm_per_px,
-                                            max(6.0, ww * cm_per_px)))
+                        model_walls.append(
+                            (
+                                cx * cm_per_px,
+                                y0 * cm_per_px,
+                                cx * cm_per_px,
+                                y1 * cm_per_px,
+                                max(6.0, ww * cm_per_px),
+                            )
+                        )
                 fused = list(room_walls)
                 for mw in model_walls:
                     mx0, my0, mx1, my1, mt = mw
@@ -460,8 +538,14 @@ def pdf_to_home(pdf_path, *, page_index=0, plan_title=None, region=None,
                     for rw in room_walls:
                         rx0, ry0, rx1, ry1, _rt = rw
                         rlen = math.hypot(rx1 - rx0, ry1 - ry0) or 1.0
-                        t = max(0.0, min(1.0, ((mmx - rx0) * (rx1 - rx0) +
-                                               (mmy - ry0) * (ry1 - ry0)) / (rlen * rlen)))
+                        t = max(
+                            0.0,
+                            min(
+                                1.0,
+                                ((mmx - rx0) * (rx1 - rx0) + (mmy - ry0) * (ry1 - ry0))
+                                / (rlen * rlen),
+                            ),
+                        )
                         rpx, rpy = rx0 + t * (rx1 - rx0), ry0 + t * (ry1 - ry0)
                         if math.hypot(mmx - rpx, mmy - rpy) <= max(25.0, mt):
                             near = True
@@ -469,9 +553,14 @@ def pdf_to_home(pdf_path, *, page_index=0, plan_title=None, region=None,
                     if not near:
                         fused.append(mw)
                 override_walls = fused
-        return polygons_to_home(pred, cm_per_px=cm_per_px,
-                                level_name=level_name, min_wall_cm=min_wall_cm,
-                                weld_cm=weld_cm, override_walls=override_walls)
+        return polygons_to_home(
+            pred,
+            cm_per_px=cm_per_px,
+            level_name=level_name,
+            min_wall_cm=min_wall_cm,
+            weld_cm=weld_cm,
+            override_walls=override_walls,
+        )
 
     polys = extract_wall_polygons(page, region)
     if not polys:
@@ -482,26 +571,45 @@ def pdf_to_home(pdf_path, *, page_index=0, plan_title=None, region=None,
     home.levels.append(lvl)
     home.selectedLevel = lvl.id
     for xs_, ys_, xe_, ye_, thick in walls:
-        home.walls.append(Wall(round(xs_, 1), round(ys_, 1), round(xe_, 1), round(ye_, 1),
-                               thickness=max(5.0, round(thick, 1)), level=lvl.id, height=250))
+        home.walls.append(
+            Wall(
+                round(xs_, 1),
+                round(ys_, 1),
+                round(xe_, 1),
+                round(ye_, 1),
+                thickness=max(5.0, round(thick, 1)),
+                level=lvl.id,
+                height=250,
+            )
+        )
     return home
 
 
 if __name__ == "__main__":
     import argparse
     from cli_anything.sweethome3d.core.project import save_home
+
     ap = argparse.ArgumentParser(description="Convert a vector floorplan PDF to .sh3d")
     ap.add_argument("pdf")
     ap.add_argument("-o", "--output", required=True)
     ap.add_argument("--page", type=int, default=0)
     ap.add_argument("--plan", help="plan title to locate, e.g. 'Ground Floor - Proposed'")
     ap.add_argument("--backend", choices=["geometry", "model"], default="geometry")
-    ap.add_argument("--model-cmd", help="model backend command with {in}/{out} (or $SH3D_MODEL_CMD)")
+    ap.add_argument(
+        "--model-cmd", help="model backend command with {in}/{out} (or $SH3D_MODEL_CMD)"
+    )
     ap.add_argument("--dpi", type=int, default=200)
     ap.add_argument("--scale", type=float, default=CM_PER_PT_1TO100, help="cm per PDF point")
     a = ap.parse_args()
-    h = pdf_to_home(a.pdf, page_index=a.page, plan_title=a.plan, backend=a.backend,
-                    model_cmd=a.model_cmd, dpi=a.dpi, scale_cm_per_pt=a.scale)
+    h = pdf_to_home(
+        a.pdf,
+        page_index=a.page,
+        plan_title=a.plan,
+        backend=a.backend,
+        model_cmd=a.model_cmd,
+        dpi=a.dpi,
+        scale_cm_per_pt=a.scale,
+    )
     save_home(h, a.output)
     print(f"{a.output}: {len(h.walls)} walls, {len(h.furniture)} openings, {len(h.rooms)} rooms")
 
@@ -542,10 +650,12 @@ if __name__ == "__main__":
 # or use the [rooms] extra: pip install -e ".[rooms]"
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def _require_cv2():
     """Lazily import OpenCV; raises ImportError with a clear message if absent."""
     try:
         import cv2
+
         return cv2
     except ImportError as e:
         raise ImportError(
@@ -580,7 +690,8 @@ def walls_from_rooms(room_polys, tol: float = 0.5):
 
     def _pt_key(a, b, tol=tol):
         """Canonical (unordered) key for a directed segment."""
-        ax, ay = a; bx, by = b
+        ax, ay = a
+        bx, by = b
         if (ax, ay) <= (bx, by):
             return (ax, ay, bx, by)
         return (bx, by, ax, ay)
@@ -676,7 +787,7 @@ def room_contours(image_path, *, cm_per_px, wall_thresh=200):
     # Invert: 255 = interior (room pixel), 0 = wall pixel
     interior = cv2.bitwise_not(closed)
 
-    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(
+    num_labels, labels, stats, _centroids = cv2.connectedComponentsWithStats(
         interior, connectivity=8
     )
 
@@ -701,8 +812,7 @@ def room_contours(image_path, *, cm_per_px, wall_thresh=200):
             break
     # Fallback: largest non-zero label is background
     if bg_label is None:
-        bg_label = max(candidate_labels,
-                       key=lambda l: stats[l, cv2.CC_STAT_AREA])
+        bg_label = max(candidate_labels, key=lambda l: stats[l, cv2.CC_STAT_AREA])
 
     # ── Step 5: per-room contour extraction ───────────────────────────────────
     rooms = []
@@ -714,8 +824,7 @@ def room_contours(image_path, *, cm_per_px, wall_thresh=200):
             continue
 
         mask = (labels == label).astype(np.uint8) * 255
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL,
-                                       cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         for cnt in contours:
             peri = cv2.arcLength(cnt, True)
             if peri < 4:

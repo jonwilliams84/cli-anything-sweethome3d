@@ -28,15 +28,10 @@ Floor-ceiling height default = 250 cm.
 from __future__ import annotations
 
 import copy
-import json
 import math
 import html
 import uuid
-import zipfile
 import struct
-import io
-import os
-import textwrap
 from pathlib import Path
 from typing import Any, Optional, Union
 
@@ -62,45 +57,85 @@ _save_home_fn = None
 
 _CATALOG: dict[str, list[str]] = {
     "sofa": [
-        "SOFA_2_SEATS", "SOFA_3_SEATS", "CORNER_SOFA", "SOFA_BED",
+        "SOFA_2_SEATS",
+        "SOFA_3_SEATS",
+        "CORNER_SOFA",
+        "SOFA_BED",
     ],
     "chair": [
-        "DINING_CHAIR", "OFFICE_CHAIR", "ARMCHAIR", "STOOL",
+        "DINING_CHAIR",
+        "OFFICE_CHAIR",
+        "ARMCHAIR",
+        "STOOL",
     ],
     "table": [
-        "DINING_TABLE_4", "DINING_TABLE_6", "COFFEE_TABLE", "DESK",
-        "SIDE_TABLE", "KITCHEN_TABLE",
+        "DINING_TABLE_4",
+        "DINING_TABLE_6",
+        "COFFEE_TABLE",
+        "DESK",
+        "SIDE_TABLE",
+        "KITCHEN_TABLE",
     ],
     "bed": [
-        "SINGLE_BED", "DOUBLE_BED", "KING_BED", "BUNK_BED",
+        "SINGLE_BED",
+        "DOUBLE_BED",
+        "KING_BED",
+        "BUNK_BED",
     ],
     "storage": [
-        "WARDROBE", "BOOKCASE", "SIDEBOARD", "CHEST_OF_DRAWERS",
-        "TV_UNIT", "SHOE_RACK",
+        "WARDROBE",
+        "BOOKCASE",
+        "SIDEBOARD",
+        "CHEST_OF_DRAWERS",
+        "TV_UNIT",
+        "SHOE_RACK",
     ],
     "kitchen": [
-        "KITCHEN_UNIT_BASE", "KITCHEN_UNIT_WALL", "KITCHEN_ISLAND",
-        "OVEN", "REFRIGERATOR", "DISHWASHER", "WASHING_MACHINE",
-        "TUMBLE_DRYER", "KITCHEN_SINK",
+        "KITCHEN_UNIT_BASE",
+        "KITCHEN_UNIT_WALL",
+        "KITCHEN_ISLAND",
+        "OVEN",
+        "REFRIGERATOR",
+        "DISHWASHER",
+        "WASHING_MACHINE",
+        "TUMBLE_DRYER",
+        "KITCHEN_SINK",
     ],
     "bathroom": [
-        "BATH", "SHOWER_ENCLOSURE", "TOILET", "BASIN", "VANITY_UNIT",
+        "BATH",
+        "SHOWER_ENCLOSURE",
+        "TOILET",
+        "BASIN",
+        "VANITY_UNIT",
         "TOWEL_RAIL",
     ],
     "door": [
-        "DOOR_STANDARD", "DOOR_BIFOLD", "DOOR_FRENCH", "DOOR_SLIDING",
+        "DOOR_STANDARD",
+        "DOOR_BIFOLD",
+        "DOOR_FRENCH",
+        "DOOR_SLIDING",
         "DOOR_POCKET",
     ],
     "window": [
-        "WINDOW_CASEMENT", "WINDOW_SASH", "WINDOW_TILT_AND_TURN",
-        "WINDOW_BAY", "SKYLIGHT",
+        "WINDOW_CASEMENT",
+        "WINDOW_SASH",
+        "WINDOW_TILT_AND_TURN",
+        "WINDOW_BAY",
+        "SKYLIGHT",
     ],
     "stair": [
-        "STAIRCASE_STRAIGHT", "STAIRCASE_L", "STAIRCASE_U",
+        "STAIRCASE_STRAIGHT",
+        "STAIRCASE_L",
+        "STAIRCASE_U",
     ],
     "misc": [
-        "FIREPLACE", "RADIATOR", "BOILER", "CONSUMER_UNIT",
-        "TV", "DESK_LAMP", "FLOOR_LAMP",
+        "FIREPLACE",
+        "RADIATOR",
+        "BOILER",
+        "CONSUMER_UNIT",
+        "TV",
+        "DESK_LAMP",
+        "FLOOR_LAMP",
     ],
 }
 
@@ -117,46 +152,65 @@ def _all_catalog_ids() -> list[str]:
 # this map is passed through unchanged (so callers may also use the raw
 # eTeks#... IDs directly).
 _CATALOG_ALIAS: dict[str, str] = {
-    "SOFA_2_SEATS": "eTeks#sofa", "SOFA_3_SEATS": "eTeks#sofa",
-    "CORNER_SOFA":  "eTeks#cornerSofa", "SOFA_BED": "eTeks#sofa",
-    "DINING_CHAIR": "eTeks#chair", "OFFICE_CHAIR": "eTeks#chair",
-    "ARMCHAIR":     "eTeks#armchair", "STOOL": "eTeks#stool",
-    "DINING_TABLE_4": "eTeks#table", "DINING_TABLE_6": "eTeks#table",
-    "COFFEE_TABLE": "eTeks#coffeeTable", "DESK": "eTeks#desk",
-    "SIDE_TABLE":   "eTeks#table", "KITCHEN_TABLE": "eTeks#table",
-    "SINGLE_BED":   "eTeks#bed90x190", "DOUBLE_BED": "eTeks#bed",
-    "KING_BED":     "eTeks#bed", "BUNK_BED": "eTeks#bunkBed90x190",
-    "WARDROBE":     "eTeks#wardrobe", "BOOKCASE": "eTeks#bookcase",
-    "SIDEBOARD":    "eTeks#chest", "CHEST_OF_DRAWERS": "eTeks#chest",
-    "TV_UNIT":      "eTeks#tvUnit", "SHOE_RACK": "eTeks#chest",
+    "SOFA_2_SEATS": "eTeks#sofa",
+    "SOFA_3_SEATS": "eTeks#sofa",
+    "CORNER_SOFA": "eTeks#cornerSofa",
+    "SOFA_BED": "eTeks#sofa",
+    "DINING_CHAIR": "eTeks#chair",
+    "OFFICE_CHAIR": "eTeks#chair",
+    "ARMCHAIR": "eTeks#armchair",
+    "STOOL": "eTeks#stool",
+    "DINING_TABLE_4": "eTeks#table",
+    "DINING_TABLE_6": "eTeks#table",
+    "COFFEE_TABLE": "eTeks#coffeeTable",
+    "DESK": "eTeks#desk",
+    "SIDE_TABLE": "eTeks#table",
+    "KITCHEN_TABLE": "eTeks#table",
+    "SINGLE_BED": "eTeks#bed90x190",
+    "DOUBLE_BED": "eTeks#bed",
+    "KING_BED": "eTeks#bed",
+    "BUNK_BED": "eTeks#bunkBed90x190",
+    "WARDROBE": "eTeks#wardrobe",
+    "BOOKCASE": "eTeks#bookcase",
+    "SIDEBOARD": "eTeks#chest",
+    "CHEST_OF_DRAWERS": "eTeks#chest",
+    "TV_UNIT": "eTeks#tvUnit",
+    "SHOE_RACK": "eTeks#chest",
     "KITCHEN_UNIT_BASE": "eTeks#kitchenCabinet",
     "KITCHEN_UNIT_WALL": "eTeks#kitchenUpperCabinet",
-    "KITCHEN_ISLAND":    "eTeks#kitchenCabinet",
-    "OVEN":         "eTeks#oven", "REFRIGERATOR": "eTeks#fridgeFreezer",
-    "DISHWASHER":   "eTeks#dishwasher",
-    "WASHING_MACHINE":   "eTeks#clothesWasher",
-    "TUMBLE_DRYER": "eTeks#clothesWasher", "KITCHEN_SINK": "eTeks#sink",
-    "BATH":         "eTeks#fittedBath", "SHOWER_ENCLOSURE": "eTeks#shower",
-    "TOILET":       "eTeks#toiletUnit", "BASIN": "eTeks#washbasin",
-    "VANITY_UNIT":  "eTeks#washbasinWithCabinet",
-    "TOWEL_RAIL":   "eTeks#electricRadiator",
-    "DOOR_STANDARD": "eTeks#doorFrame", "DOOR_BIFOLD": "eTeks#doorFrame",
-    "DOOR_FRENCH":  "eTeks#doubleFrenchWindow126x200",
+    "KITCHEN_ISLAND": "eTeks#kitchenCabinet",
+    "OVEN": "eTeks#oven",
+    "REFRIGERATOR": "eTeks#fridgeFreezer",
+    "DISHWASHER": "eTeks#dishwasher",
+    "WASHING_MACHINE": "eTeks#clothesWasher",
+    "TUMBLE_DRYER": "eTeks#clothesWasher",
+    "KITCHEN_SINK": "eTeks#sink",
+    "BATH": "eTeks#fittedBath",
+    "SHOWER_ENCLOSURE": "eTeks#shower",
+    "TOILET": "eTeks#toiletUnit",
+    "BASIN": "eTeks#washbasin",
+    "VANITY_UNIT": "eTeks#washbasinWithCabinet",
+    "TOWEL_RAIL": "eTeks#electricRadiator",
+    "DOOR_STANDARD": "eTeks#doorFrame",
+    "DOOR_BIFOLD": "eTeks#doorFrame",
+    "DOOR_FRENCH": "eTeks#doubleFrenchWindow126x200",
     "DOOR_SLIDING": "eTeks#doubleFrenchWindow126x200",
-    "DOOR_POCKET":  "eTeks#doorFrame",
+    "DOOR_POCKET": "eTeks#doorFrame",
     "WINDOW_CASEMENT": "eTeks#fixedWindow85x123",
-    "WINDOW_SASH":     "eTeks#doubleHungWindow80x122",
+    "WINDOW_SASH": "eTeks#doubleHungWindow80x122",
     "WINDOW_TILT_AND_TURN": "eTeks#fixedWindow85x123",
-    "WINDOW_BAY":      "eTeks#doubleWindow126x163",
-    "SKYLIGHT":     "eTeks#texturableBox",
+    "WINDOW_BAY": "eTeks#doubleWindow126x163",
+    "SKYLIGHT": "eTeks#texturableBox",
     "STAIRCASE_STRAIGHT": "eTeks#staircase",
     "STAIRCASE_L": "eTeks#curveStaircase",
     "STAIRCASE_U": "eTeks#spiralStaircase",
-    "FIREPLACE":   "eTeks#fireplace", "RADIATOR": "eTeks#hotWaterRadiator",
-    "BOILER":      "eTeks#hotWaterRadiator",
+    "FIREPLACE": "eTeks#fireplace",
+    "RADIATOR": "eTeks#hotWaterRadiator",
+    "BOILER": "eTeks#hotWaterRadiator",
     "CONSUMER_UNIT": "eTeks#chest",
-    "TV":          "eTeks#flatTV", "DESK_LAMP": "eTeks#lamp",
-    "FLOOR_LAMP":  "eTeks#floorUplight",
+    "TV": "eTeks#flatTV",
+    "DESK_LAMP": "eTeks#lamp",
+    "FLOOR_LAMP": "eTeks#floorUplight",
 }
 
 
@@ -231,6 +285,7 @@ def _polygon_centroid(pts: list[Pt]) -> Pt:
 # Unique ID helpers
 # ---------------------------------------------------------------------------
 
+
 def _uid(prefix: str = "") -> str:
     return f"{prefix}{uuid.uuid4().hex[:12]}"
 
@@ -239,6 +294,7 @@ def _uid(prefix: str = "") -> str:
 # Handle objects (thin wrappers that hold an id so the LLM can pass them
 # back into selectors without knowing internal structure)
 # ---------------------------------------------------------------------------
+
 
 class WallHandle:
     """Opaque reference to a wall returned by spatial selectors.
@@ -270,16 +326,17 @@ class RoomHandle:
 # Level model
 # ---------------------------------------------------------------------------
 
+
 class _Level:
     def __init__(self, *, name: str, floor_height: float, ceiling_height: float, idx: int):
         self.id = _uid("level-")
         self.name = name
-        self.floor_height = floor_height   # cm above datum
+        self.floor_height = floor_height  # cm above datum
         self.ceiling_height = ceiling_height  # cm (room height)
         self.idx = idx
         self.walls: list[dict] = []
         self.rooms: list[dict] = []
-        self.openings: list[dict] = []   # doors + windows
+        self.openings: list[dict] = []  # doors + windows
         self.furniture: list[dict] = []
 
     # ---- wall helpers ----
@@ -406,6 +463,7 @@ class _Level:
 # Designer
 # ---------------------------------------------------------------------------
 
+
 class Designer:
     """High-level API for building SweetHome3D floor-plan models.
 
@@ -424,7 +482,7 @@ class Designer:
     >>> d2 = Designer.from_spec(spec)
     """
 
-    _SNAP_TOL = 8.0   # cm — points closer than this snap together
+    _SNAP_TOL = 8.0  # cm — points closer than this snap together
 
     def __init__(self, *, name: str = "Home", unit: str = "CENTIMETER"):
         self.name = name
@@ -462,9 +520,7 @@ class Designer:
     def _resolve_level(self, level: Union[_Level, int, None]) -> _Level:
         if level is None:
             if not self._levels:
-                raise ValueError(
-                    "No levels defined yet. Call d.add_level('Ground Floor') first."
-                )
+                raise ValueError("No levels defined yet. Call d.add_level('Ground Floor') first.")
             return self._levels[0]
         if isinstance(level, int):
             if level < 0 or level >= len(self._levels):
@@ -520,19 +576,21 @@ class Designer:
         ]
         labels = ["north", "east", "south", "west"]
         starts = [corners[0], corners[1], corners[3], corners[0]]
-        ends   = [corners[1], corners[2], corners[2], corners[3]]
+        ends = [corners[1], corners[2], corners[2], corners[3]]
         ids = []
-        for label, s, e in zip(labels, starts, ends):
+        for label, s, e in zip(labels, starts, ends, strict=False):
             wid = _uid("wall-")
-            lv.walls.append({
-                "id": wid,
-                "start": list(s),
-                "end": list(e),
-                "thickness": thickness,
-                "is_envelope": True,
-                "facing": label,
-                "level_id": lv.id,
-            })
+            lv.walls.append(
+                {
+                    "id": wid,
+                    "start": list(s),
+                    "end": list(e),
+                    "thickness": thickness,
+                    "is_envelope": True,
+                    "facing": label,
+                    "level_id": lv.id,
+                }
+            )
             ids.append(wid)
         return ids
 
@@ -579,7 +637,7 @@ class Designer:
                 "Example: d.partition(ground, (500, 0), (500, 800))"
             )
         start = (float(start[0]), float(start[1]))
-        end   = (float(end[0]),   float(end[1]))
+        end = (float(end[0]), float(end[1]))
 
         # Apply snap_to if given
         if snap_to is not None:
@@ -590,36 +648,37 @@ class Designer:
 
         # Validate endpoints touch existing wall
         for label, pt in [("start", start), ("end", end)]:
-            closest_wall, cdist, cpt = lv._closest_wall_to_point(pt)
+            closest_wall, cdist, _cpt = lv._closest_wall_to_point(pt)
             if closest_wall is None:
                 raise ValueError(
-                    f"partition() called but no existing walls found. "
-                    f"Call d.envelope() first to draw exterior walls."
+                    "partition() called but no existing walls found. "
+                    "Call d.envelope() first to draw exterior walls."
                 )
             if cdist > self._SNAP_TOL:
                 # Give actionable guidance
                 wid = closest_wall["id"]
                 facing = closest_wall.get("facing", "")
-                hint = f"d.wall_facing({facing!r}, level)" if facing else f"wall id={wid!r}"
                 raise ValueError(
                     f"partition {label} endpoint {pt} doesn't touch any existing wall. "
-                    f"Closest wall is {wid!r}{(' ('+facing+' envelope)') if facing else ''} "
+                    f"Closest wall is {wid!r}{(' (' + facing + ' envelope)') if facing else ''} "
                     f"at distance {cdist:.1f} cm. "
                     f"Did you mean to snap to it? If so, call: "
-                    f"d.partition(level, {pt}, {end if label=='start' else start}, "
+                    f"d.partition(level, {pt}, {end if label == 'start' else start}, "
                     f"snap_to=d.wall_facing({facing!r}, level))"
                 )
 
         wid = _uid("wall-")
-        lv.walls.append({
-            "id": wid,
-            "start": list(start),
-            "end": list(end),
-            "thickness": thickness,
-            "is_envelope": False,
-            "facing": None,
-            "level_id": lv.id,
-        })
+        lv.walls.append(
+            {
+                "id": wid,
+                "start": list(start),
+                "end": list(end),
+                "thickness": thickness,
+                "is_envelope": False,
+                "facing": None,
+                "level_id": lv.id,
+            }
+        )
         return wid
 
     # ------------------------------------------------------------------
@@ -690,7 +749,7 @@ class Designer:
         width: float,
         height: float,
         sill_height: float,
-        kind: str,   # "door" or "window"
+        kind: str,  # "door" or "window"
         catalog_id: str,
         label: str,
     ) -> str:
@@ -727,20 +786,22 @@ class Designer:
         py = sy + position_along * (ey - sy)
 
         oid = _uid("opening-")
-        level.openings.append({
-            "id": oid,
-            "kind": kind,
-            "catalog_id": catalog_id,
-            "wall_id": wid,
-            "position_along": position_along,
-            "x": px,
-            "y": py,
-            "width": width,
-            "height": height,
-            "sill_height": sill_height,
-            "label": label,
-            "level_id": level.id,
-        })
+        level.openings.append(
+            {
+                "id": oid,
+                "kind": kind,
+                "catalog_id": catalog_id,
+                "wall_id": wid,
+                "position_along": position_along,
+                "x": px,
+                "y": py,
+                "width": width,
+                "height": height,
+                "sill_height": sill_height,
+                "label": label,
+                "level_id": level.id,
+            }
+        )
         return oid
 
     def add_external_door(
@@ -916,18 +977,20 @@ class Designer:
                 f"Available categories: {cats}."
             )
         fid = _uid("furn-")
-        lv.furniture.append({
-            "id": fid,
-            "catalog_id": catalog_id,
-            "x": float(x),
-            "y": float(y),
-            "rotation_deg": float(rotation_deg),
-            "width": width,
-            "depth": depth,
-            "height": height,
-            "label": label or catalog_id,
-            "level_id": lv.id,
-        })
+        lv.furniture.append(
+            {
+                "id": fid,
+                "catalog_id": catalog_id,
+                "x": float(x),
+                "y": float(y),
+                "rotation_deg": float(rotation_deg),
+                "width": width,
+                "depth": depth,
+                "height": height,
+                "label": label or catalog_id,
+                "level_id": lv.id,
+            }
+        )
         return fid
 
     # ------------------------------------------------------------------
@@ -1032,16 +1095,18 @@ class Designer:
         """
         levels_out = []
         for lv in self._levels:
-            levels_out.append({
-                "id": lv.id,
-                "name": lv.name,
-                "floor_height_cm": lv.floor_height,
-                "ceiling_height_cm": lv.ceiling_height,
-                "wall_count": len(lv.walls),
-                "room_count": len(lv.rooms),
-                "opening_count": len(lv.openings),
-                "furniture_count": len(lv.furniture),
-            })
+            levels_out.append(
+                {
+                    "id": lv.id,
+                    "name": lv.name,
+                    "floor_height_cm": lv.floor_height,
+                    "ceiling_height_cm": lv.ceiling_height,
+                    "wall_count": len(lv.walls),
+                    "room_count": len(lv.rooms),
+                    "opening_count": len(lv.openings),
+                    "furniture_count": len(lv.furniture),
+                }
+            )
         return {
             "name": self.name,
             "unit": self.unit,
@@ -1146,9 +1211,7 @@ class Designer:
         if category is not None:
             if category not in _CATALOG:
                 cats = list(_CATALOG.keys())
-                raise ValueError(
-                    f"Unknown category {category!r}. Valid categories: {cats}"
-                )
+                raise ValueError(f"Unknown category {category!r}. Valid categories: {cats}")
             return list(_CATALOG[category])
         return _all_catalog_ids()
 
@@ -1218,8 +1281,7 @@ class Designer:
                     )
                 else:
                     warnings.append(
-                        f"Level {lv.name!r}: only {len(env_walls)} envelope walls "
-                        f"(expected ≥4)."
+                        f"Level {lv.name!r}: only {len(env_walls)} envelope walls (expected ≥4)."
                     )
 
             # --- orphan endpoints and T-join failures ---
@@ -1232,23 +1294,27 @@ class Designer:
                         d, _ = _pt_to_seg_dist(pt, tuple(other["start"]), tuple(other["end"]))
                         min_dist = min(min_dist, d)
                     if min_dist > self._SNAP_TOL * 2.5:  # >20 cm
-                        orphan_endpoints.append({
-                            "level": lv.name,
-                            "wall_id": w["id"],
-                            "endpoint": label,
-                            "x": pt[0],
-                            "y": pt[1],
-                            "nearest_wall_dist_cm": round(min_dist, 1),
-                        })
+                        orphan_endpoints.append(
+                            {
+                                "level": lv.name,
+                                "wall_id": w["id"],
+                                "endpoint": label,
+                                "x": pt[0],
+                                "y": pt[1],
+                                "nearest_wall_dist_cm": round(min_dist, 1),
+                            }
+                        )
                     elif min_dist > self._SNAP_TOL:  # 8–20 cm: near-miss
-                        t_join_failures.append({
-                            "level": lv.name,
-                            "wall_id": w["id"],
-                            "endpoint": label,
-                            "x": pt[0],
-                            "y": pt[1],
-                            "gap_cm": round(min_dist, 1),
-                        })
+                        t_join_failures.append(
+                            {
+                                "level": lv.name,
+                                "wall_id": w["id"],
+                                "endpoint": label,
+                                "x": pt[0],
+                                "y": pt[1],
+                                "gap_cm": round(min_dist, 1),
+                            }
+                        )
 
             # --- unnamed rooms ---
             for r in lv.rooms:
@@ -1382,6 +1448,7 @@ class Designer:
                 new_home as _nh,
                 save_home as _sh,
             )
+
             _add_level_fn = _al
             _add_wall_fn = _aw
             _add_room_fn = _ar
@@ -1423,8 +1490,10 @@ class Designer:
                 ex, ey = w["end"]
                 _add_wall_fn(
                     home,
-                    xStart=float(sx), yStart=float(sy),
-                    xEnd=float(ex), yEnd=float(ey),
+                    xStart=float(sx),
+                    yStart=float(sy),
+                    xEnd=float(ex),
+                    yEnd=float(ey),
                     thickness=float(w["thickness"]),
                     height=float(w.get("height", home.wallHeight)),
                     level=mlid,
@@ -1474,7 +1543,8 @@ class Designer:
                     _add_door_fn(
                         home,
                         name=o.get("label") or "Door",
-                        x=x, y=y,
+                        x=x,
+                        y=y,
                         width=w_cm,
                         depth=20.0,
                         height=h_cm,
@@ -1487,7 +1557,8 @@ class Designer:
                     _add_window_fn(
                         home,
                         name=o.get("label") or "Window",
-                        x=x, y=y,
+                        x=x,
+                        y=y,
                         width=w_cm,
                         depth=20.0,
                         height=h_cm,
@@ -1522,7 +1593,9 @@ class Designer:
 
         return home
 
-    def save(self, path: Union[str, Path], *, render_png: Optional[Union[str, Path]] = None) -> Path:
+    def save(
+        self, path: Union[str, Path], *, render_png: Optional[Union[str, Path]] = None
+    ) -> Path:
         """Write a .sh3d file (ZIP format) and optionally a PNG floor-plan render.
 
         The .sh3d file is produced by converting the Designer's internal state
@@ -1559,23 +1632,24 @@ class Designer:
         # Import save_home here (it was already cached by _to_home if called
         # first, but we import directly to keep things explicit).
         from cli_anything.sweethome3d.core.project import save_home as _sh
+
         _sh(home, str(path))
 
         if render_png is not None:
             self._render_png(Path(render_png))
         return path
 
-
-
     def _render_png(self, path: Path) -> None:
         """Write a simple 2-D floor-plan PNG using only stdlib (no Pillow required)."""
         try:
             from cli_anything.sweethome3d.core.renderer import render_floorplan
+
             render_floorplan(self, path)
         except ImportError:
             # Fall back to minimal SVG→PNG via cairosvg if available
             try:
                 import cairosvg  # type: ignore
+
                 svg = self._to_svg()
                 cairosvg.svg2png(bytestring=svg.encode(), write_to=str(path))
             except ImportError:
@@ -1585,7 +1659,6 @@ class Designer:
     def _make_placeholder_png(self, w: int, h: int) -> bytes:
         """Create a minimal valid PNG (grey rectangle) without Pillow."""
         import zlib
-        import struct
 
         def make_chunk(ctype: bytes, data: bytes) -> bytes:
             crc = zlib.crc32(ctype + data) & 0xFFFFFFFF
@@ -1676,6 +1749,7 @@ class Designer:
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _color_int(hex_color: str) -> int:
     """Convert '#RRGGBB' to SH3D integer ARGB."""
     h = hex_color.lstrip("#")
@@ -1689,4 +1763,5 @@ def _color_int(hex_color: str) -> int:
 
 if __name__ == "__main__":
     from cli_anything.sweethome3d.core.__main__ import main  # type: ignore
+
     main()

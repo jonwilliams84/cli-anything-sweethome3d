@@ -101,4 +101,4 @@ from cli_anything.sweethome3d.core.svg.walls import (
     weld_wall_endpoints as _weld_wall_endpoints,
 )
 
-__all__ = ["svg_to_home", "svg_to_home_multi", "load_spec"]
+__all__ = ["load_spec", "svg_to_home", "svg_to_home_multi"]

@@ -20,6 +20,7 @@ import os
 import zipfile
 from typing import Optional
 import defusedxml
+
 defusedxml.defuse_stdlib()  # B405: harden stdlib xml.etree.ElementTree against XML entity/XXE attacks
 from xml.etree import ElementTree as ET  # nosec B405 — defusedxml.defuse_stdlib() called above; ET used only for *building* XML (Element/SubElement/ElementTree ctor), all parsing goes through DefusedET.parse()
 from defusedxml import ElementTree as DefusedET
@@ -61,6 +62,7 @@ HOME_BINARY_ENTRY = "Home"
 
 
 # ─────────────────────────────────────────────────────────── XML serialization
+
 
 def _fmt_float(v: float) -> str:
     """Match SH3D's XMLWriter.floatToString — trim trailing zeros."""
@@ -126,8 +128,9 @@ def _background_to_xml(parent: ET.Element, bg: Optional[BackgroundImage]) -> Non
         _set_attr(el, "visible", False)
 
 
-def _texture_el_to_xml(parent: ET.Element, tx: "Texture",
-                       attribute: Optional[str] = None) -> ET.Element:
+def _texture_el_to_xml(
+    parent: ET.Element, tx: "Texture", attribute: Optional[str] = None
+) -> ET.Element:
     """Write a <texture> element directly into parent; return the element.
 
     When ``attribute`` is provided, writes ``attribute="<name>"`` so SH3D's
@@ -189,8 +192,9 @@ def _parse_properties(parent: ET.Element) -> dict:
     }
 
 
-def _textstyle_to_xml(parent: ET.Element, ts: Optional["TextStyle"],
-                      attribute: Optional[str] = None) -> None:
+def _textstyle_to_xml(
+    parent: ET.Element, ts: Optional["TextStyle"], attribute: Optional[str] = None
+) -> None:
     """Write a <textStyle> element into parent."""
     if ts is None:
         return
@@ -207,8 +211,7 @@ def _textstyle_to_xml(parent: ET.Element, ts: Optional["TextStyle"],
         _set_attr(el, "alignment", ts.alignment)
 
 
-def _parse_textstyle(parent: ET.Element, attribute: Optional[str] = None
-                     ) -> Optional["TextStyle"]:
+def _parse_textstyle(parent: ET.Element, attribute: Optional[str] = None) -> Optional["TextStyle"]:
     """Parse a <textStyle> child element with matching attribute (or no attribute)."""
     for ts_el in parent.findall("textStyle"):
         attr = ts_el.get("attribute")
@@ -226,8 +229,7 @@ def _parse_textstyle(parent: ET.Element, attribute: Optional[str] = None
     return None
 
 
-def _baseboard_to_xml(parent: ET.Element, attribute: str,
-                      bb: Optional["Baseboard"]) -> None:
+def _baseboard_to_xml(parent: ET.Element, attribute: str, bb: Optional["Baseboard"]) -> None:
     """Write a <baseboard attribute="..."> element."""
     if bb is None:
         return
@@ -239,7 +241,6 @@ def _baseboard_to_xml(parent: ET.Element, attribute: str,
         _set_attr(el, "color", _color_to_str(bb.color))
     if bb.texture is not None:
         _texture_el_to_xml(el, bb.texture)
-
 
 
 def _all_content_ids(home: Home) -> set[str]:
@@ -264,7 +265,7 @@ def _all_content_ids(home: Home) -> set[str]:
         _add(getattr(p, "icon", None))
         _add(getattr(p, "planIcon", None))
         _add_tex(getattr(p, "texture", None))
-        for m in (getattr(p, "materials", None) or []):
+        for m in getattr(p, "materials", None) or []:
             _add_tex(getattr(m, "texture", None))
 
     def _add_group(g: FurnitureGroup) -> None:
@@ -299,6 +300,7 @@ def _all_content_ids(home: Home) -> set[str]:
         _add_group(g)
 
     return used
+
 
 def _catalog_resource_entries(home: Home) -> dict[str, str]:
     """Assign a numeric zip-entry name to each catalog model/icon used.
@@ -357,8 +359,7 @@ def home_to_xml(home: Home) -> ET.ElementTree:
     root = ET.Element("home")
     _set_attr(root, "version", home.version)
     _set_attr(root, "name", home.name)
-    _set_attr(root, "camera",
-              "observerCamera" if home.camera == "observerCamera" else "topCamera")
+    _set_attr(root, "camera", "observerCamera" if home.camera == "observerCamera" else "topCamera")
     _set_attr(root, "selectedLevel", home.selectedLevel)
     _set_attr(root, "wallHeight", home.wallHeight)
     if home.basePlanLocked:
@@ -381,13 +382,11 @@ def home_to_xml(home: Home) -> ET.ElementTree:
         _set_attr(env, "backgroundImageVisibleOnGround3D", True)
     _set_attr(env, "skyColor", _color_to_str(home.environment.skyColor))
     _set_attr(env, "lightColor", _color_to_str(home.environment.lightColor))
-    _set_attr(env, "ceilingLightColor",
-              _color_to_str(home.environment.ceilingLightColor))
+    _set_attr(env, "ceilingLightColor", _color_to_str(home.environment.ceilingLightColor))
     _set_attr(env, "wallsAlpha", home.environment.wallsAlpha)
     if home.environment.drawingMode != "FILL":
         _set_attr(env, "drawingMode", home.environment.drawingMode)
-    _set_attr(env, "subpartSizeUnderLight",
-              home.environment.subpartSizeUnderLight)
+    _set_attr(env, "subpartSizeUnderLight", home.environment.subpartSizeUnderLight)
     if home.environment.allLevelsVisible:
         _set_attr(env, "allLevelsVisible", True)
     if not home.environment.observerCameraElevationAdjusted:
@@ -458,9 +457,10 @@ def home_to_xml(home: Home) -> ET.ElementTree:
     _properties_to_xml(c, home.compass.properties)
 
     # cameras
-    for cam, attribute in [(home.topCamera, "topCamera"),
-                            (home.observerCamera, "observerCamera")] + [
-                           (sc, "storedCamera") for sc in home.storedCameras]:
+    for cam, attribute in [
+        (home.topCamera, "topCamera"),
+        (home.observerCamera, "observerCamera"),
+    ] + [(sc, "storedCamera") for sc in home.storedCameras]:
         if attribute == "observerCamera":
             tag = "observerCamera"
         elif attribute == "storedCamera":
@@ -510,9 +510,11 @@ def home_to_xml(home: Home) -> ET.ElementTree:
         furniture groups so grouped pieces don't silently drop their
         materials / sashes / sources / properties on roundtrip.
         """
-        tag = f.kind if f.kind in (
-            "pieceOfFurniture", "doorOrWindow", "light", "shelfUnit"
-        ) else "pieceOfFurniture"
+        tag = (
+            f.kind
+            if f.kind in ("pieceOfFurniture", "doorOrWindow", "light", "shelfUnit")
+            else "pieceOfFurniture"
+        )
         cat_meta = SH3D_CATALOG.get(f.catalogId) if f.catalogId else None
         model_path = cat_meta.get("model") if cat_meta else None
         icon_path = cat_meta.get("icon") if cat_meta else None
@@ -591,11 +593,11 @@ def home_to_xml(home: Home) -> ET.ElementTree:
         _set_attr(el, "description", f.description)
         if tag == "doorOrWindow":
             _set_attr(el, "wallThickness", f.wallThickness)
-            _set_attr(el, "wallDistance",  f.wallDistance)
-            _set_attr(el, "wallWidth",     f.wallWidth)
-            _set_attr(el, "wallLeft",      f.wallLeft)
-            _set_attr(el, "wallTop",       f.wallTop)
-            _set_attr(el, "wallHeight",    f.wallHeight)
+            _set_attr(el, "wallDistance", f.wallDistance)
+            _set_attr(el, "wallWidth", f.wallWidth)
+            _set_attr(el, "wallLeft", f.wallLeft)
+            _set_attr(el, "wallTop", f.wallTop)
+            _set_attr(el, "wallHeight", f.wallHeight)
             _set_attr(el, "cutOutShape", f.cutOutShape)
             if f.boundToWall is not None:
                 _set_attr(el, "boundToWall", f.boundToWall)
@@ -886,13 +888,14 @@ def home_to_xml(home: Home) -> ET.ElementTree:
 
 # ─────────────────────────────────────────────────────────── XML deserialization
 
+
 def _color_from_str(s: Optional[str]) -> Optional[int]:
     if s is None:
         return None
     s = s.strip()
-    if s.startswith('#'):
+    if s.startswith("#"):
         s = s[1:]
-    elif s.lower().startswith('0x'):
+    elif s.lower().startswith("0x"):
         s = s[2:]
     try:
         return int(s, 16)
@@ -956,7 +959,8 @@ def _parse_furniture_el(el: ET.Element, kind: str) -> PieceOfFurniture:
         modelRotation=el.get("modelRotation"),
         modelCenteredAtOrigin=(
             _bool_attr(el, "modelCenteredAtOrigin")
-            if el.get("modelCenteredAtOrigin") is not None else None
+            if el.get("modelCenteredAtOrigin") is not None
+            else None
         ),
         staircaseCutOutShape=el.get("staircaseCutOutShape"),
         dropOnTopElevation=_float_attr(el, "dropOnTopElevation", 1.0),
@@ -986,16 +990,16 @@ def _parse_furniture_el(el: ET.Element, kind: str) -> PieceOfFurniture:
         wallTop=_float_attr(el, "wallTop") if kind == "doorOrWindow" else None,
         wallHeight=_float_attr(el, "wallHeight") if kind == "doorOrWindow" else None,
         cutOutShape=el.get("cutOutShape") if kind == "doorOrWindow" else None,
-        boundToWall=(_bool_attr(el, "boundToWall", True)
-                     if kind == "doorOrWindow" and el.get("boundToWall") is not None
-                     else None),
+        boundToWall=(
+            _bool_attr(el, "boundToWall", True)
+            if kind == "doorOrWindow" and el.get("boundToWall") is not None
+            else None
+        ),
         wallCutOutOnBothSides=(
-            _bool_attr(el, "wallCutOutOnBothSides")
-            if kind == "doorOrWindow" else False
+            _bool_attr(el, "wallCutOutOnBothSides") if kind == "doorOrWindow" else False
         ),
         widthDepthDeformable=(
-            _bool_attr(el, "widthDepthDeformable", True)
-            if kind == "doorOrWindow" else True
+            _bool_attr(el, "widthDepthDeformable", True) if kind == "doorOrWindow" else True
         ),
         power=_float_attr(el, "power") if kind == "light" else None,
         sashes=[
@@ -1007,21 +1011,29 @@ def _parse_furniture_el(el: ET.Element, kind: str) -> PieceOfFurniture:
                 endAngle=_float_attr(s, "endAngle", 0),
             )
             for s in el.findall("sash")
-        ] if kind == "doorOrWindow" else [],
+        ]
+        if kind == "doorOrWindow"
+        else [],
         lightSources=[
             LightSource(
                 x=_float_attr(ls, "x", 0),
                 y=_float_attr(ls, "y", 0),
                 z=_float_attr(ls, "z", 0),
-                color=_color_from_str(ls.get("color")) if ls.get("color") is not None else 0xFFFFFFFF,
+                color=_color_from_str(ls.get("color"))
+                if ls.get("color") is not None
+                else 0xFFFFFFFF,
                 diameter=_float_attr(ls, "diameter"),
             )
             for ls in el.findall("lightSource")
-        ] if kind == "light" else [],
+        ]
+        if kind == "light"
+        else [],
         lightSourceMaterials=[
             LightSourceMaterial(name=lsm.get("name") or "")
             for lsm in el.findall("lightSourceMaterial")
-        ] if kind == "light" else [],
+        ]
+        if kind == "light"
+        else [],
         materials=[
             Material(
                 name=m.get("name") or "",
@@ -1029,8 +1041,7 @@ def _parse_furniture_el(el: ET.Element, kind: str) -> PieceOfFurniture:
                 color=_color_from_str(m.get("color")),
                 shininess=_float_attr(m, "shininess"),
                 texture=(
-                    _parse_texture_el(m.find("texture"))
-                    if m.find("texture") is not None else None
+                    _parse_texture_el(m.find("texture")) if m.find("texture") is not None else None
                 ),
             )
             for m in el.findall("material")
@@ -1043,10 +1054,7 @@ def _parse_furniture_el(el: ET.Element, kind: str) -> PieceOfFurniture:
             for t in el.findall("transformation")
         ],
         nameStyle=_parse_textstyle(el, "nameStyle"),
-        texture=(
-            _parse_texture_el(el.find("texture"))
-            if el.find("texture") is not None else None
-        ),
+        texture=(_parse_texture_el(el.find("texture")) if el.find("texture") is not None else None),
         properties=_parse_properties(el),
         shelves=[
             Shelf(
@@ -1059,7 +1067,9 @@ def _parse_furniture_el(el: ET.Element, kind: str) -> PieceOfFurniture:
                 zUpper=_float_attr(sh, "zUpper"),
             )
             for sh in el.findall("shelf")
-        ] if kind == "shelfUnit" else [],
+        ]
+        if kind == "shelfUnit"
+        else [],
     )
 
 
@@ -1159,6 +1169,7 @@ def _parse_texture(parent: ET.Element, tag: str) -> Optional[Texture]:
 def _parse_baseboard(parent: ET.Element, attribute: str) -> Optional["Baseboard"]:
     """Parse a <baseboard attribute="..."> child element."""
     from cli_anything.sweethome3d.core.model import Baseboard
+
     for bb in parent.findall("baseboard"):
         if bb.get("attribute") == attribute:
             thickness = _float_attr(bb, "thickness", 1.0)
@@ -1166,8 +1177,7 @@ def _parse_baseboard(parent: ET.Element, attribute: str) -> Optional["Baseboard"
             color = _color_from_str(bb.get("color"))
             tex_el = bb.find("texture")
             texture = _parse_texture_el(tex_el) if tex_el is not None else None
-            return Baseboard(thickness=thickness, height=height,
-                             color=color, texture=texture)
+            return Baseboard(thickness=thickness, height=height, color=color, texture=texture)
     return None
 
 
@@ -1191,9 +1201,7 @@ def xml_to_home(tree: ET.ElementTree) -> Home:
     home.properties = _parse_properties(root)
     # furniture visible properties
     home.furnitureVisibleProperties = [
-        el.get("name", "")
-        for el in root.findall("furnitureVisibleProperty")
-        if el.get("name")
+        el.get("name", "") for el in root.findall("furnitureVisibleProperty") if el.get("name")
     ]
 
     # home-level background image (sits between environment and compass)
@@ -1216,8 +1224,7 @@ def xml_to_home(tree: ET.ElementTree) -> Home:
             paperBottomMargin=_float_attr(pr_el, "paperBottomMargin", 10),
             paperRightMargin=_float_attr(pr_el, "paperRightMargin", 10),
             paperOrientation=pr_el.get("paperOrientation", "PORTRAIT"),
-            printedLevels=[pl.get("level") or ""
-                           for pl in pr_el.findall("printedLevel")],
+            printedLevels=[pl.get("level") or "" for pl in pr_el.findall("printedLevel")],
         )
 
     # environment
@@ -1227,17 +1234,19 @@ def xml_to_home(tree: ET.ElementTree) -> Home:
         env_cam_path = []
         for cp_el in list(env_el.findall("camera")) + list(env_el.findall("observerCamera")):
             if cp_el.get("attribute") == "cameraPath":
-                env_cam_path.append(Camera(
-                    kind="observerCamera" if cp_el.tag == "observerCamera" else "topCamera",
-                    lens=cp_el.get("lens", "PINHOLE"),
-                    x=_float_attr(cp_el, "x", 0),
-                    y=_float_attr(cp_el, "y", 0),
-                    z=_float_attr(cp_el, "z", 170),
-                    yaw=_float_attr(cp_el, "yaw", 0),
-                    pitch=_float_attr(cp_el, "pitch", 0),
-                    fieldOfView=_float_attr(cp_el, "fieldOfView", 1.0),
-                    time=_int_attr(cp_el, "time"),
-                ))
+                env_cam_path.append(
+                    Camera(
+                        kind="observerCamera" if cp_el.tag == "observerCamera" else "topCamera",
+                        lens=cp_el.get("lens", "PINHOLE"),
+                        x=_float_attr(cp_el, "x", 0),
+                        y=_float_attr(cp_el, "y", 0),
+                        z=_float_attr(cp_el, "z", 170),
+                        yaw=_float_attr(cp_el, "yaw", 0),
+                        pitch=_float_attr(cp_el, "pitch", 0),
+                        fieldOfView=_float_attr(cp_el, "fieldOfView", 1.0),
+                        time=_int_attr(cp_el, "time"),
+                    )
+                )
         home.environment = Environment(
             skyColor=_color_from_str(env_el.get("skyColor")),
             groundColor=_color_from_str(env_el.get("groundColor")),
@@ -1248,9 +1257,9 @@ def xml_to_home(tree: ET.ElementTree) -> Home:
             subpartSizeUnderLight=_float_attr(env_el, "subpartSizeUnderLight", 0),
             allLevelsVisible=_bool_attr(env_el, "allLevelsVisible"),
             observerCameraElevationAdjusted=_bool_attr(
-                env_el, "observerCameraElevationAdjusted", True),
-            backgroundImageVisibleOnGround3D=_bool_attr(
-                env_el, "backgroundImageVisibleOnGround3D"),
+                env_el, "observerCameraElevationAdjusted", True
+            ),
+            backgroundImageVisibleOnGround3D=_bool_attr(env_el, "backgroundImageVisibleOnGround3D"),
             photoWidth=_int_attr(env_el, "photoWidth", 400) or 400,
             photoHeight=_int_attr(env_el, "photoHeight", 300) or 300,
             photoAspectRatio=env_el.get("photoAspectRatio", "VIEW_3D_RATIO"),
@@ -1315,18 +1324,20 @@ def xml_to_home(tree: ET.ElementTree) -> Home:
 
     # levels
     for el in root.findall("level"):
-        home.levels.append(Level(
-            id=el.get("id") or "",
-            name=el.get("name") or "Level",
-            elevation=_float_attr(el, "elevation", 0),
-            floorThickness=_float_attr(el, "floorThickness", 12),
-            height=_float_attr(el, "height", 250),
-            elevationIndex=_int_attr(el, "elevationIndex", 0) or 0,
-            visible=_bool_attr(el, "visible", True),
-            viewable=_bool_attr(el, "viewable", True),
-            backgroundImage=_parse_background(el),
-            properties=_parse_properties(el),
-        ))
+        home.levels.append(
+            Level(
+                id=el.get("id") or "",
+                name=el.get("name") or "Level",
+                elevation=_float_attr(el, "elevation", 0),
+                floorThickness=_float_attr(el, "floorThickness", 12),
+                height=_float_attr(el, "height", 250),
+                elevationIndex=_int_attr(el, "elevationIndex", 0) or 0,
+                visible=_bool_attr(el, "visible", True),
+                viewable=_bool_attr(el, "viewable", True),
+                backgroundImage=_parse_background(el),
+                properties=_parse_properties(el),
+            )
+        )
 
     # furniture
     for kind in ("pieceOfFurniture", "doorOrWindow", "light", "shelfUnit"):
@@ -1339,126 +1350,137 @@ def xml_to_home(tree: ET.ElementTree) -> Home:
 
     # walls
     for el in root.findall("wall"):
-        home.walls.append(Wall(
-            id=el.get("id") or "",
-            level=el.get("level"),
-            wallAtStart=el.get("wallAtStart"),
-            wallAtEnd=el.get("wallAtEnd"),
-            xStart=_float_attr(el, "xStart", 0),
-            yStart=_float_attr(el, "yStart", 0),
-            xEnd=_float_attr(el, "xEnd", 0),
-            yEnd=_float_attr(el, "yEnd", 0),
-            height=_float_attr(el, "height", 250),
-            heightAtEnd=_float_attr(el, "heightAtEnd", 0),
-            thickness=_float_attr(el, "thickness", 7.5),
-            arcExtent=_float_attr(el, "arcExtent", 0),
-            pattern=el.get("pattern"),
-            topColor=_color_from_str(el.get("topColor")),
-            leftSideColor=_color_from_str(el.get("leftSideColor")),
-            rightSideColor=_color_from_str(el.get("rightSideColor")),
-            leftSideShininess=_float_attr(el, "leftSideShininess", 0),
-            rightSideShininess=_float_attr(el, "rightSideShininess", 0),
-            leftSideTexture=_parse_texture(el, "leftSideTexture"),
-            rightSideTexture=_parse_texture(el, "rightSideTexture"),
-            leftSideBaseboard=_parse_baseboard(el, "leftSideBaseboard"),
-            rightSideBaseboard=_parse_baseboard(el, "rightSideBaseboard"),
-            properties=_parse_properties(el),
-        ))
+        home.walls.append(
+            Wall(
+                id=el.get("id") or "",
+                level=el.get("level"),
+                wallAtStart=el.get("wallAtStart"),
+                wallAtEnd=el.get("wallAtEnd"),
+                xStart=_float_attr(el, "xStart", 0),
+                yStart=_float_attr(el, "yStart", 0),
+                xEnd=_float_attr(el, "xEnd", 0),
+                yEnd=_float_attr(el, "yEnd", 0),
+                height=_float_attr(el, "height", 250),
+                heightAtEnd=_float_attr(el, "heightAtEnd", 0),
+                thickness=_float_attr(el, "thickness", 7.5),
+                arcExtent=_float_attr(el, "arcExtent", 0),
+                pattern=el.get("pattern"),
+                topColor=_color_from_str(el.get("topColor")),
+                leftSideColor=_color_from_str(el.get("leftSideColor")),
+                rightSideColor=_color_from_str(el.get("rightSideColor")),
+                leftSideShininess=_float_attr(el, "leftSideShininess", 0),
+                rightSideShininess=_float_attr(el, "rightSideShininess", 0),
+                leftSideTexture=_parse_texture(el, "leftSideTexture"),
+                rightSideTexture=_parse_texture(el, "rightSideTexture"),
+                leftSideBaseboard=_parse_baseboard(el, "leftSideBaseboard"),
+                rightSideBaseboard=_parse_baseboard(el, "rightSideBaseboard"),
+                properties=_parse_properties(el),
+            )
+        )
 
     # rooms
     for el in root.findall("room"):
-        points = [Point(_float_attr(p, "x", 0),
-                         _float_attr(p, "y", 0))
-                   for p in el.findall("point")]
-        home.rooms.append(Room(
-            points=points,
-            id=el.get("id") or "",
-            level=el.get("level"),
-            name=el.get("name"),
-            nameAngle=_float_attr(el, "nameAngle", 0),
-            nameXOffset=_float_attr(el, "nameXOffset", 0),
-            nameYOffset=_float_attr(el, "nameYOffset", -40),
-            areaVisible=_bool_attr(el, "areaVisible"),
-            areaAngle=_float_attr(el, "areaAngle", 0),
-            areaXOffset=_float_attr(el, "areaXOffset", 0),
-            areaYOffset=_float_attr(el, "areaYOffset", 0),
-            floorVisible=_bool_attr(el, "floorVisible", True),
-            floorColor=_color_from_str(el.get("floorColor")),
-            floorShininess=_float_attr(el, "floorShininess", 0),
-            ceilingVisible=_bool_attr(el, "ceilingVisible", True),
-            ceilingColor=_color_from_str(el.get("ceilingColor")),
-            ceilingShininess=_float_attr(el, "ceilingShininess", 0),
-            ceilingFlat=_bool_attr(el, "ceilingFlat"),
-            floorTexture=_parse_texture(el, "floorTexture"),
-            ceilingTexture=_parse_texture(el, "ceilingTexture"),
-            nameStyle=_parse_textstyle(el, "nameStyle"),
-            areaStyle=_parse_textstyle(el, "areaStyle"),
-            properties=_parse_properties(el),
-        ))
+        points = [
+            Point(_float_attr(p, "x", 0), _float_attr(p, "y", 0)) for p in el.findall("point")
+        ]
+        home.rooms.append(
+            Room(
+                points=points,
+                id=el.get("id") or "",
+                level=el.get("level"),
+                name=el.get("name"),
+                nameAngle=_float_attr(el, "nameAngle", 0),
+                nameXOffset=_float_attr(el, "nameXOffset", 0),
+                nameYOffset=_float_attr(el, "nameYOffset", -40),
+                areaVisible=_bool_attr(el, "areaVisible"),
+                areaAngle=_float_attr(el, "areaAngle", 0),
+                areaXOffset=_float_attr(el, "areaXOffset", 0),
+                areaYOffset=_float_attr(el, "areaYOffset", 0),
+                floorVisible=_bool_attr(el, "floorVisible", True),
+                floorColor=_color_from_str(el.get("floorColor")),
+                floorShininess=_float_attr(el, "floorShininess", 0),
+                ceilingVisible=_bool_attr(el, "ceilingVisible", True),
+                ceilingColor=_color_from_str(el.get("ceilingColor")),
+                ceilingShininess=_float_attr(el, "ceilingShininess", 0),
+                ceilingFlat=_bool_attr(el, "ceilingFlat"),
+                floorTexture=_parse_texture(el, "floorTexture"),
+                ceilingTexture=_parse_texture(el, "ceilingTexture"),
+                nameStyle=_parse_textstyle(el, "nameStyle"),
+                areaStyle=_parse_textstyle(el, "areaStyle"),
+                properties=_parse_properties(el),
+            )
+        )
 
     # polylines
     for el in root.findall("polyline"):
-        points = [Point(_float_attr(p, "x", 0),
-                         _float_attr(p, "y", 0))
-                   for p in el.findall("point")]
-        home.polylines.append(Polyline(
-            points=points,
-            id=el.get("id") or "",
-            level=el.get("level"),
-            thickness=_float_attr(el, "thickness", 1),
-            capStyle=el.get("capStyle", "BUTT"),
-            joinStyle=el.get("joinStyle", "MITER"),
-            dashStyle=el.get("dashStyle", "SOLID"),
-            dashPattern=el.get("dashPattern"),
-            dashOffset=_float_attr(el, "dashOffset", 0),
-            startArrowStyle=el.get("startArrowStyle", "NONE"),
-            endArrowStyle=el.get("endArrowStyle", "NONE"),
-            color=_color_from_str(el.get("color")),
-            closedPath=_bool_attr(el, "closedPath"),
-            elevation=_float_attr(el, "elevation"),
-            visibleIn3D=_bool_attr(el, "visibleIn3D"),
-        ))
+        points = [
+            Point(_float_attr(p, "x", 0), _float_attr(p, "y", 0)) for p in el.findall("point")
+        ]
+        home.polylines.append(
+            Polyline(
+                points=points,
+                id=el.get("id") or "",
+                level=el.get("level"),
+                thickness=_float_attr(el, "thickness", 1),
+                capStyle=el.get("capStyle", "BUTT"),
+                joinStyle=el.get("joinStyle", "MITER"),
+                dashStyle=el.get("dashStyle", "SOLID"),
+                dashPattern=el.get("dashPattern"),
+                dashOffset=_float_attr(el, "dashOffset", 0),
+                startArrowStyle=el.get("startArrowStyle", "NONE"),
+                endArrowStyle=el.get("endArrowStyle", "NONE"),
+                color=_color_from_str(el.get("color")),
+                closedPath=_bool_attr(el, "closedPath"),
+                elevation=_float_attr(el, "elevation"),
+                visibleIn3D=_bool_attr(el, "visibleIn3D"),
+            )
+        )
 
     # dimensionLines
     for el in root.findall("dimensionLine"):
-        home.dimensionLines.append(DimensionLine(
-            id=el.get("id") or "",
-            level=el.get("level"),
-            xStart=_float_attr(el, "xStart", 0),
-            yStart=_float_attr(el, "yStart", 0),
-            xEnd=_float_attr(el, "xEnd", 0),
-            yEnd=_float_attr(el, "yEnd", 0),
-            offset=_float_attr(el, "offset", 0),
-            elevationStart=_float_attr(el, "elevationStart", 0),
-            elevationEnd=_float_attr(el, "elevationEnd", 0),
-            endMarkSize=_float_attr(el, "endMarkSize", 10),
-            pitch=_float_attr(el, "pitch", 0),
-            color=_color_from_str(el.get("color")),
-            visibleIn3D=_bool_attr(el, "visibleIn3D"),
-            lengthStyle=_parse_textstyle(el, "lengthStyle"),
-        ))
+        home.dimensionLines.append(
+            DimensionLine(
+                id=el.get("id") or "",
+                level=el.get("level"),
+                xStart=_float_attr(el, "xStart", 0),
+                yStart=_float_attr(el, "yStart", 0),
+                xEnd=_float_attr(el, "xEnd", 0),
+                yEnd=_float_attr(el, "yEnd", 0),
+                offset=_float_attr(el, "offset", 0),
+                elevationStart=_float_attr(el, "elevationStart", 0),
+                elevationEnd=_float_attr(el, "elevationEnd", 0),
+                endMarkSize=_float_attr(el, "endMarkSize", 10),
+                pitch=_float_attr(el, "pitch", 0),
+                color=_color_from_str(el.get("color")),
+                visibleIn3D=_bool_attr(el, "visibleIn3D"),
+                lengthStyle=_parse_textstyle(el, "lengthStyle"),
+            )
+        )
 
     # labels
     for el in root.findall("label"):
         text_el = el.find("text")
-        home.labels.append(Label(
-            text=(text_el.text or "") if text_el is not None else "",
-            x=_float_attr(el, "x", 0),
-            y=_float_attr(el, "y", 0),
-            id=el.get("id") or "",
-            level=el.get("level"),
-            angle=_float_attr(el, "angle", 0),
-            elevation=_float_attr(el, "elevation", 0),
-            pitch=_float_attr(el, "pitch"),
-            color=_color_from_str(el.get("color")),
-            outlineColor=_color_from_str(el.get("outlineColor")),
-            style=_parse_textstyle(el, None),
-        ))
+        home.labels.append(
+            Label(
+                text=(text_el.text or "") if text_el is not None else "",
+                x=_float_attr(el, "x", 0),
+                y=_float_attr(el, "y", 0),
+                id=el.get("id") or "",
+                level=el.get("level"),
+                angle=_float_attr(el, "angle", 0),
+                elevation=_float_attr(el, "elevation", 0),
+                pitch=_float_attr(el, "pitch"),
+                color=_color_from_str(el.get("color")),
+                outlineColor=_color_from_str(el.get("outlineColor")),
+                style=_parse_textstyle(el, None),
+            )
+        )
 
     return home
 
 
 # ─────────────────────────────────────────────────────────── .sh3d ZIP I/O
+
 
 def new_home(name: Optional[str] = None) -> Home:
     """Create a fresh empty Home with sensible defaults."""
@@ -1488,13 +1510,18 @@ def open_home(path: str) -> Home:
                 "Open it in Sweet Home 3D 7.x and re-save to add the XML form, "
                 "then re-run this command."
             )
-        raise ValueError(f"{path} is not a Sweet Home 3D file "
-                          "(missing `Home` and `Home.xml` entries)")
+        raise ValueError(
+            f"{path} is not a Sweet Home 3D file (missing `Home` and `Home.xml` entries)"
+        )
 
 
-def save_home(home: Home, path: str, *,
-              copy_content_from: Optional[str] = None,
-              extra_content: Optional[dict[str, bytes]] = None) -> None:
+def save_home(
+    home: Home,
+    path: str,
+    *,
+    copy_content_from: Optional[str] = None,
+    extra_content: Optional[dict[str, bytes]] = None,
+) -> None:
     """Write a Home to a `.sh3d` file (ZIP containing `Home.xml`).
 
     `copy_content_from` — copy non-Home entries (textures, models, background
@@ -1542,8 +1569,11 @@ def save_home(home: Home, path: str, *,
         if copy_content_from and os.path.isfile(copy_content_from):
             with zipfile.ZipFile(copy_content_from) as src:
                 for name in src.namelist():
-                    if (name in written_names or name == HOME_BINARY_ENTRY
-                            or name == "ContentDigests"):
+                    if (
+                        name in written_names
+                        or name == HOME_BINARY_ENTRY
+                        or name == "ContentDigests"
+                    ):
                         continue
                     z.writestr(name, src.read(name))
     os.replace(tmp, path)
@@ -1586,8 +1616,7 @@ def info(home: Home) -> dict:
         "walls": len(home.walls),
         "rooms": len(home.rooms),
         "furniture": len(home.furniture),
-        "doors_and_windows": sum(1 for f in home.furniture
-                                   if f.kind == "doorOrWindow"),
+        "doors_and_windows": sum(1 for f in home.furniture if f.kind == "doorOrWindow"),
         "lights": sum(1 for f in home.furniture if f.kind == "light"),
         "dimensionLines": len(home.dimensionLines),
         "labels": len(home.labels),

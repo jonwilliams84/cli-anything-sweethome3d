@@ -20,12 +20,26 @@ from typing import Optional
 # ──────────────────────────────────────────────────────── SVG path parsing
 
 PATH_ARGS = {
-    "M": 2, "m": 2, "L": 2, "l": 2,
-    "H": 1, "h": 1, "V": 1, "v": 1,
-    "Z": 0, "z": 0,
-    "C": 6, "c": 6, "S": 4, "s": 4,
-    "Q": 4, "q": 4, "T": 2, "t": 2,
-    "A": 7, "a": 7,
+    "M": 2,
+    "m": 2,
+    "L": 2,
+    "l": 2,
+    "H": 1,
+    "h": 1,
+    "V": 1,
+    "v": 1,
+    "Z": 0,
+    "z": 0,
+    "C": 6,
+    "c": 6,
+    "S": 4,
+    "s": 4,
+    "Q": 4,
+    "q": 4,
+    "T": 2,
+    "t": 2,
+    "A": 7,
+    "a": 7,
 }
 
 
@@ -52,7 +66,7 @@ def parse_path(d: str) -> list[tuple[str, list[float]]]:
                 continue
             first = True
             while i + n <= len(tokens) and not tokens[i].isalpha():
-                out.append((cmd, [float(x) for x in tokens[i:i + n]]))
+                out.append((cmd, [float(x) for x in tokens[i : i + n]]))
                 # Repeated M/m flows into L/l for subsequent coordinate pairs.
                 if first and cmd == "M":
                     cmd = "L"
@@ -80,7 +94,8 @@ def walk_path(cmds: list[tuple[str, list[float]]]) -> list[tuple[float, float, f
             x, y = args
             start_x, start_y = x, y
         elif cmd == "m":
-            x += args[0]; y += args[1]
+            x += args[0]
+            y += args[1]
             start_x, start_y = x, y
         elif cmd == "L":
             segs.append((x, y, args[0], args[1]))
@@ -90,27 +105,36 @@ def walk_path(cmds: list[tuple[str, list[float]]]) -> list[tuple[float, float, f
             segs.append((x, y, x2, y2))
             x, y = x2, y2
         elif cmd == "H":
-            segs.append((x, y, args[0], y)); x = args[0]
+            segs.append((x, y, args[0], y))
+            x = args[0]
         elif cmd == "h":
-            x2 = x + args[0]; segs.append((x, y, x2, y)); x = x2
+            x2 = x + args[0]
+            segs.append((x, y, x2, y))
+            x = x2
         elif cmd == "V":
-            segs.append((x, y, x, args[0])); y = args[0]
+            segs.append((x, y, x, args[0]))
+            y = args[0]
         elif cmd == "v":
-            y2 = y + args[0]; segs.append((x, y, x, y2)); y = y2
+            y2 = y + args[0]
+            segs.append((x, y, x, y2))
+            y = y2
         elif cmd in ("Z", "z"):
             if (x, y) != (start_x, start_y):
                 segs.append((x, y, start_x, start_y))
             x, y = start_x, start_y
         elif cmd in ("C", "S", "Q"):
             x2, y2 = args[-2], args[-1]
-            segs.append((x, y, x2, y2)); x, y = x2, y2
+            segs.append((x, y, x2, y2))
+            x, y = x2, y2
         elif cmd in ("c", "s", "q"):
             x2, y2 = x + args[-2], y + args[-1]
-            segs.append((x, y, x2, y2)); x, y = x2, y2
+            segs.append((x, y, x2, y2))
+            x, y = x2, y2
     return segs
 
 
 # ──────────────────────────────────────────────────────── colour utilities
+
 
 def style_value(style: str, key: str) -> Optional[str]:
     m = re.search(rf"{re.escape(key)}\s*:\s*([^;]+)", style)
@@ -173,9 +197,12 @@ def mul(m1, m2):
     a1, b1, c1, d1, e1, f1 = m1
     a2, b2, c2, d2, e2, f2 = m2
     return (
-        a1 * a2 + c1 * b2,        b1 * a2 + d1 * b2,
-        a1 * c2 + c1 * d2,        b1 * c2 + d1 * d2,
-        a1 * e2 + c1 * f2 + e1,   b1 * e2 + d1 * f2 + f1,
+        a1 * a2 + c1 * b2,
+        b1 * a2 + d1 * b2,
+        a1 * c2 + c1 * d2,
+        b1 * c2 + d1 * d2,
+        a1 * e2 + c1 * f2 + e1,
+        b1 * e2 + d1 * f2 + f1,
     )
 
 
@@ -190,7 +217,8 @@ def parse_transform(spec: str):
             tx, ty = nums[0], nums[1] if len(nums) > 1 else 0.0
             m = mul(m, (1, 0, 0, 1, tx, ty))
         elif fn == "scale":
-            sx = nums[0]; sy = nums[1] if len(nums) > 1 else sx
+            sx = nums[0]
+            sy = nums[1] if len(nums) > 1 else sx
             m = mul(m, (sx, 0, 0, sy, 0, 0))
         elif fn == "matrix":
             m = mul(m, tuple(nums[:6]))

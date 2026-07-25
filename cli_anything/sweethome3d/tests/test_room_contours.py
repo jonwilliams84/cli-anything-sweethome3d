@@ -32,6 +32,7 @@ from cli_anything.sweethome3d.core import pdf_import as pi
 # Synthetic floorplan factory
 # ════════════════════════════════════════════════════════════════════════════
 
+
 def _draw_floorplan_two_rooms(out_path: str, size_px: int = 200):
     """
     Draw a two-room floorplan and save as PNG.
@@ -53,10 +54,10 @@ def _draw_floorplan_two_rooms(out_path: str, size_px: int = 200):
     H = size_px
     W = size_px
     # Outer walls
-    _fill(inset, inset, W - inset, inset + wall)           # top
-    _fill(inset, H - inset - wall, W - inset, H - inset)   # bottom
-    _fill(inset, inset, inset + wall, H - inset)            # left
-    _fill(W - inset - wall, inset, W - inset, H - inset)   # right
+    _fill(inset, inset, W - inset, inset + wall)  # top
+    _fill(inset, H - inset - wall, W - inset, H - inset)  # bottom
+    _fill(inset, inset, inset + wall, H - inset)  # left
+    _fill(W - inset - wall, inset, W - inset, H - inset)  # right
     # Internal divider
     _fill(mid - wall // 2, inset, mid + wall // 2, H - inset)
 
@@ -111,6 +112,7 @@ def _make_temp_png(pixels: np.ndarray) -> str:
 # Assertion helpers
 # ════════════════════════════════════════════════════════════════════════════
 
+
 def _endpoint_distance(a, b):
     """Euclidean distance between two (x, y) points."""
     return math.hypot(a[0] - b[0], a[1] - b[1])
@@ -135,15 +137,15 @@ def assert_no_floating_stubs(walls, tol_cm: float = 1.5):
     stubs = []
     for i, p_i in enumerate(endpoints):
         neighbours = sum(
-            1 for j, p_j in enumerate(endpoints) if j != i
-            and _endpoint_distance(p_i, p_j) <= tol_cm
+            1
+            for j, p_j in enumerate(endpoints)
+            if j != i and _endpoint_distance(p_i, p_j) <= tol_cm
         )
         if neighbours == 0:
             stubs.append(p_i)
 
     assert not stubs, (
-        f"Found {len(stubs)} floating stub endpoint(s): {stubs[:5]}\n"
-        f"Full walls: {walls}"
+        f"Found {len(stubs)} floating stub endpoint(s): {stubs[:5]}\nFull walls: {walls}"
     )
 
 
@@ -185,6 +187,7 @@ def assert_rectilinear_polygon(poly, tol_deg: float = 8.0):
 # ════════════════════════════════════════════════════════════════════════════
 # Tests — two-room floorplan
 # ════════════════════════════════════════════════════════════════════════════
+
 
 class TestTwoRoomFloorplan:
     """room_contours on a 2-room synthetic floorplan."""
@@ -231,6 +234,7 @@ class TestTwoRoomFloorplan:
 # Tests — three-room floorplan
 # ════════════════════════════════════════════════════════════════════════════
 
+
 class TestThreeRoomFloorplan:
     """room_contours on a 3-room synthetic floorplan."""
 
@@ -273,6 +277,7 @@ class TestThreeRoomFloorplan:
 # walls_from_rooms unit tests (no image needed)
 # ════════════════════════════════════════════════════════════════════════════
 
+
 class TestWallsFromRooms:
     """Direct unit tests for walls_from_rooms()."""
 
@@ -290,7 +295,7 @@ class TestWallsFromRooms:
         - right room outer: top, bottom, right, left(shared)
         Deduplication leaves: top, bottom, left, right(shared), right_outer = 7.
         """
-        left  = [(0, 0), (100, 0), (100, 80), (0, 80)]
+        left = [(0, 0), (100, 0), (100, 80), (0, 80)]
         right = [(100, 0), (200, 0), (200, 80), (100, 80)]
         walls = pi.walls_from_rooms([left, right])
         assert len(walls) == 7, f"Expected 7, got {len(walls)}: {walls}"
@@ -301,9 +306,9 @@ class TestWallsFromRooms:
         walls_from_rooms produces 11 unique walls (empirically verified).
         All endpoints meet another wall endpoint (no stubs).
         """
-        top_left  = [(0, 0), (100, 0), (100, 100), (0, 100)]
+        top_left = [(0, 0), (100, 0), (100, 100), (0, 100)]
         top_right = [(100, 0), (200, 0), (200, 100), (100, 100)]
-        bottom    = [(0, 100), (200, 100), (200, 200), (0, 200)]
+        bottom = [(0, 100), (200, 100), (200, 200), (0, 200)]
         walls = pi.walls_from_rooms([top_left, top_right, bottom])
         assert 9 <= len(walls) <= 13, f"Expected 9–13, got {len(walls)}: {walls}"
         assert_no_floating_stubs(walls, tol_cm=1.0)
@@ -337,6 +342,7 @@ class TestWallsFromRooms:
 # ════════════════════════════════════════════════════════════════════════════
 # Error / edge-case handling
 # ════════════════════════════════════════════════════════════════════════════
+
 
 class TestRoomContoursEdgeCases:
     """Error handling and edge cases."""

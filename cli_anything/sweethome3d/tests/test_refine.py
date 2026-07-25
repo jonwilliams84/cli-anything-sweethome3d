@@ -31,7 +31,6 @@ from xml.etree import ElementTree as ET
 import pytest
 
 from cli_anything.sweethome3d.core import (
-    annotations as ann_core,
     find as find_core,
     levels as lvl_core,
     project as proj_core,
@@ -40,20 +39,13 @@ from cli_anything.sweethome3d.core import (
     walls as walls_core,
 )
 from cli_anything.sweethome3d.core.model import (
-    Baseboard,
-    Camera,
     Home,
-    Level,
-    Point,
-    Polyline,
-    Room,
-    Texture,
-    Wall,
 )
 from cli_anything.sweethome3d.core.session import Session
 
 
 # ───────────────────────────────────────────────── helpers
+
 
 def _resolve_cli(name):
     force = os.environ.get("CLI_ANYTHING_FORCE_INSTALLED", "").strip() == "1"
@@ -61,9 +53,7 @@ def _resolve_cli(name):
     if path:
         return [path]
     if force:
-        raise RuntimeError(
-            f"{name} not found in PATH. Install with: pip install -e ."
-        )
+        raise RuntimeError(f"{name} not found in PATH. Install with: pip install -e .")
     return [sys.executable, "-m", "cli_anything.sweethome3d"]
 
 
@@ -73,13 +63,12 @@ CLI = _resolve_cli("cli-anything-sweethome3d")
 def _run(args, check=True):
     r = subprocess.run(CLI + args, capture_output=True, text=True)
     if check and r.returncode != 0:
-        raise AssertionError(
-            f"CLI failed: {args}\nstdout:\n{r.stdout}\nstderr:\n{r.stderr}"
-        )
+        raise AssertionError(f"CLI failed: {args}\nstdout:\n{r.stdout}\nstderr:\n{r.stderr}")
     return r
 
 
 # ───────────────────────────────────────────────── textures core
+
 
 class TestTexturesCore:
     def test_catalog_has_26_entries(self):
@@ -136,13 +125,18 @@ class TestTexturesCore:
 
 # ───────────────────────────────────────────────── texture serialization
 
+
 class TestTextureSerializationFix:
     """Verify the writer now emits SH3D's canonical flat form."""
 
     def test_wall_texture_writes_attribute_discriminator(self, tmp_path):
         sess = Session.new()
-        w = walls_core.add_wall(
-            sess.home, 0, 0, 500, 0,
+        walls_core.add_wall(
+            sess.home,
+            0,
+            0,
+            500,
+            0,
             leftSideTexture=tex_core.make_texture("eTeks#smallBricks"),
             rightSideTexture=tex_core.make_texture("eTeks#roughcast"),
         )
@@ -178,7 +172,11 @@ class TestTextureSerializationFix:
     def test_room_textures_write_flat(self, tmp_path):
         sess = Session.new()
         rooms_core.add_rectangle_room(
-            sess.home, 0, 0, 400, 300,
+            sess.home,
+            0,
+            0,
+            400,
+            300,
             floorTexture=tex_core.make_texture("eTeks#woodenFloor"),
             ceilingTexture=tex_core.make_texture("eTeks#roughcast"),
         )
@@ -193,7 +191,11 @@ class TestTextureSerializationFix:
         """Save → load → save preserves textures via the new parser path."""
         sess = Session.new()
         rooms_core.add_rectangle_room(
-            sess.home, 0, 0, 400, 300,
+            sess.home,
+            0,
+            0,
+            400,
+            300,
             floorTexture=tex_core.make_texture("eTeks#woodenFloor"),
         )
         out = str(tmp_path / "rt.sh3d")
@@ -209,16 +211,16 @@ class TestTextureSerializationFix:
         legacy_xml = (
             '<?xml version="1.0" encoding="UTF-8"?>\n'
             '<home version="7400" wallHeight="250" name="Legacy">\n'
-            '  <environment>\n'
+            "  <environment>\n"
             '    <skyTexture><texture catalogId="eTeks#blueSky" name="Blue sky"'
             ' width="100" height="41.3"/></skyTexture>\n'
-            '  </environment>\n'
+            "  </environment>\n"
             '  <compass x="50" y="50" diameter="100" northDirection="0"/>\n'
             '  <camera attribute="topCamera" lens="PINHOLE" x="0" y="0" z="1000"'
             ' yaw="0" pitch="0" fieldOfView="1"/>\n'
             '  <observerCamera attribute="observerCamera" lens="PINHOLE" x="0"'
             ' y="0" z="170" yaw="0" pitch="0" fieldOfView="1"/>\n'
-            '</home>\n'
+            "</home>\n"
         )
         with zipfile.ZipFile(out, "w") as z:
             z.writestr("Home.xml", legacy_xml)
@@ -229,16 +231,16 @@ class TestTextureSerializationFix:
 
 # ───────────────────────────────────────────────── find core
 
+
 def _two_room_home() -> Home:
     h = Home()
     g = lvl_core.add_level(h, "Ground")
-    rooms_core.add_rectangle_room(h, 0, 0, 400, 300,
-                                   name="Kitchen", level=g.id)
-    rooms_core.add_rectangle_room(h, 500, 0, 400, 300,
-                                   name="Living", level=g.id)
+    rooms_core.add_rectangle_room(h, 0, 0, 400, 300, name="Kitchen", level=g.id)
+    rooms_core.add_rectangle_room(h, 500, 0, 400, 300, name="Living", level=g.id)
     walls_core.add_wall(h, 0, 0, 400, 0, thickness=10, level=g.id)
     walls_core.add_wall(h, 0, 0, 0, 300, thickness=10, level=g.id)  # vertical
     from cli_anything.sweethome3d.core import furniture as fc
+
     fc.add_light(h, "KitchenLight", 200, 150, level=g.id)
     fc.add_light(h, "LivingLight", 700, 150, level=g.id)
     fc.add_door(h, "FrontDoor", 200, 0, level=g.id)
@@ -269,13 +271,14 @@ class TestFindCore:
 
     def test_find_pieces_near_point(self):
         h = _two_room_home()
-        hits = find_core.find_pieces(h, kind="doorOrWindow",
-                                       near_point=(200, 0),
-                                       max_distance_cm=10)
+        hits = find_core.find_pieces(
+            h, kind="doorOrWindow", near_point=(200, 0), max_distance_cm=10
+        )
         assert len(hits) == 1 and hits[0].name == "FrontDoor"
 
 
 # ───────────────────────────────────────────────── CLI: textures
+
 
 class TestTexturesCLI:
     def test_list_full(self):
@@ -308,14 +311,28 @@ class TestTexturesCLI:
 
 # ───────────────────────────────────────────────── CLI: wall/room/env texture wiring
 
+
 class TestWallRoomEnvTextureCLI:
     def test_wall_add_with_textures(self, tmp_path):
         sh3d = str(tmp_path / "wt.sh3d")
         _run(["project", "new", "-o", sh3d])
-        r = _run(["--project", sh3d, "--json", "wall", "add",
-                   "0", "0", "500", "0",
-                   "--left-texture", "eTeks#smallBricks",
-                   "--right-texture", "eTeks#roughcast"])
+        r = _run(
+            [
+                "--project",
+                sh3d,
+                "--json",
+                "wall",
+                "add",
+                "0",
+                "0",
+                "500",
+                "0",
+                "--left-texture",
+                "eTeks#smallBricks",
+                "--right-texture",
+                "eTeks#roughcast",
+            ]
+        )
         data = json.loads(r.stdout)
         assert data["leftSideTexture"]["catalogId"] == "eTeks#smallBricks"
         assert data["rightSideTexture"]["catalogId"] == "eTeks#roughcast"
@@ -328,23 +345,59 @@ class TestWallRoomEnvTextureCLI:
     def test_wall_add_unknown_texture_fails(self, tmp_path):
         sh3d = str(tmp_path / "wt_bad.sh3d")
         _run(["project", "new", "-o", sh3d])
-        r = _run(["--project", sh3d, "wall", "add", "0", "0", "100", "0",
-                   "--left-texture", "eTeks#nope"],
-                  check=False)
+        r = _run(
+            [
+                "--project",
+                sh3d,
+                "wall",
+                "add",
+                "0",
+                "0",
+                "100",
+                "0",
+                "--left-texture",
+                "eTeks#nope",
+            ],
+            check=False,
+        )
         assert r.returncode != 0
         assert "not found" in (r.stderr + r.stdout).lower()
 
     def test_room_set_with_textures(self, tmp_path):
         sh3d = str(tmp_path / "rt.sh3d")
         _run(["project", "new", "-o", sh3d])
-        r = _run(["--project", sh3d, "--json", "room", "rectangle",
-                   "0", "0", "400", "300", "-n", "Kitchen"])
+        r = _run(
+            [
+                "--project",
+                sh3d,
+                "--json",
+                "room",
+                "rectangle",
+                "0",
+                "0",
+                "400",
+                "300",
+                "-n",
+                "Kitchen",
+            ]
+        )
         room_id = json.loads(r.stdout)["id"]
-        _run(["--project", sh3d, "room", "set", room_id,
-               "--floor-texture", "eTeks#woodenFloor",
-               "--ceiling-texture", "eTeks#marbleWall",
-               "--floor-color", "#FFEEDDCC",
-               "--ceiling-flat"])
+        _run(
+            [
+                "--project",
+                sh3d,
+                "room",
+                "set",
+                room_id,
+                "--floor-texture",
+                "eTeks#woodenFloor",
+                "--ceiling-texture",
+                "eTeks#marbleWall",
+                "--floor-color",
+                "#FFEEDDCC",
+                "--ceiling-flat",
+            ]
+        )
         # Verify on reload
         sess = Session.open(sh3d)
         room = sess.home.rooms[0]
@@ -355,22 +408,44 @@ class TestWallRoomEnvTextureCLI:
     def test_room_set_clear_texture(self, tmp_path):
         sh3d = str(tmp_path / "rt_clear.sh3d")
         _run(["project", "new", "-o", sh3d])
-        r = _run(["--project", sh3d, "--json", "room", "rectangle",
-                   "0", "0", "400", "300", "-n", "K",
-                   "--floor-texture", "eTeks#grass"])
+        r = _run(
+            [
+                "--project",
+                sh3d,
+                "--json",
+                "room",
+                "rectangle",
+                "0",
+                "0",
+                "400",
+                "300",
+                "-n",
+                "K",
+                "--floor-texture",
+                "eTeks#grass",
+            ]
+        )
         room_id = json.loads(r.stdout)["id"]
-        _run(["--project", sh3d, "room", "set", room_id,
-               "--clear-floor-texture"])
+        _run(["--project", sh3d, "room", "set", room_id, "--clear-floor-texture"])
         sess = Session.open(sh3d)
         assert sess.home.rooms[0].floorTexture is None
 
     def test_environment_set_textures(self, tmp_path):
         sh3d = str(tmp_path / "envtex.sh3d")
         _run(["project", "new", "-o", sh3d])
-        _run(["--project", sh3d, "environment", "set",
-               "--sky-texture", "eTeks#blueSky",
-               "--ground-texture", "eTeks#grass",
-               "--background-on-ground"])
+        _run(
+            [
+                "--project",
+                sh3d,
+                "environment",
+                "set",
+                "--sky-texture",
+                "eTeks#blueSky",
+                "--ground-texture",
+                "eTeks#grass",
+                "--background-on-ground",
+            ]
+        )
         sess = Session.open(sh3d)
         env = sess.home.environment
         assert env.skyTexture.catalogId == "eTeks#blueSky"
@@ -380,56 +455,59 @@ class TestWallRoomEnvTextureCLI:
 
 # ───────────────────────────────────────────────── CLI: find
 
+
 class TestFindCLI:
     def _build_two_room_project(self, tmp_path):
         sh3d = str(tmp_path / "two.sh3d")
         _run(["project", "new", "-o", sh3d])
-        _run(["--project", sh3d, "room", "rectangle", "0", "0", "400", "300",
-               "-n", "Kitchen"])
-        _run(["--project", sh3d, "room", "rectangle", "500", "0", "400", "300",
-               "-n", "Living"])
+        _run(["--project", sh3d, "room", "rectangle", "0", "0", "400", "300", "-n", "Kitchen"])
+        _run(["--project", sh3d, "room", "rectangle", "500", "0", "400", "300", "-n", "Living"])
         _run(["--project", sh3d, "wall", "add", "0", "0", "400", "0"])
-        _run(["--project", sh3d, "furniture", "add-light", "KitchenLight",
-               "200", "150"])
-        _run(["--project", sh3d, "furniture", "add-light", "LivingLight",
-               "700", "150"])
-        _run(["--project", sh3d, "furniture", "add-door", "FrontDoor",
-               "200", "0"])
+        _run(["--project", sh3d, "furniture", "add-light", "KitchenLight", "200", "150"])
+        _run(["--project", sh3d, "furniture", "add-light", "LivingLight", "700", "150"])
+        _run(["--project", sh3d, "furniture", "add-door", "FrontDoor", "200", "0"])
         return sh3d
 
     def test_find_rooms_by_name(self, tmp_path):
         sh3d = self._build_two_room_project(tmp_path)
-        r = _run(["--project", sh3d, "--json", "find", "rooms",
-                   "--name", "Kit"])
+        r = _run(["--project", sh3d, "--json", "find", "rooms", "--name", "Kit"])
         data = json.loads(r.stdout)
         assert len(data) == 1 and data[0]["name"] == "Kitchen"
 
     def test_find_rooms_contains(self, tmp_path):
         sh3d = self._build_two_room_project(tmp_path)
         # Point (700,150) is inside Living
-        r = _run(["--project", sh3d, "--json", "find", "rooms",
-                   "--contains", "700,150"])
+        r = _run(["--project", sh3d, "--json", "find", "rooms", "--contains", "700,150"])
         data = json.loads(r.stdout)
         assert [r["name"] for r in data] == ["Living"]
 
     def test_find_walls_near(self, tmp_path):
         sh3d = self._build_two_room_project(tmp_path)
-        r = _run(["--project", sh3d, "--json", "find", "walls",
-                   "--near", "200,5", "--max-distance", "50"])
+        r = _run(
+            [
+                "--project",
+                sh3d,
+                "--json",
+                "find",
+                "walls",
+                "--near",
+                "200,5",
+                "--max-distance",
+                "50",
+            ]
+        )
         data = json.loads(r.stdout)
         assert len(data) == 1
 
     def test_find_lights_in_room(self, tmp_path):
         sh3d = self._build_two_room_project(tmp_path)
-        r = _run(["--project", sh3d, "--json", "find", "lights",
-                   "--in-room", "Kitchen"])
+        r = _run(["--project", sh3d, "--json", "find", "lights", "--in-room", "Kitchen"])
         data = json.loads(r.stdout)
         assert len(data) == 1 and data[0]["name"] == "KitchenLight"
 
     def test_find_doors_near(self, tmp_path):
         sh3d = self._build_two_room_project(tmp_path)
-        r = _run(["--project", sh3d, "--json", "find", "doors",
-                   "--near", "200,0"])
+        r = _run(["--project", sh3d, "--json", "find", "doors", "--near", "200,0"])
         data = json.loads(r.stdout)
         assert len(data) >= 1
         assert any(p["name"] == "FrontDoor" for p in data)
@@ -437,13 +515,27 @@ class TestFindCLI:
 
 # ───────────────────────────────────────────────── CLI: polyline
 
+
 class TestPolylineCLI:
     def test_add_list_set_delete(self, tmp_path):
         sh3d = str(tmp_path / "p.sh3d")
         _run(["project", "new", "-o", sh3d])
-        r = _run(["--project", sh3d, "--json", "polyline", "add",
-                   "--points", "0,0 100,100 200,0", "--thickness", "3",
-                   "--closed", "--color", "#FF0000"])
+        r = _run(
+            [
+                "--project",
+                sh3d,
+                "--json",
+                "polyline",
+                "add",
+                "--points",
+                "0,0 100,100 200,0",
+                "--thickness",
+                "3",
+                "--closed",
+                "--color",
+                "#FF0000",
+            ]
+        )
         data = json.loads(r.stdout)
         assert data["thickness"] == 3 and data["closedPath"] is True
         pid = data["id"]
@@ -452,9 +544,21 @@ class TestPolylineCLI:
         ls = json.loads(r.stdout)
         assert len(ls) == 1 and ls[0]["id"] == pid
 
-        _run(["--project", sh3d, "polyline", "set", pid,
-               "--start-arrow", "DELTA", "--end-arrow", "OPEN",
-               "--dash-style", "DASH"])
+        _run(
+            [
+                "--project",
+                sh3d,
+                "polyline",
+                "set",
+                pid,
+                "--start-arrow",
+                "DELTA",
+                "--end-arrow",
+                "OPEN",
+                "--dash-style",
+                "DASH",
+            ]
+        )
         sess = Session.open(sh3d)
         p = sess.home.polylines[0]
         assert p.startArrowStyle == "DELTA"
@@ -468,8 +572,7 @@ class TestPolylineCLI:
     def test_round_trip_polyline_xml(self, tmp_path):
         sh3d = str(tmp_path / "p_rt.sh3d")
         _run(["project", "new", "-o", sh3d])
-        _run(["--project", sh3d, "polyline", "add",
-               "--points", "0,0 100,0", "--closed"])
+        _run(["--project", sh3d, "polyline", "add", "--points", "0,0 100,0", "--closed"])
         with zipfile.ZipFile(sh3d) as z:
             xml = z.read("Home.xml").decode()
         root = ET.fromstring(xml)
@@ -481,15 +584,29 @@ class TestPolylineCLI:
 
 # ───────────────────────────────────────────────── CLI: level set / select
 
+
 class TestLevelSetSelect:
     def test_level_set_renames(self, tmp_path):
         sh3d = str(tmp_path / "l.sh3d")
         _run(["project", "new", "-o", sh3d])
         r = _run(["--project", sh3d, "--json", "level", "add", "Ground"])
         lid = json.loads(r.stdout)["id"]
-        _run(["--project", sh3d, "level", "set", lid,
-               "--name", "GF", "--height", "275",
-               "--floor-thickness", "20", "--hidden"])
+        _run(
+            [
+                "--project",
+                sh3d,
+                "level",
+                "set",
+                lid,
+                "--name",
+                "GF",
+                "--height",
+                "275",
+                "--floor-thickness",
+                "20",
+                "--hidden",
+            ]
+        )
         sess = Session.open(sh3d)
         lvl = sess.home.levels[0]
         assert lvl.name == "GF"
@@ -520,15 +637,32 @@ class TestLevelSetSelect:
 
 # ───────────────────────────────────────────────── CLI: camera save/list/go
 
+
 class TestCameraStored:
     def test_save_list_go_delete(self, tmp_path):
         sh3d = str(tmp_path / "cs.sh3d")
         _run(["project", "new", "-o", sh3d])
         # Move observer so the saved viewpoint is non-default
-        _run(["--project", sh3d, "camera", "set",
-               "--kind", "observerCamera",
-               "--x", "100", "--y", "200", "--z", "175",
-               "--yaw", "1.5", "--pitch", "0.2"])
+        _run(
+            [
+                "--project",
+                sh3d,
+                "camera",
+                "set",
+                "--kind",
+                "observerCamera",
+                "--x",
+                "100",
+                "--y",
+                "200",
+                "--z",
+                "175",
+                "--yaw",
+                "1.5",
+                "--pitch",
+                "0.2",
+            ]
+        )
         _run(["--project", sh3d, "camera", "save", "viewA"])
 
         r = _run(["--project", sh3d, "--json", "camera", "list"])
@@ -536,9 +670,22 @@ class TestCameraStored:
         assert names == ["viewA"]
 
         # Move camera somewhere else, then 'go' back
-        _run(["--project", sh3d, "camera", "set",
-               "--kind", "observerCamera",
-               "--x", "0", "--y", "0", "--z", "0"])
+        _run(
+            [
+                "--project",
+                sh3d,
+                "camera",
+                "set",
+                "--kind",
+                "observerCamera",
+                "--x",
+                "0",
+                "--y",
+                "0",
+                "--z",
+                "0",
+            ]
+        )
         _run(["--project", sh3d, "camera", "go", "viewA"])
         sess = Session.open(sh3d)
         cam = sess.home.observerCamera
@@ -565,16 +712,30 @@ class TestCameraStored:
 
 # ───────────────────────────────────────────────── CLI: baseboard
 
+
 class TestBaseboardCLI:
     def test_baseboard_both_sides(self, tmp_path):
         sh3d = str(tmp_path / "bb.sh3d")
         _run(["project", "new", "-o", sh3d])
-        r = _run(["--project", sh3d, "--json", "wall", "add",
-                   "0", "0", "500", "0"])
+        r = _run(["--project", sh3d, "--json", "wall", "add", "0", "0", "500", "0"])
         wid = json.loads(r.stdout)["id"]
-        _run(["--project", sh3d, "wall", "baseboard", wid,
-               "--side", "both", "--thickness", "1.5", "--height", "12",
-               "--color", "#FFFFFFFF"])
+        _run(
+            [
+                "--project",
+                sh3d,
+                "wall",
+                "baseboard",
+                wid,
+                "--side",
+                "both",
+                "--thickness",
+                "1.5",
+                "--height",
+                "12",
+                "--color",
+                "#FFFFFFFF",
+            ]
+        )
         sess = Session.open(sh3d)
         w = sess.home.walls[0]
         assert w.leftSideBaseboard is not None
@@ -585,11 +746,21 @@ class TestBaseboardCLI:
     def test_baseboard_with_texture(self, tmp_path):
         sh3d = str(tmp_path / "bbt.sh3d")
         _run(["project", "new", "-o", sh3d])
-        r = _run(["--project", sh3d, "--json", "wall", "add",
-                   "0", "0", "500", "0"])
+        r = _run(["--project", sh3d, "--json", "wall", "add", "0", "0", "500", "0"])
         wid = json.loads(r.stdout)["id"]
-        _run(["--project", sh3d, "wall", "baseboard", wid,
-               "--side", "left", "--texture", "eTeks#smallWhiteBricks"])
+        _run(
+            [
+                "--project",
+                sh3d,
+                "wall",
+                "baseboard",
+                wid,
+                "--side",
+                "left",
+                "--texture",
+                "eTeks#smallWhiteBricks",
+            ]
+        )
         sess = Session.open(sh3d)
         w = sess.home.walls[0]
         assert w.leftSideBaseboard.texture is not None
@@ -599,13 +770,24 @@ class TestBaseboardCLI:
     def test_baseboard_clear(self, tmp_path):
         sh3d = str(tmp_path / "bbc.sh3d")
         _run(["project", "new", "-o", sh3d])
-        r = _run(["--project", sh3d, "--json", "wall", "add",
-                   "0", "0", "500", "0"])
+        r = _run(["--project", sh3d, "--json", "wall", "add", "0", "0", "500", "0"])
         wid = json.loads(r.stdout)["id"]
-        _run(["--project", sh3d, "wall", "baseboard", wid,
-               "--side", "both", "--thickness", "1", "--height", "10"])
-        _run(["--project", sh3d, "wall", "baseboard", wid,
-               "--side", "right", "--clear"])
+        _run(
+            [
+                "--project",
+                sh3d,
+                "wall",
+                "baseboard",
+                wid,
+                "--side",
+                "both",
+                "--thickness",
+                "1",
+                "--height",
+                "10",
+            ]
+        )
+        _run(["--project", sh3d, "wall", "baseboard", wid, "--side", "right", "--clear"])
         sess = Session.open(sh3d)
         w = sess.home.walls[0]
         assert w.leftSideBaseboard is not None
@@ -614,16 +796,43 @@ class TestBaseboardCLI:
 
 # ───────────────────────────────────────────────── CLI: dimension/label set
 
+
 class TestDimensionLabelSet:
     def test_dimension_set(self, tmp_path):
         sh3d = str(tmp_path / "ds.sh3d")
         _run(["project", "new", "-o", sh3d])
-        r = _run(["--project", sh3d, "--json", "dimension", "add",
-                   "0", "0", "500", "0", "--offset", "40"])
+        r = _run(
+            [
+                "--project",
+                sh3d,
+                "--json",
+                "dimension",
+                "add",
+                "0",
+                "0",
+                "500",
+                "0",
+                "--offset",
+                "40",
+            ]
+        )
         did = json.loads(r.stdout)["id"]
-        _run(["--project", sh3d, "dimension", "set", did,
-               "--offset", "80", "--color", "#FF0000FF",
-               "--visible-in-3d", "--end-mark-size", "15"])
+        _run(
+            [
+                "--project",
+                sh3d,
+                "dimension",
+                "set",
+                did,
+                "--offset",
+                "80",
+                "--color",
+                "#FF0000FF",
+                "--visible-in-3d",
+                "--end-mark-size",
+                "15",
+            ]
+        )
         sess = Session.open(sh3d)
         d = sess.home.dimensionLines[0]
         assert d.offset == 80
@@ -633,13 +842,23 @@ class TestDimensionLabelSet:
     def test_label_set(self, tmp_path):
         sh3d = str(tmp_path / "ls.sh3d")
         _run(["project", "new", "-o", sh3d])
-        r = _run(["--project", sh3d, "--json", "label", "add",
-                   "Hello", "100", "100"])
+        r = _run(["--project", sh3d, "--json", "label", "add", "Hello", "100", "100"])
         lid = json.loads(r.stdout)["id"]
-        _run(["--project", sh3d, "label", "set", lid,
-               "--text", "World",
-               "--angle", "0.5",
-               "--outline-color", "#FF000000"])
+        _run(
+            [
+                "--project",
+                sh3d,
+                "label",
+                "set",
+                lid,
+                "--text",
+                "World",
+                "--angle",
+                "0.5",
+                "--outline-color",
+                "#FF000000",
+            ]
+        )
         sess = Session.open(sh3d)
         l = sess.home.labels[0]
         assert l.text == "World"
@@ -649,13 +868,26 @@ class TestDimensionLabelSet:
 
 # ───────────────────────────────────────────────── CLI: video-size
 
+
 class TestEnvironmentVideo:
     def test_video_size(self, tmp_path):
         sh3d = str(tmp_path / "vs.sh3d")
         _run(["project", "new", "-o", sh3d])
-        _run(["--project", sh3d, "environment", "video-size", "1280",
-               "--aspect", "RATIO_16_9", "--frame-rate", "30",
-               "--quality", "2"])
+        _run(
+            [
+                "--project",
+                sh3d,
+                "environment",
+                "video-size",
+                "1280",
+                "--aspect",
+                "RATIO_16_9",
+                "--frame-rate",
+                "30",
+                "--quality",
+                "2",
+            ]
+        )
         sess = Session.open(sh3d)
         env = sess.home.environment
         assert env.videoWidth == 1280
@@ -665,6 +897,7 @@ class TestEnvironmentVideo:
 
 
 # ───────────────────────────────────────────────── full refine workflow
+
 
 class TestRefineWorkflow:
     """Build a fully decorated house using only the new commands and verify."""
@@ -679,75 +912,183 @@ class TestRefineWorkflow:
         _run(["--project", sh3d, "level", "select", gid])
 
         # Two adjacent rooms with floor textures
-        r = _run(["--project", sh3d, "--json", "room", "rectangle",
-                   "0", "0", "400", "300",
-                   "-n", "Kitchen", "-l", gid,
-                   "--floor-texture", "eTeks#stoneTiles",
-                   "--ceiling-color", "#FFFFFFFF"])
-        kid = json.loads(r.stdout)["id"]
+        r = _run(
+            [
+                "--project",
+                sh3d,
+                "--json",
+                "room",
+                "rectangle",
+                "0",
+                "0",
+                "400",
+                "300",
+                "-n",
+                "Kitchen",
+                "-l",
+                gid,
+                "--floor-texture",
+                "eTeks#stoneTiles",
+                "--ceiling-color",
+                "#FFFFFFFF",
+            ]
+        )
+        json.loads(r.stdout)["id"]
 
-        r = _run(["--project", sh3d, "--json", "room", "rectangle",
-                   "400", "0", "500", "300",
-                   "-n", "Living", "-l", gid,
-                   "--floor-texture", "eTeks#woodenFloor"])
-        lid_room = json.loads(r.stdout)["id"]
+        r = _run(
+            [
+                "--project",
+                sh3d,
+                "--json",
+                "room",
+                "rectangle",
+                "400",
+                "0",
+                "500",
+                "300",
+                "-n",
+                "Living",
+                "-l",
+                gid,
+                "--floor-texture",
+                "eTeks#woodenFloor",
+            ]
+        )
+        json.loads(r.stdout)["id"]
 
         # Walls (with brick textures on the outer side)
-        for x1, y1, x2, y2 in [(0, 0, 900, 0), (900, 0, 900, 300),
-                                  (0, 300, 900, 300), (0, 0, 0, 300),
-                                  (400, 0, 400, 300)]:
-            _run(["--project", sh3d, "wall", "add",
-                   str(x1), str(y1), str(x2), str(y2),
-                   "-l", gid,
-                   "--left-texture", "eTeks#smallBricks",
-                   "--right-texture", "eTeks#roughcast"])
+        for x1, y1, x2, y2 in [
+            (0, 0, 900, 0),
+            (900, 0, 900, 300),
+            (0, 300, 900, 300),
+            (0, 0, 0, 300),
+            (400, 0, 400, 300),
+        ]:
+            _run(
+                [
+                    "--project",
+                    sh3d,
+                    "wall",
+                    "add",
+                    str(x1),
+                    str(y1),
+                    str(x2),
+                    str(y2),
+                    "-l",
+                    gid,
+                    "--left-texture",
+                    "eTeks#smallBricks",
+                    "--right-texture",
+                    "eTeks#roughcast",
+                ]
+            )
 
         # Wall ids for baseboards
-        wlist = json.loads(_run(["--project", sh3d, "--json",
-                                  "wall", "list"]).stdout)
+        wlist = json.loads(_run(["--project", sh3d, "--json", "wall", "list"]).stdout)
         first_wall = wlist[0]["id"]
-        _run(["--project", sh3d, "wall", "baseboard", first_wall,
-               "--side", "both", "--thickness", "1", "--height", "10",
-               "--color", "#FFFFFFFF"])
+        _run(
+            [
+                "--project",
+                sh3d,
+                "wall",
+                "baseboard",
+                first_wall,
+                "--side",
+                "both",
+                "--thickness",
+                "1",
+                "--height",
+                "10",
+                "--color",
+                "#FFFFFFFF",
+            ]
+        )
 
         # Polyline decoration
-        _run(["--project", sh3d, "polyline", "add",
-               "--points", "50,50 350,50 350,250 50,250",
-               "--thickness", "2", "--closed", "--color", "#FF888888"])
+        _run(
+            [
+                "--project",
+                sh3d,
+                "polyline",
+                "add",
+                "--points",
+                "50,50 350,50 350,250 50,250",
+                "--thickness",
+                "2",
+                "--closed",
+                "--color",
+                "#FF888888",
+            ]
+        )
 
         # Lights + dimension
-        _run(["--project", sh3d, "furniture", "add-light",
-               "CeilingK", "200", "150", "-l", gid])
-        _run(["--project", sh3d, "furniture", "add-light",
-               "CeilingL", "650", "150", "-l", gid])
-        r = _run(["--project", sh3d, "--json", "dimension", "add",
-                   "0", "0", "900", "0", "--offset", "40", "-l", gid])
+        _run(["--project", sh3d, "furniture", "add-light", "CeilingK", "200", "150", "-l", gid])
+        _run(["--project", sh3d, "furniture", "add-light", "CeilingL", "650", "150", "-l", gid])
+        r = _run(
+            [
+                "--project",
+                sh3d,
+                "--json",
+                "dimension",
+                "add",
+                "0",
+                "0",
+                "900",
+                "0",
+                "--offset",
+                "40",
+                "-l",
+                gid,
+            ]
+        )
         did = json.loads(r.stdout)["id"]
-        _run(["--project", sh3d, "dimension", "set", did,
-               "--color", "#FF0000FF", "--visible-in-3d"])
+        _run(
+            ["--project", sh3d, "dimension", "set", did, "--color", "#FF0000FF", "--visible-in-3d"]
+        )
 
         # Environment textures
-        _run(["--project", sh3d, "environment", "set",
-               "--sky-texture", "eTeks#blueSky",
-               "--ground-texture", "eTeks#grass",
-               "--all-levels-visible"])
+        _run(
+            [
+                "--project",
+                sh3d,
+                "environment",
+                "set",
+                "--sky-texture",
+                "eTeks#blueSky",
+                "--ground-texture",
+                "eTeks#grass",
+                "--all-levels-visible",
+            ]
+        )
 
         # Save a stored camera viewpoint for renders
-        _run(["--project", sh3d, "camera", "set",
-               "--kind", "observerCamera",
-               "--x", "200", "--y", "150", "--z", "170",
-               "--yaw", "0.5"])
+        _run(
+            [
+                "--project",
+                sh3d,
+                "camera",
+                "set",
+                "--kind",
+                "observerCamera",
+                "--x",
+                "200",
+                "--y",
+                "150",
+                "--z",
+                "170",
+                "--yaw",
+                "0.5",
+            ]
+        )
         _run(["--project", sh3d, "camera", "save", "kitchen-view"])
 
         # Find a wall near the front door point — should match
-        r = _run(["--project", sh3d, "--json", "find", "walls",
-                   "--near", "450,0"])
+        r = _run(["--project", sh3d, "--json", "find", "walls", "--near", "450,0"])
         hits = json.loads(r.stdout)
         assert hits  # at least one wall close to the front
 
         # Find lights in Kitchen room
-        r = _run(["--project", sh3d, "--json", "find", "lights",
-                   "--in-room", "Kitchen"])
+        r = _run(["--project", sh3d, "--json", "find", "lights", "--in-room", "Kitchen"])
         lights = json.loads(r.stdout)
         assert [l["name"] for l in lights] == ["CeilingK"]
 
@@ -766,8 +1107,7 @@ class TestRefineWorkflow:
         # XML uses canonical flat texture form everywhere
         with zipfile.ZipFile(sh3d) as z:
             xml = z.read("Home.xml").decode()
-        attrs_found = set(re.findall(
-            r'<texture\s+attribute="(\w+)"', xml))
+        attrs_found = set(re.findall(r'<texture\s+attribute="(\w+)"', xml))
         assert "leftSideTexture" in attrs_found
         assert "rightSideTexture" in attrs_found
         assert "floorTexture" in attrs_found

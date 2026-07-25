@@ -37,24 +37,40 @@ def main(argv=None):
         prog="python3 -m cli_anything.sweethome3d.core.designer",
         description="SweetHome3D Designer CLI — build .sh3d homes from JSON specs.",
     )
-    parser.add_argument("--spec", metavar="PATH",
-                        help="Input spec JSON file (from Designer.to_spec())")
-    parser.add_argument("--out", metavar="PATH", default="Home.sh3d",
-                        help="Output .sh3d file (default: Home.sh3d)")
-    parser.add_argument("--render", metavar="PATH", default=None,
-                        help="Output PNG floor-plan render path (optional)")
-    parser.add_argument("--validate", action="store_true",
-                        help="Print validate() report and exit without writing files")
-    parser.add_argument("--describe", action="store_true",
-                        help="Print describe() state and exit without writing files")
+    parser.add_argument(
+        "--spec", metavar="PATH", help="Input spec JSON file (from Designer.to_spec())"
+    )
+    parser.add_argument(
+        "--out", metavar="PATH", default="Home.sh3d", help="Output .sh3d file (default: Home.sh3d)"
+    )
+    parser.add_argument(
+        "--render",
+        metavar="PATH",
+        default=None,
+        help="Output PNG floor-plan render path (optional)",
+    )
+    parser.add_argument(
+        "--validate",
+        action="store_true",
+        help="Print validate() report and exit without writing files",
+    )
+    parser.add_argument(
+        "--describe",
+        action="store_true",
+        help="Print describe() state and exit without writing files",
+    )
 
     args = parser.parse_args(argv)
 
     # Import here so the module is importable even before install
     import os
-    import sys
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.dirname(os.path.abspath(__file__))))))
+
+    sys.path.insert(
+        0,
+        os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        ),
+    )
 
     from cli_anything.sweethome3d.core.designer import Designer
 
@@ -80,10 +96,7 @@ def main(argv=None):
         report = d.validate()
         print(json.dumps(report, indent=2))
         # Exit 1 if there are critical issues
-        issues = (
-            any(not ok for ok in report["envelope_closed"])
-            or bool(report["orphan_endpoints"])
-        )
+        issues = any(not ok for ok in report["envelope_closed"]) or bool(report["orphan_endpoints"])
         sys.exit(1 if issues else 0)
 
     if args.describe:

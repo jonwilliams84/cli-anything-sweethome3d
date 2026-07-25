@@ -54,15 +54,18 @@ _modify_classes_dir: Optional[Path] = None
 # circular imports)
 # ---------------------------------------------------------------------------
 
+
 def _sh3d_home() -> Path:
     """Return the SweetHome3D installation directory."""
     from cli_anything.sweethome3d.core.render_runtime import _find_sh3d_home
+
     return _find_sh3d_home()
 
 
 def _javac_bin() -> Path:
     """Return path to a javac binary."""
     from cli_anything.sweethome3d.core.render_runtime import _find_javac
+
     return _find_javac()
 
 
@@ -103,7 +106,10 @@ def _run_validated(cmd: list, *, timeout: float | None = None) -> subprocess.Com
     if not exe.exists():
         raise RuntimeError(f"executable not found: {exe}")
     return subprocess.run(  # nosec B603 - list-form, no shell; executable validated absolute+existing above, args are file-path data not executed
-        cmd, capture_output=True, text=True, timeout=timeout,
+        cmd,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
     )
 
 
@@ -112,12 +118,13 @@ def _build_classpath(sh3d_home: Path, classes_dir: Path) -> str:
     jars = sorted(glob.glob(str(sh3d_home / "lib" / "*.jar")))
     if not jars:
         raise RuntimeError(f"No .jar files under {sh3d_home / 'lib'}")
-    return ":".join(jars + [str(classes_dir)])
+    return ":".join([*jars, str(classes_dir)])
 
 
 # ---------------------------------------------------------------------------
 # Compilation
 # ---------------------------------------------------------------------------
+
 
 def _needs_compile(src: Path, cls: Path) -> bool:
     if not cls.exists():
@@ -156,9 +163,14 @@ def _ensure_compiled() -> tuple[Path, Path]:
 
     cmd = [
         str(javac),
-        "-source", "8", "-target", "8",
-        "-cp", cp,
-        "-d", str(_modify_classes_dir),
+        "-source",
+        "8",
+        "-target",
+        "8",
+        "-cp",
+        cp,
+        "-d",
+        str(_modify_classes_dir),
         str(src),
     ]
     result = _run_validated(cmd)
@@ -177,6 +189,7 @@ def _ensure_compiled() -> tuple[Path, Path]:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def modify_rooms(
     home_path: str,
@@ -244,6 +257,7 @@ def modify_rooms(
     # Always snapshot before mutating — even when out_path is supplied, take
     # a backup of the SOURCE so an accidental clobber stays reversible.
     from cli_anything.sweethome3d.core.backup import backup as _backup
+
     _backup(home_path)
 
     # Determine output path; use a tmp file for in-place overwrite
@@ -269,11 +283,15 @@ def modify_rooms(
 
         cmd = [
             str(java),
-            "-cp", cp,
+            "-cp",
+            cp,
             "ModifyRooms",
-            "--in",   home_path,
-            "--out",  effective_out,
-            "--spec", spec_path,
+            "--in",
+            home_path,
+            "--out",
+            effective_out,
+            "--spec",
+            spec_path,
         ]
 
         t0 = time.monotonic()

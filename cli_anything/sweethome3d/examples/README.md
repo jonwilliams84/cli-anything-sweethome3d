@@ -10,6 +10,7 @@ Place your floor plan SVGs in the same directory as this spec, then import:
 
 ```python
 from cli_anything.sweethome3d.core.svg_import import svg_to_home_multi
+
 svg_to_home_multi(spec="cli_anything/sweethome3d/examples/bungalow-spec.yaml")
 ```
 
