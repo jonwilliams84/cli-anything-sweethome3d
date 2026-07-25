@@ -7,10 +7,10 @@ Each test exercises a real bug that was found by round-tripping generated
 from __future__ import annotations
 
 import os
-import xml.etree.ElementTree as ET
+import shutil
 from defusedxml import ElementTree as DefusedET
 import zipfile
-import subprocess
+import subprocess  # nosec B404 - required to invoke the SH3D Java validator (ValidateSh3d) on locally-generated .sh3d files; all arguments (jar, build_dir, sh3d_path) are controlled, non-user-supplied values
 import tempfile
 from pathlib import Path
 
@@ -44,8 +44,11 @@ def _compile_validator(build_dir: Path) -> Path:
     cls = build_dir / "ValidateSh3d.class"
     if cls.exists() and cls.stat().st_mtime >= src.stat().st_mtime:
         return build_dir
-    subprocess.run(
-        ["javac", "-cp", jar, str(src), "-d", str(build_dir)],
+    javac = shutil.which("javac")
+    if javac is None:
+        pytest.skip("javac not found on PATH")
+    subprocess.run(  # nosec B603 - invokes the SH3D Java validator compiler with a fully-resolved executable path and controlled arguments
+        [javac, "-cp", jar, str(src), "-d", str(build_dir)],
         check=True, capture_output=True, text=True,
     )
     return build_dir
@@ -58,8 +61,11 @@ def run_sh3d_validator(sh3d_path: str) -> subprocess.CompletedProcess:
     build_dir.mkdir(parents=True, exist_ok=True)
     _compile_validator(build_dir)
     cp = f"{build_dir}:{jar}"
-    return subprocess.run(
-        ["java", "-cp", cp, "ValidateSh3d", sh3d_path],
+    java = shutil.which("java")
+    if java is None:
+        pytest.skip("java not found on PATH")
+    return subprocess.run(  # nosec B603 - invokes the SH3D Java validator with a fully-resolved executable path and controlled arguments
+        [java, "-cp", cp, "ValidateSh3d", sh3d_path],
         capture_output=True, text=True, timeout=30,
     )
 
