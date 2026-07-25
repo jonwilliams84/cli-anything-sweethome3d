@@ -31,7 +31,7 @@ Home's walls after they're built.
 from __future__ import annotations
 
 import math
-import xml.etree.ElementTree as ET
+from defusedxml import ElementTree as ET
 from dataclasses import dataclass
 
 from cli_anything.sweethome3d.core.model import Home
