@@ -236,69 +236,22 @@ def render_region_png(page, region, out_path, *, dpi=200, grey_to_black=True):
 
 
 # ---- external model backend (e.g. CubiCasa5k, user-supplied — see cubicasa_runner) --
-# B404/B603: subprocess is used intentionally for launching user-supplied model scripts.
-# Shell metacharacters and path injection are blocked by _validate_shell_safe().
-import os, re
-
-_SHELL_META = re.compile(
-    r"[;&|`$<>!\"'\s]"
-    # reject any byte that is not a printable ASCII character or safe path char
-    r"|[\x00-\x1f\x7f]"
-)
-
-
-def _validate_shell_safe(value: str, label: str) -> None:
-    """Raise ValueError if value contains shell metacharacters or control bytes.
-
-    We intentionally do NOT invoke the command through a shell (``shell=False`` in
-    subprocess.run), but the user-supplied command is ultimately passed to the OS
-    via argv of the spawned process — defence in depth by blocking any character
-    that could cause unexpected shell expansion if the command is ever run via
-    a shell wrapper or piped through sh(1).  This also prevents argument-injection
-    where a maliciously crafted path argument could bleed into adjacent tokens.
-    """
-    if _SHELL_META.search(value):
-        raise ValueError(
-            f"{label} contains shell metacharacter or control byte: {value!r}"
-        )
-
-
 def run_model(png_path, out_json, *, model_cmd=None):
     """Invoke the configured model backend to produce a polygons JSON
     {w,h,walls:[{points,class}],openings:[{points,class}],rooms:[...]}. `model_cmd` is a
     command (list or string) with `{in}`/`{out}` placeholders; falls back to $SH3D_MODEL_CMD.
     The model itself is NOT shipped with this package (licence/size) — the user supplies it."""
-    import json, shlex  # noqa: F401 (kept for the public API; only json is used below)
-    import subprocess  # nosec B404 — intentionally launches user model scripts; B603 blocked by _validate_shell_safe()
-
+    import os, json, shlex, subprocess
     cmd = model_cmd or os.environ.get("SH3D_MODEL_CMD")
     if not cmd:
         raise RuntimeError(
             "no model backend configured. Set --model-cmd or $SH3D_MODEL_CMD, e.g.\n"
             "  '/path/to/torch-venv/bin/python /path/to/cubicasa_runner.py {in} {out}'\n"
             "(see cli_anything/sweethome3d/tools/cubicasa_runner.py). Or use backend='geometry'.")
-
-    # B603: validate the command template before any substitution.
     if isinstance(cmd, str):
         cmd = shlex.split(cmd)
-    for token in cmd:
-        _validate_shell_safe(token, "command token")
-
-    # B603: validate the paths that will be substituted into the template.
-    _validate_shell_safe(png_path, "png_path")
-    _validate_shell_safe(out_json, "out_json")
-
-    if not os.path.isfile(png_path):
-        raise FileNotFoundError(f"input PNG does not exist: {png_path}")
-
     cmd = [c.replace("{in}", png_path).replace("{out}", out_json) for c in cmd]
-
-    # B603: after substitution, re-validate every argument (substitution could
-    # have inserted a metacharacter into an unsuspicious-looking placeholder).
-    for token in cmd:
-        _validate_shell_safe(token, "substituted command token")
-
-    subprocess.run(cmd, check=True)  # nosec subprocess — tokens are validated above
+    subprocess.run(cmd, check=True)
     return json.load(open(out_json))
 
 
