@@ -19,7 +19,9 @@ import io
 import os
 import zipfile
 from typing import Optional
-from xml.etree import ElementTree as ET
+import defusedxml
+defusedxml.defuse_stdlib()  # B405: harden stdlib xml.etree.ElementTree against XML entity/XXE attacks
+from xml.etree import ElementTree as ET  # nosec B405 — defusedxml.defuse_stdlib() called above; ET used only for *building* XML (Element/SubElement/ElementTree ctor), all parsing goes through DefusedET.parse()
 from defusedxml import ElementTree as DefusedET
 
 from cli_anything.sweethome3d.core.model import (
