@@ -12,4 +12,4 @@ from cli_anything.sweethome3d.core.svg.pipeline import (
 )
 from cli_anything.sweethome3d.core.svg.spec import load_spec
 
-__all__ = ["svg_to_home", "svg_to_home_multi", "load_spec"]
+__all__ = ["load_spec", "svg_to_home", "svg_to_home_multi"]

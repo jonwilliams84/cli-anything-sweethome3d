@@ -31,7 +31,8 @@ from cli_anything.sweethome3d.core.model import (
 def _sh3d_jar() -> str:
     jar = os.environ.get("SWEETHOME3D_JAR") or os.path.join(
         os.environ.get("SWEETHOME3D_HOME", "/home/jon/sh3d/SweetHome3D-7.5"),
-        "lib", "SweetHome3D.jar",
+        "lib",
+        "SweetHome3D.jar",
     )
     if not os.path.isfile(jar):
         pytest.skip(f"SweetHome3D.jar not found: {jar}")
@@ -49,7 +50,9 @@ def _compile_validator(build_dir: Path) -> Path:
         pytest.skip("javac not found on PATH")
     subprocess.run(  # nosec B603 - invokes the SH3D Java validator compiler with a fully-resolved executable path and controlled arguments
         [javac, "-cp", jar, str(src), "-d", str(build_dir)],
-        check=True, capture_output=True, text=True,
+        check=True,
+        capture_output=True,
+        text=True,
     )
     return build_dir
 
@@ -66,7 +69,9 @@ def run_sh3d_validator(sh3d_path: str) -> subprocess.CompletedProcess:
         pytest.skip("java not found on PATH")
     return subprocess.run(  # nosec B603 - invokes the SH3D Java validator with a fully-resolved executable path and controlled arguments
         [java, "-cp", cp, "ValidateSh3d", sh3d_path],
-        capture_output=True, text=True, timeout=30,
+        capture_output=True,
+        text=True,
+        timeout=30,
     )
 
 
@@ -75,10 +80,12 @@ class TestTextureWidthHeight:
 
     def test_texture_without_dimensions_adds_zero_defaults(self):
         h = Home()
-        h.rooms.append(Room(
-            points=[Point(0, 0), Point(100, 0), Point(100, 100)],
-            floorTexture=Texture(name="oak", image="2"),
-        ))
+        h.rooms.append(
+            Room(
+                points=[Point(0, 0), Point(100, 0), Point(100, 100)],
+                floorTexture=Texture(name="oak", image="2"),
+            )
+        )
         tree = proj_core.home_to_xml(h)
         tex = tree.find("room/texture")
         assert tex is not None
@@ -89,10 +96,12 @@ class TestTextureWidthHeight:
 
     def test_texture_without_dimensions_opens_in_sh3d(self):
         h = Home()
-        h.rooms.append(Room(
-            points=[Point(0, 0), Point(100, 0), Point(100, 100)],
-            floorTexture=Texture(name="oak", image="2"),
-        ))
+        h.rooms.append(
+            Room(
+                points=[Point(0, 0), Point(100, 0), Point(100, 100)],
+                floorTexture=Texture(name="oak", image="2"),
+            )
+        )
         with tempfile.TemporaryDirectory() as td:
             p = os.path.join(td, "x.sh3d")
             proj_core.save_home(h, p, extra_content={"2": b"\x89PNG\r\n\x1a\n"})
@@ -112,10 +121,15 @@ class TestEmptyFurnitureGroup:
     def test_empty_nested_furnituregroup_not_serialized(self):
         h = Home()
         inner = FurnitureGroup(name="InnerEmpty", furniture=[])
-        h.furnitureGroups.append(FurnitureGroup(
-            name="Outer",
-            furniture=[PieceOfFurniture(name="P", x=0, y=0, width=10, depth=10, height=10), inner],
-        ))
+        h.furnitureGroups.append(
+            FurnitureGroup(
+                name="Outer",
+                furniture=[
+                    PieceOfFurniture(name="P", x=0, y=0, width=10, depth=10, height=10),
+                    inner,
+                ],
+            )
+        )
         tree = proj_core.home_to_xml(h)
         outer = tree.find("furnitureGroup")
         assert outer is not None
@@ -157,14 +171,23 @@ class TestTransformationMatrixValidation:
 
     def test_valid_matrix_opens_in_sh3d(self):
         h = Home()
-        h.furniture.append(PieceOfFurniture(
-            name="Chair", x=50, y=50, width=50, depth=50, height=80,
-            catalogId="eTeks#chair",
-            modelTransformations=[Transformation(
-                name="arm",
-                matrix="1 0 0 0 0 1 0 0 0 0 1 0",
-            )],
-        ))
+        h.furniture.append(
+            PieceOfFurniture(
+                name="Chair",
+                x=50,
+                y=50,
+                width=50,
+                depth=50,
+                height=80,
+                catalogId="eTeks#chair",
+                modelTransformations=[
+                    Transformation(
+                        name="arm",
+                        matrix="1 0 0 0 0 1 0 0 0 0 1 0",
+                    )
+                ],
+            )
+        )
         with tempfile.TemporaryDirectory() as td:
             p = os.path.join(td, "transform.sh3d")
             proj_core.save_home(h, p)
@@ -180,8 +203,12 @@ class TestFurnitureGroupCatalogContent:
         grp = FurnitureGroup(name="Doors")
         grp.furniture.append(
             PieceOfFurniture(
-                name="Front door", x=0, y=0,
-                width=80, depth=6, height=200,
+                name="Front door",
+                x=0,
+                y=0,
+                width=80,
+                depth=6,
+                height=200,
                 catalogId="eTeks#door",
             )
         )
@@ -221,8 +248,10 @@ class TestFurnitureGroupCatalogContent:
         raises on DTD/entity declarations that the stdlib parser would
         silently resolve.
         """
-        xxe = (b'<?xml version="1.0"?>'
-               b'<!DOCTYPE home [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>'
-               b'<home version="6005"><room name="&xxe;"/></home>')
+        xxe = (
+            b'<?xml version="1.0"?>'
+            b'<!DOCTYPE home [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>'
+            b'<home version="6005"><room name="&xxe;"/></home>'
+        )
         with pytest.raises(Exception):
             DefusedET.fromstring(xxe)

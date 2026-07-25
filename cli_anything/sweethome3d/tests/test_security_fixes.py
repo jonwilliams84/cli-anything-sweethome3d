@@ -13,12 +13,11 @@ B112 (blender_render.py):
 import os
 import re
 
-import pytest
-
 
 # ---------------------------------------------------------------------------
 # B405 — rooms.py  (type-annotation-only ET import from defusedxml)
 # ---------------------------------------------------------------------------
+
 
 class TestRoomsSecurityFix:
     """B405 fix: rooms.py must not trigger xml.etree.ElementTree."""
@@ -48,11 +47,12 @@ class TestRoomsSecurityFix:
         svg_xml = (
             '<svg xmlns="http://www.w3.org/2000/svg">'
             '<text x="100" y="200" font-size="16">Kitchen</text>'
-            '</svg>'
+            "</svg>"
         )
         root = xET.fromstring(svg_xml)
 
         from cli_anything.sweethome3d.core.svg.rooms import extract_room_labels
+
         labels = extract_room_labels(root)
         assert isinstance(labels, list)
 
@@ -69,6 +69,7 @@ class TestRoomsSecurityFix:
 # ---------------------------------------------------------------------------
 # B405 — walls.py  (type-annotation-only ET import from defusedxml)
 # ---------------------------------------------------------------------------
+
 
 class TestWallsSecurityFix:
     """B405 fix: walls.py must not trigger xml.etree.ElementTree."""
@@ -151,6 +152,4 @@ class TestBlenderRenderSecurityFix:
         m = re.match(r"def _geometry_bounds\((.*?)\):", src)
         assert m, f"Could not parse signature: {src[:80]}"
         params = m.group(1).strip()
-        assert params == "", (
-            f"_geometry_bounds signature changed: def _geometry_bounds({params})"
-        )
+        assert params == "", f"_geometry_bounds signature changed: def _geometry_bounds({params})"

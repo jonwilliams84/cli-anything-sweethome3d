@@ -35,6 +35,7 @@ def extract_room_labels(svg_root: ET.Element) -> list[tuple[str, float, float]]:
     carpet, landing gets beige, etc.). Skips numeric-only labels and
     area annotations like ``"60.75 m²"``.
     """
+
     def first_float(s):
         if not s:
             return 0.0
@@ -97,6 +98,7 @@ def floor_color_for(name: str, level_name: str) -> int:
 # ---------------------------------------------------------------------------
 # Closed-loop auto-room extraction via planar-subdivision face traversal
 # ---------------------------------------------------------------------------
+
 
 def _signed_area(pts: list[tuple[float, float]]) -> float:
     """Signed area of a polygon (shoelace). Positive = CCW in standard math
@@ -184,15 +186,17 @@ def extract_rooms_from_walls(
 
     # For each node build a sorted list of outgoing half-edge indices by angle
     adj: dict[int, list[int]] = {}
-    for he_idx, (src, dst) in enumerate(half_edges):
+    for he_idx, (src, _dst) in enumerate(half_edges):
         adj.setdefault(src, []).append(he_idx)
 
     for src, he_list in adj.items():
         nx, ny = nodes[src]
-        he_list.sort(key=lambda i: math.atan2(
-            nodes[half_edges[i][1]][1] - ny,
-            nodes[half_edges[i][1]][0] - nx,
-        ))
+        he_list.sort(
+            key=lambda i: math.atan2(
+                nodes[half_edges[i][1]][1] - ny,
+                nodes[half_edges[i][1]][0] - nx,
+            )
+        )
 
     # --- 3. next-clockwise twin ------------------------------------------
     # For half-edge he=(u→v) the next-CW half-edge at v is:
@@ -266,6 +270,7 @@ def extract_rooms_from_walls(
             continue
         if envelope is not None and len(envelope) >= 3:
             from cli_anything.sweethome3d.core.svg.geometry import point_in_polygon
+
             cx = sum(x for x, _ in pts) / len(pts)
             cy = sum(y for _, y in pts) / len(pts)
             if not point_in_polygon(cx, cy, envelope):

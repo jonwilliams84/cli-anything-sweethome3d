@@ -30,27 +30,30 @@ def _resolve_light(home: Home, ident: str) -> PieceOfFurniture:
         raise KeyError(f"furniture not found: {ident}")
     if piece.kind != "light":
         raise ValueError(
-            f"light sources apply to light pieces only; {piece.name!r} is "
-            f"kind={piece.kind!r}"
+            f"light sources apply to light pieces only; {piece.name!r} is kind={piece.kind!r}"
         )
     return piece
 
 
 def _validate_fraction(value: float, label: str) -> None:
     if not -1.0 <= value <= 1.0:
-        raise ValueError(
-            f"{label} must be a fraction in [-1, 1] (got {value})"
-        )
+        raise ValueError(f"{label} must be a fraction in [-1, 1] (got {value})")
 
 
 def list_sources(home: Home, piece_ident: str) -> list[LightSource]:
     return list(_resolve_light(home, piece_ident).lightSources)
 
 
-def add_source(home: Home, piece_ident: str, *,
-                x: float, y: float, z: float,
-                color: int,
-                diameter: Optional[float] = None) -> LightSource:
+def add_source(
+    home: Home,
+    piece_ident: str,
+    *,
+    x: float,
+    y: float,
+    z: float,
+    color: int,
+    diameter: Optional[float] = None,
+) -> LightSource:
     """Append a new point emitter to a light piece."""
     piece = _resolve_light(home, piece_ident)
     _validate_fraction(x, "x")
@@ -84,8 +87,7 @@ def list_materials(home: Home, piece_ident: str) -> list[LightSourceMaterial]:
     return list(_resolve_light(home, piece_ident).lightSourceMaterials)
 
 
-def add_material(home: Home, piece_ident: str,
-                   name: str) -> LightSourceMaterial:
+def add_material(home: Home, piece_ident: str, name: str) -> LightSourceMaterial:
     """Mark a model material group as light-emitting."""
     piece = _resolve_light(home, piece_ident)
     if not name:

@@ -64,6 +64,7 @@ def _emit(ctx: click.Context, data: Any) -> None:
             if isinstance(o, tuple):
                 return [_conv(x) for x in o]
             return o
+
         click.echo(json.dumps(_conv(data), indent=2, default=str))
         return
     if isinstance(data, list):
@@ -109,9 +110,7 @@ def _load_session(ctx: click.Context) -> Session:
         return sess
     path = ctx.obj.get("project")
     if not path:
-        raise click.UsageError(
-            "no project loaded; pass --project <file.sh3d> or run inside REPL"
-        )
+        raise click.UsageError("no project loaded; pass --project <file.sh3d> or run inside REPL")
     if not os.path.isfile(path):
         # allow auto-creation when path is given but doesn't exist
         sess = Session.new()
@@ -163,32 +162,36 @@ def _json_flag(f):
     ctx.obj["json"] before _emit runs — so users can put --json wherever it
     reads naturally.
     """
+
     def callback(ctx, _param, value):
         if value:
             ctx.ensure_object(dict)
             ctx.obj["json"] = True
         return value
+
     return click.option(
-        "--json", "json_out_sub", is_flag=True, expose_value=False,
-        is_eager=True, callback=callback,
+        "--json",
+        "json_out_sub",
+        is_flag=True,
+        expose_value=False,
+        is_eager=True,
+        callback=callback,
         help="Emit machine-readable JSON output",
     )(f)
 
 
 # ─────────────────────────────────────────────────────── root group
 
-@click.group(invoke_without_command=True,
-              context_settings={"help_option_names": ["-h", "--help"]})
+
+@click.group(invoke_without_command=True, context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option(__version__, "--version", "-V", prog_name="cli-anything-sweethome3d")
-@click.option("--project", "-p", type=click.Path(),
-                help="Path to a .sh3d file (one-shot or REPL load target)")
-@click.option("--json", "json_out", is_flag=True,
-                help="Emit machine-readable JSON output")
-@click.option("--dry-run", is_flag=True,
-                help="Don't save changes (one-shot mode)")
+@click.option(
+    "--project", "-p", type=click.Path(), help="Path to a .sh3d file (one-shot or REPL load target)"
+)
+@click.option("--json", "json_out", is_flag=True, help="Emit machine-readable JSON output")
+@click.option("--dry-run", is_flag=True, help="Don't save changes (one-shot mode)")
 @click.pass_context
-def cli(ctx: click.Context, project: Optional[str], json_out: bool,
-         dry_run: bool) -> None:
+def cli(ctx: click.Context, project: Optional[str], json_out: bool, dry_run: bool) -> None:
     """cli-anything-sweethome3d — Sweet Home 3D from the command line.
 
     Without a subcommand, drops into the interactive REPL. With a
@@ -207,6 +210,7 @@ def cli(ctx: click.Context, project: Optional[str], json_out: bool,
 
 # ─────────────────────────────────────────────────────── project group
 
+
 @cli.group()
 def project():
     """Project: new, open, save, info."""
@@ -214,8 +218,7 @@ def project():
 
 @project.command("new")
 @click.option("--name", "-n", help="Home name")
-@click.option("--output", "-o", type=click.Path(), required=True,
-                help="Output .sh3d path")
+@click.option("--output", "-o", type=click.Path(), required=True, help="Output .sh3d path")
 @click.pass_context
 def project_new(ctx, name, output):
     """Create a new empty .sh3d file."""
@@ -246,8 +249,7 @@ def project_info(ctx):
 
 
 @project.command("save")
-@click.option("--as", "as_path", type=click.Path(),
-                help="Save to a different path (Save As)")
+@click.option("--as", "as_path", type=click.Path(), help="Save to a different path (Save As)")
 @click.pass_context
 def project_save(ctx, as_path):
     """Save the current project (REPL only)."""
@@ -257,10 +259,10 @@ def project_save(ctx, as_path):
 
 
 @project.command("validate")
-@click.option("--strict", is_flag=True,
-                help="Exit non-zero on any finding (default: only on errors)")
-@click.option("--no-info", is_flag=True,
-                help="Suppress purely informational findings")
+@click.option(
+    "--strict", is_flag=True, help="Exit non-zero on any finding (default: only on errors)"
+)
+@click.option("--no-info", is_flag=True, help="Suppress purely informational findings")
 @_json_flag
 @click.pass_context
 def project_validate(ctx, strict, no_info):
@@ -286,7 +288,7 @@ def project_validate(ctx, strict, no_info):
             click.echo("✓ project is clean (no findings)")
         else:
             for f in report.findings:
-                tag = {"error":"✗", "warning":"⚠", "info":"●"}[f.severity]
+                tag = {"error": "✗", "warning": "⚠", "info": "●"}[f.severity]
                 tgt = ""
                 if f.target_name:
                     tgt = f" [{f.target_name}]"
@@ -331,17 +333,20 @@ def project_bounds(ctx, level):
     if not xs:
         raise click.ClickException("project has no geometry to bound")
     out = {
-        "x_min": min(xs), "x_max": max(xs),
-        "y_min": min(ys), "y_max": max(ys),
-        "width_cm":  max(xs) - min(xs),
-        "depth_cm":  max(ys) - min(ys),
-        "width_m":   (max(xs) - min(xs)) / 100,
-        "depth_m":   (max(ys) - min(ys)) / 100,
+        "x_min": min(xs),
+        "x_max": max(xs),
+        "y_min": min(ys),
+        "y_max": max(ys),
+        "width_cm": max(xs) - min(xs),
+        "depth_cm": max(ys) - min(ys),
+        "width_m": (max(xs) - min(xs)) / 100,
+        "depth_m": (max(ys) - min(ys)) / 100,
     }
     _emit(ctx, out)
 
 
 # ─────────────────────────────────────────────────────── level group
+
 
 @cli.group()
 def level():
@@ -367,16 +372,18 @@ def level_add(ctx, name, elevation, height, floor_thickness):
     """Add a new level."""
     sess = _load_session(ctx)
     sess.checkpoint()
-    lvl = lvl_core.add_level(sess.home, name, elevation=elevation,
-                              height=height, floorThickness=floor_thickness)
+    lvl = lvl_core.add_level(
+        sess.home, name, elevation=elevation, height=height, floorThickness=floor_thickness
+    )
     _autosave(ctx)
     _emit(ctx, lvl)
 
 
 @level.command("delete")
 @click.argument("ident")
-@click.option("--keep-attached", is_flag=True,
-                help="Fail if any objects are still attached to this level")
+@click.option(
+    "--keep-attached", is_flag=True, help="Fail if any objects are still attached to this level"
+)
 @click.pass_context
 def level_delete(ctx, ident, keep_attached):
     """Delete a level by id or name."""
@@ -400,26 +407,34 @@ def level_delete(ctx, ident, keep_attached):
 @click.option("--elevation", "-e", type=float)
 @click.option("--height", "-h", type=float)
 @click.option("--floor-thickness", type=float)
-@click.option("--elevation-index", type=int,
-                help="Reorder this level by elevation index")
+@click.option("--elevation-index", type=int, help="Reorder this level by elevation index")
 @click.option("--visible/--hidden", default=None)
-@click.option("--viewable/--unviewable", default=None,
-                help="Whether the level is selectable in the GUI")
+@click.option(
+    "--viewable/--unviewable", default=None, help="Whether the level is selectable in the GUI"
+)
 @_json_flag
 @click.pass_context
-def level_set(ctx, ident, name, elevation, height, floor_thickness,
-                elevation_index, visible, viewable):
+def level_set(
+    ctx, ident, name, elevation, height, floor_thickness, elevation_index, visible, viewable
+):
     """Edit properties of an existing level in-place."""
     sess = _load_session(ctx)
     sess.checkpoint()
     fields: dict = {}
-    if name             is not None: fields["name"] = name
-    if elevation        is not None: fields["elevation"] = elevation
-    if height           is not None: fields["height"] = height
-    if floor_thickness  is not None: fields["floorThickness"] = floor_thickness
-    if elevation_index  is not None: fields["elevationIndex"] = elevation_index
-    if visible          is not None: fields["visible"] = visible
-    if viewable         is not None: fields["viewable"] = viewable
+    if name is not None:
+        fields["name"] = name
+    if elevation is not None:
+        fields["elevation"] = elevation
+    if height is not None:
+        fields["height"] = height
+    if floor_thickness is not None:
+        fields["floorThickness"] = floor_thickness
+    if elevation_index is not None:
+        fields["elevationIndex"] = elevation_index
+    if visible is not None:
+        fields["visible"] = visible
+    if viewable is not None:
+        fields["viewable"] = viewable
     if not fields:
         sess.undo()
         raise click.UsageError("nothing to set; pass at least one option")
@@ -463,22 +478,36 @@ def level_select(ctx, ident, clear):
 
 @level.command("duplicate")
 @click.argument("src")
-@click.option("--name", "new_name", required=True,
-                help="Name for the new level")
-@click.option("--elevation", type=float,
-                help="Z-elevation for the duplicate (default: stack on top of src)")
-@click.option("--offset-x", type=float, default=0, show_default=True,
-                help="Translate every duplicated object by this much in X")
+@click.option("--name", "new_name", required=True, help="Name for the new level")
+@click.option(
+    "--elevation", type=float, help="Z-elevation for the duplicate (default: stack on top of src)"
+)
+@click.option(
+    "--offset-x",
+    type=float,
+    default=0,
+    show_default=True,
+    help="Translate every duplicated object by this much in X",
+)
 @click.option("--offset-y", type=float, default=0, show_default=True)
 @click.option("--no-walls", is_flag=True)
 @click.option("--no-rooms", is_flag=True)
 @click.option("--no-furniture", is_flag=True)
-@click.option("--no-annotations", is_flag=True,
-                help="Skip dimension lines, labels, and polylines")
+@click.option("--no-annotations", is_flag=True, help="Skip dimension lines, labels, and polylines")
 @_json_flag
 @click.pass_context
-def level_duplicate(ctx, src, new_name, elevation, offset_x, offset_y,
-                      no_walls, no_rooms, no_furniture, no_annotations):
+def level_duplicate(
+    ctx,
+    src,
+    new_name,
+    elevation,
+    offset_x,
+    offset_y,
+    no_walls,
+    no_rooms,
+    no_furniture,
+    no_annotations,
+):
     """Deep-copy a level's geometry to a new level.
 
     Walls keep their relative neighbour links (wallAtStart/wallAtEnd are
@@ -489,7 +518,8 @@ def level_duplicate(ctx, src, new_name, elevation, offset_x, offset_y,
     sess.checkpoint()
     try:
         new_lvl = lvl_core.duplicate_level(
-            sess.home, src,
+            sess.home,
+            src,
             new_name=new_name,
             elevation=elevation,
             offset_x=offset_x,
@@ -507,6 +537,7 @@ def level_duplicate(ctx, src, new_name, elevation, offset_x, offset_y,
 
 
 # ─────────────────────────────────────────────────────── wall group
+
 
 @cli.group()
 def wall():
@@ -528,19 +559,33 @@ def wall_list(ctx, level):
 @click.argument("x_end", type=float)
 @click.argument("y_end", type=float)
 @click.option("--thickness", "-t", type=float, default=7.5, show_default=True)
-@click.option("--height", "-h", type=float, default=None,
-                help="Wall height in cm (default: home.wallHeight)")
+@click.option(
+    "--height", "-h", type=float, default=None, help="Wall height in cm (default: home.wallHeight)"
+)
 @click.option("--level", "-l", help="Level id to attach to")
 @click.option("--left-color", help="Left side color (#RRGGBB or RRGGBB)")
 @click.option("--right-color", help="Right side color")
-@click.option("--left-texture", "left_texture",
-                help="Stock texture catalogId for the left side "
-                     "(see `textures list --category Wall`)")
-@click.option("--right-texture", "right_texture",
-                help="Stock texture catalogId for the right side")
+@click.option(
+    "--left-texture",
+    "left_texture",
+    help="Stock texture catalogId for the left side (see `textures list --category Wall`)",
+)
+@click.option("--right-texture", "right_texture", help="Stock texture catalogId for the right side")
 @click.pass_context
-def wall_add(ctx, x_start, y_start, x_end, y_end, thickness, height, level,
-              left_color, right_color, left_texture, right_texture):
+def wall_add(
+    ctx,
+    x_start,
+    y_start,
+    x_end,
+    y_end,
+    thickness,
+    height,
+    level,
+    left_color,
+    right_color,
+    left_texture,
+    right_texture,
+):
     """Add a single wall segment."""
     sess = _load_session(ctx)
     sess.checkpoint()
@@ -548,8 +593,14 @@ def wall_add(ctx, x_start, y_start, x_end, y_end, thickness, height, level,
         lt = tex_core.make_texture(left_texture) if left_texture else None
         rt = tex_core.make_texture(right_texture) if right_texture else None
         w = walls_core.add_wall(
-            sess.home, x_start, y_start, x_end, y_end,
-            thickness=thickness, height=height, level=level,
+            sess.home,
+            x_start,
+            y_start,
+            x_end,
+            y_end,
+            thickness=thickness,
+            height=height,
+            level=level,
             leftSideColor=_parse_int_color(left_color),
             rightSideColor=_parse_int_color(right_color),
             leftSideTexture=lt,
@@ -589,9 +640,9 @@ def wall_rectangle(ctx, x, y, width, depth, thickness, height, level):
     sess = _load_session(ctx)
     sess.checkpoint()
     try:
-        walls = walls_core.rectangle(sess.home, x, y, width, depth,
-                                       thickness=thickness, height=height,
-                                       level=level)
+        walls = walls_core.rectangle(
+            sess.home, x, y, width, depth, thickness=thickness, height=height, level=level
+        )
     except ValueError as e:
         sess.undo()
         raise click.ClickException(str(e))
@@ -612,9 +663,9 @@ def wall_move(ctx, ident, x_start, y_start, x_end, y_end):
     sess = _load_session(ctx)
     sess.checkpoint()
     try:
-        w = walls_core.move_wall(sess.home, ident,
-                                  xStart=x_start, yStart=y_start,
-                                  xEnd=x_end, yEnd=y_end)
+        w = walls_core.move_wall(
+            sess.home, ident, xStart=x_start, yStart=y_start, xEnd=x_end, yEnd=y_end
+        )
     except KeyError:
         sess.undo()
         raise click.ClickException(f"wall not found: {ident}")
@@ -632,47 +683,70 @@ def wall_move(ctx, ident, x_start, y_start, x_end, y_end):
 @click.option("--right-color")
 @click.option("--top-color")
 @click.option("--pattern")
-@click.option("--left-shininess", type=float,
-                help="Left-side reflection 0..1")
-@click.option("--right-shininess", type=float,
-                help="Right-side reflection 0..1")
-@click.option("--left-texture", "left_texture",
-                help="Apply stock texture to left side (textures list)")
-@click.option("--right-texture", "right_texture",
-                help="Apply stock texture to right side")
-@click.option("--clear-left-texture", is_flag=True,
-                help="Remove the left-side texture")
-@click.option("--clear-right-texture", is_flag=True,
-                help="Remove the right-side texture")
+@click.option("--left-shininess", type=float, help="Left-side reflection 0..1")
+@click.option("--right-shininess", type=float, help="Right-side reflection 0..1")
+@click.option(
+    "--left-texture", "left_texture", help="Apply stock texture to left side (textures list)"
+)
+@click.option("--right-texture", "right_texture", help="Apply stock texture to right side")
+@click.option("--clear-left-texture", is_flag=True, help="Remove the left-side texture")
+@click.option("--clear-right-texture", is_flag=True, help="Remove the right-side texture")
 @_json_flag
 @click.pass_context
-def wall_set(ctx, ident, thickness, height, height_at_end, arc_extent,
-              left_color, right_color, top_color, pattern,
-              left_shininess, right_shininess,
-              left_texture, right_texture,
-              clear_left_texture, clear_right_texture):
+def wall_set(
+    ctx,
+    ident,
+    thickness,
+    height,
+    height_at_end,
+    arc_extent,
+    left_color,
+    right_color,
+    top_color,
+    pattern,
+    left_shininess,
+    right_shininess,
+    left_texture,
+    right_texture,
+    clear_left_texture,
+    clear_right_texture,
+):
     """Edit properties of an existing wall in-place."""
     sess = _load_session(ctx)
     sess.checkpoint()
     fields: dict = {}
-    if thickness     is not None: fields["thickness"] = thickness
-    if height        is not None: fields["height"] = height
-    if height_at_end is not None: fields["heightAtEnd"] = height_at_end
-    if arc_extent    is not None: fields["arcExtent"] = arc_extent
-    if left_color    is not None: fields["leftSideColor"] = _parse_int_color(left_color)
-    if right_color   is not None: fields["rightSideColor"] = _parse_int_color(right_color)
-    if top_color     is not None: fields["topColor"] = _parse_int_color(top_color)
-    if pattern       is not None: fields["pattern"] = pattern
-    if left_shininess  is not None: fields["leftSideShininess"] = left_shininess
-    if right_shininess is not None: fields["rightSideShininess"] = right_shininess
+    if thickness is not None:
+        fields["thickness"] = thickness
+    if height is not None:
+        fields["height"] = height
+    if height_at_end is not None:
+        fields["heightAtEnd"] = height_at_end
+    if arc_extent is not None:
+        fields["arcExtent"] = arc_extent
+    if left_color is not None:
+        fields["leftSideColor"] = _parse_int_color(left_color)
+    if right_color is not None:
+        fields["rightSideColor"] = _parse_int_color(right_color)
+    if top_color is not None:
+        fields["topColor"] = _parse_int_color(top_color)
+    if pattern is not None:
+        fields["pattern"] = pattern
+    if left_shininess is not None:
+        fields["leftSideShininess"] = left_shininess
+    if right_shininess is not None:
+        fields["rightSideShininess"] = right_shininess
     try:
-        if left_texture  is not None: fields["leftSideTexture"]  = tex_core.make_texture(left_texture)
-        if right_texture is not None: fields["rightSideTexture"] = tex_core.make_texture(right_texture)
+        if left_texture is not None:
+            fields["leftSideTexture"] = tex_core.make_texture(left_texture)
+        if right_texture is not None:
+            fields["rightSideTexture"] = tex_core.make_texture(right_texture)
     except KeyError as e:
         sess.undo()
         raise click.ClickException(str(e))
-    if clear_left_texture:  fields["leftSideTexture"] = None
-    if clear_right_texture: fields["rightSideTexture"] = None
+    if clear_left_texture:
+        fields["leftSideTexture"] = None
+    if clear_right_texture:
+        fields["rightSideTexture"] = None
     if not fields:
         sess.undo()
         raise click.UsageError("nothing to set; pass at least one option")
@@ -690,21 +764,21 @@ def wall_set(ctx, ident, thickness, height, height_at_end, arc_extent,
 
 @wall.command("baseboard")
 @click.argument("ident")
-@click.option("--side", type=click.Choice(["left", "right", "both"]),
-                default="both", show_default=True)
-@click.option("--thickness", type=float, default=1.0, show_default=True,
-                help="Baseboard thickness in cm")
-@click.option("--height", type=float, default=10.0, show_default=True,
-                help="Baseboard height in cm")
+@click.option(
+    "--side", type=click.Choice(["left", "right", "both"]), default="both", show_default=True
+)
+@click.option(
+    "--thickness", type=float, default=1.0, show_default=True, help="Baseboard thickness in cm"
+)
+@click.option(
+    "--height", type=float, default=10.0, show_default=True, help="Baseboard height in cm"
+)
 @click.option("--color", help="Baseboard color (#RRGGBB)")
-@click.option("--texture", "texture_id",
-                help="Stock texture catalogId for the baseboard")
-@click.option("--clear", is_flag=True,
-                help="Remove the baseboard from the chosen side(s) instead")
+@click.option("--texture", "texture_id", help="Stock texture catalogId for the baseboard")
+@click.option("--clear", is_flag=True, help="Remove the baseboard from the chosen side(s) instead")
 @_json_flag
 @click.pass_context
-def wall_baseboard(ctx, ident, side, thickness, height, color, texture_id,
-                    clear):
+def wall_baseboard(ctx, ident, side, thickness, height, color, texture_id, clear):
     """Add or clear a skirting-board baseboard on the named wall."""
     sess = _load_session(ctx)
     sess.checkpoint()
@@ -724,16 +798,20 @@ def wall_baseboard(ctx, ident, side, thickness, height, color, texture_id,
             sess.undo()
             raise click.ClickException(str(e))
         bb = Baseboard(
-            thickness=thickness, height=height,
-            color=_parse_int_color(color), texture=tx,
+            thickness=thickness,
+            height=height,
+            color=_parse_int_color(color),
+            texture=tx,
         )
         if side in ("left", "both"):
             w.leftSideBaseboard = bb
         if side in ("right", "both"):
             # deep-copy so mutating one side later doesn't leak across
             w.rightSideBaseboard = Baseboard(
-                thickness=bb.thickness, height=bb.height,
-                color=bb.color, texture=bb.texture,
+                thickness=bb.thickness,
+                height=bb.height,
+                color=bb.color,
+                texture=bb.texture,
             )
     _autosave(ctx)
     _emit(ctx, w)
@@ -742,12 +820,22 @@ def wall_baseboard(ctx, ident, side, thickness, height, color, texture_id,
 @wall.command("split")
 @click.argument("ident")
 @click.argument("at", metavar="X,Y")
-@click.option("--perp-tol", "perp_tol", type=float, default=50.0,
-                show_default=True,
-                help="Max perpendicular distance from the wall centerline (cm)")
-@click.option("--endpoint-tol", "endpoint_tol", type=float, default=1.0,
-                show_default=True,
-                help="Minimum distance from either existing endpoint (cm)")
+@click.option(
+    "--perp-tol",
+    "perp_tol",
+    type=float,
+    default=50.0,
+    show_default=True,
+    help="Max perpendicular distance from the wall centerline (cm)",
+)
+@click.option(
+    "--endpoint-tol",
+    "endpoint_tol",
+    type=float,
+    default=1.0,
+    show_default=True,
+    help="Minimum distance from either existing endpoint (cm)",
+)
 @_json_flag
 @click.pass_context
 def wall_split_cmd(ctx, ident, at, perp_tol, endpoint_tol):
@@ -761,10 +849,9 @@ def wall_split_cmd(ctx, ident, at, perp_tol, endpoint_tol):
     sess.checkpoint()
     try:
         ax, ay = _parse_xy(at)
-        h1, h2 = walls_core.split_wall(sess.home, ident,
-                                          at_x=ax, at_y=ay,
-                                          endpoint_tol_cm=endpoint_tol,
-                                          perp_tol_cm=perp_tol)
+        h1, h2 = walls_core.split_wall(
+            sess.home, ident, at_x=ax, at_y=ay, endpoint_tol_cm=endpoint_tol, perp_tol_cm=perp_tol
+        )
     except (KeyError, ValueError) as e:
         sess.undo()
         raise click.ClickException(str(e))
@@ -775,12 +862,22 @@ def wall_split_cmd(ctx, ident, at, perp_tol, endpoint_tol):
 @wall.command("join")
 @click.argument("first")
 @click.argument("second")
-@click.option("--endpoint-tol", "endpoint_tol", type=float, default=1.0,
-                show_default=True,
-                help="Max gap between the two walls' shared endpoint (cm)")
-@click.option("--angle-tol", "angle_tol", type=float, default=2.0,
-                show_default=True,
-                help="Max angular deviation from collinear (degrees)")
+@click.option(
+    "--endpoint-tol",
+    "endpoint_tol",
+    type=float,
+    default=1.0,
+    show_default=True,
+    help="Max gap between the two walls' shared endpoint (cm)",
+)
+@click.option(
+    "--angle-tol",
+    "angle_tol",
+    type=float,
+    default=2.0,
+    show_default=True,
+    help="Max angular deviation from collinear (degrees)",
+)
 @_json_flag
 @click.pass_context
 def wall_join_cmd(ctx, first, second, endpoint_tol, angle_tol):
@@ -794,9 +891,9 @@ def wall_join_cmd(ctx, first, second, endpoint_tol, angle_tol):
     sess = _load_session(ctx)
     sess.checkpoint()
     try:
-        survivor = walls_core.join_walls(sess.home, first, second,
-                                            endpoint_tol_cm=endpoint_tol,
-                                            angle_tol_deg=angle_tol)
+        survivor = walls_core.join_walls(
+            sess.home, first, second, endpoint_tol_cm=endpoint_tol, angle_tol_deg=angle_tol
+        )
     except (KeyError, ValueError) as e:
         sess.undo()
         raise click.ClickException(str(e))
@@ -806,8 +903,9 @@ def wall_join_cmd(ctx, first, second, endpoint_tol, angle_tol):
 
 @wall.command("length")
 @click.argument("ident")
-@click.option("--units", type=click.Choice(["cm", "m", "in", "ft"]),
-                default="cm", show_default=True)
+@click.option(
+    "--units", type=click.Choice(["cm", "m", "in", "ft"]), default="cm", show_default=True
+)
 @_json_flag
 @click.pass_context
 def wall_length_cmd(ctx, ident, units):
@@ -817,10 +915,8 @@ def wall_length_cmd(ctx, ident, units):
     if w is None:
         raise click.ClickException(f"wall not found: {ident}")
     cm = walls_core.length(w)
-    converted = {"cm": cm, "m": cm / 100,
-                  "in": cm / 2.54, "ft": cm / 30.48}[units]
-    _emit(ctx, {"id": w.id, "length": converted, "units": units,
-                 "length_cm": cm})
+    converted = {"cm": cm, "m": cm / 100, "in": cm / 2.54, "ft": cm / 30.48}[units]
+    _emit(ctx, {"id": w.id, "length": converted, "units": units, "length_cm": cm})
 
 
 @wall.command("info")
@@ -838,32 +934,37 @@ def wall_info(ctx, ident):
     angle_rad = math.atan2(w.yEnd - w.yStart, w.xEnd - w.xStart)
     midx = (w.xStart + w.xEnd) / 2
     midy = (w.yStart + w.yEnd) / 2
-    _emit(ctx, {
-        "id": w.id, "level": w.level,
-        "start": {"x": w.xStart, "y": w.yStart},
-        "end": {"x": w.xEnd, "y": w.yEnd},
-        "midpoint": {"x": midx, "y": midy},
-        "length_cm": cm,
-        "length_m": cm / 100,
-        "angle_rad": angle_rad,
-        "angle_deg": math.degrees(angle_rad),
-        "thickness": w.thickness,
-        "height": w.height,
-        "linked": {
-            "wall_at_start": w.wallAtStart,
-            "wall_at_end": w.wallAtEnd,
-            "is_unlinked": not (w.wallAtStart or w.wallAtEnd),
+    _emit(
+        ctx,
+        {
+            "id": w.id,
+            "level": w.level,
+            "start": {"x": w.xStart, "y": w.yStart},
+            "end": {"x": w.xEnd, "y": w.yEnd},
+            "midpoint": {"x": midx, "y": midy},
+            "length_cm": cm,
+            "length_m": cm / 100,
+            "angle_rad": angle_rad,
+            "angle_deg": math.degrees(angle_rad),
+            "thickness": w.thickness,
+            "height": w.height,
+            "linked": {
+                "wall_at_start": w.wallAtStart,
+                "wall_at_end": w.wallAtEnd,
+                "is_unlinked": not (w.wallAtStart or w.wallAtEnd),
+            },
+            "left_texture": w.leftSideTexture.catalogId if w.leftSideTexture else None,
+            "right_texture": w.rightSideTexture.catalogId if w.rightSideTexture else None,
+            "left_color": w.leftSideColor,
+            "right_color": w.rightSideColor,
+            "left_baseboard": vars(w.leftSideBaseboard) if w.leftSideBaseboard else None,
+            "right_baseboard": vars(w.rightSideBaseboard) if w.rightSideBaseboard else None,
         },
-        "left_texture": w.leftSideTexture.catalogId if w.leftSideTexture else None,
-        "right_texture": w.rightSideTexture.catalogId if w.rightSideTexture else None,
-        "left_color": w.leftSideColor,
-        "right_color": w.rightSideColor,
-        "left_baseboard": vars(w.leftSideBaseboard) if w.leftSideBaseboard else None,
-        "right_baseboard": vars(w.rightSideBaseboard) if w.rightSideBaseboard else None,
-    })
+    )
 
 
 # ─────────────────────────────────────────────────────── room group
+
 
 @cli.group()
 def room():
@@ -888,15 +989,26 @@ def room_list(ctx, level):
 @click.option("--level", "-l")
 @click.option("--floor-color", help="Floor color")
 @click.option("--ceiling-color", help="Ceiling color")
-@click.option("--floor-texture", "floor_texture",
-                help="Stock texture catalogId for the floor")
-@click.option("--ceiling-texture", "ceiling_texture",
-                help="Stock texture catalogId for the ceiling")
+@click.option("--floor-texture", "floor_texture", help="Stock texture catalogId for the floor")
+@click.option(
+    "--ceiling-texture", "ceiling_texture", help="Stock texture catalogId for the ceiling"
+)
 @click.option("--area-visible", is_flag=True)
 @click.pass_context
-def room_rectangle(ctx, x, y, width, depth, name, level, floor_color,
-                    ceiling_color, floor_texture, ceiling_texture,
-                    area_visible):
+def room_rectangle(
+    ctx,
+    x,
+    y,
+    width,
+    depth,
+    name,
+    level,
+    floor_color,
+    ceiling_color,
+    floor_texture,
+    ceiling_texture,
+    area_visible,
+):
     """Add a rectangular room (4 corner points)."""
     sess = _load_session(ctx)
     sess.checkpoint()
@@ -904,10 +1016,17 @@ def room_rectangle(ctx, x, y, width, depth, name, level, floor_color,
         ft = tex_core.make_texture(floor_texture) if floor_texture else None
         ct = tex_core.make_texture(ceiling_texture) if ceiling_texture else None
         r = rooms_core.add_rectangle_room(
-            sess.home, x, y, width, depth, name=name, level=level,
+            sess.home,
+            x,
+            y,
+            width,
+            depth,
+            name=name,
+            level=level,
             floorColor=_parse_int_color(floor_color),
             ceilingColor=_parse_int_color(ceiling_color),
-            floorTexture=ft, ceilingTexture=ct,
+            floorTexture=ft,
+            ceilingTexture=ct,
             areaVisible=area_visible,
         )
     except (ValueError, KeyError) as e:
@@ -918,19 +1037,17 @@ def room_rectangle(ctx, x, y, width, depth, name, level, floor_color,
 
 
 @room.command("add")
-@click.option("--points", required=True,
-                help="Polygon corners as 'x1,y1 x2,y2 …'")
+@click.option("--points", required=True, help="Polygon corners as 'x1,y1 x2,y2 …'")
 @click.option("--name", "-n")
 @click.option("--level", "-l")
 @click.option("--floor-color")
 @click.option("--ceiling-color")
-@click.option("--floor-texture", "floor_texture",
-                help="Stock texture catalogId for the floor")
-@click.option("--ceiling-texture", "ceiling_texture",
-                help="Stock texture catalogId for the ceiling")
+@click.option("--floor-texture", "floor_texture", help="Stock texture catalogId for the floor")
+@click.option(
+    "--ceiling-texture", "ceiling_texture", help="Stock texture catalogId for the ceiling"
+)
 @click.pass_context
-def room_add(ctx, points, name, level, floor_color, ceiling_color,
-              floor_texture, ceiling_texture):
+def room_add(ctx, points, name, level, floor_color, ceiling_color, floor_texture, ceiling_texture):
     """Add a room from arbitrary polygon points."""
     pts: list[tuple[float, float]] = []
     for tok in points.split():
@@ -944,10 +1061,16 @@ def room_add(ctx, points, name, level, floor_color, ceiling_color,
     try:
         ft = tex_core.make_texture(floor_texture) if floor_texture else None
         ct = tex_core.make_texture(ceiling_texture) if ceiling_texture else None
-        r = rooms_core.add_room(sess.home, pts, name=name, level=level,
-                                  floorColor=_parse_int_color(floor_color),
-                                  ceilingColor=_parse_int_color(ceiling_color),
-                                  floorTexture=ft, ceilingTexture=ct)
+        r = rooms_core.add_room(
+            sess.home,
+            pts,
+            name=name,
+            level=level,
+            floorColor=_parse_int_color(floor_color),
+            ceilingColor=_parse_int_color(ceiling_color),
+            floorTexture=ft,
+            ceilingTexture=ct,
+        )
     except (ValueError, KeyError) as e:
         sess.undo()
         raise click.ClickException(str(e))
@@ -972,48 +1095,81 @@ def room_add(ctx, points, name, level, floor_color, ceiling_color,
 @click.option("--area-angle", type=float)
 @click.option("--area-x-offset", type=float)
 @click.option("--area-y-offset", type=float)
-@click.option("--floor-texture", "floor_texture",
-                help="Apply stock floor texture (textures list)")
-@click.option("--ceiling-texture", "ceiling_texture",
-                help="Apply stock ceiling texture")
+@click.option("--floor-texture", "floor_texture", help="Apply stock floor texture (textures list)")
+@click.option("--ceiling-texture", "ceiling_texture", help="Apply stock ceiling texture")
 @click.option("--clear-floor-texture", is_flag=True)
 @click.option("--clear-ceiling-texture", is_flag=True)
 @_json_flag
 @click.pass_context
-def room_set(ctx, ident, name, floor_color, ceiling_color,
-              floor_shininess, ceiling_shininess,
-              floor_visible, ceiling_visible, ceiling_flat, area_visible,
-              name_angle, name_x_offset, name_y_offset,
-              area_angle, area_x_offset, area_y_offset,
-              floor_texture, ceiling_texture,
-              clear_floor_texture, clear_ceiling_texture):
+def room_set(
+    ctx,
+    ident,
+    name,
+    floor_color,
+    ceiling_color,
+    floor_shininess,
+    ceiling_shininess,
+    floor_visible,
+    ceiling_visible,
+    ceiling_flat,
+    area_visible,
+    name_angle,
+    name_x_offset,
+    name_y_offset,
+    area_angle,
+    area_x_offset,
+    area_y_offset,
+    floor_texture,
+    ceiling_texture,
+    clear_floor_texture,
+    clear_ceiling_texture,
+):
     """Edit properties of an existing room in-place."""
     sess = _load_session(ctx)
     sess.checkpoint()
     fields: dict = {}
-    if name              is not None: fields["name"] = name
-    if floor_color       is not None: fields["floorColor"] = _parse_int_color(floor_color)
-    if ceiling_color     is not None: fields["ceilingColor"] = _parse_int_color(ceiling_color)
-    if floor_shininess   is not None: fields["floorShininess"] = floor_shininess
-    if ceiling_shininess is not None: fields["ceilingShininess"] = ceiling_shininess
-    if floor_visible     is not None: fields["floorVisible"] = floor_visible
-    if ceiling_visible   is not None: fields["ceilingVisible"] = ceiling_visible
-    if ceiling_flat      is not None: fields["ceilingFlat"] = ceiling_flat
-    if area_visible      is not None: fields["areaVisible"] = area_visible
-    if name_angle        is not None: fields["nameAngle"] = name_angle
-    if name_x_offset     is not None: fields["nameXOffset"] = name_x_offset
-    if name_y_offset     is not None: fields["nameYOffset"] = name_y_offset
-    if area_angle        is not None: fields["areaAngle"] = area_angle
-    if area_x_offset     is not None: fields["areaXOffset"] = area_x_offset
-    if area_y_offset     is not None: fields["areaYOffset"] = area_y_offset
+    if name is not None:
+        fields["name"] = name
+    if floor_color is not None:
+        fields["floorColor"] = _parse_int_color(floor_color)
+    if ceiling_color is not None:
+        fields["ceilingColor"] = _parse_int_color(ceiling_color)
+    if floor_shininess is not None:
+        fields["floorShininess"] = floor_shininess
+    if ceiling_shininess is not None:
+        fields["ceilingShininess"] = ceiling_shininess
+    if floor_visible is not None:
+        fields["floorVisible"] = floor_visible
+    if ceiling_visible is not None:
+        fields["ceilingVisible"] = ceiling_visible
+    if ceiling_flat is not None:
+        fields["ceilingFlat"] = ceiling_flat
+    if area_visible is not None:
+        fields["areaVisible"] = area_visible
+    if name_angle is not None:
+        fields["nameAngle"] = name_angle
+    if name_x_offset is not None:
+        fields["nameXOffset"] = name_x_offset
+    if name_y_offset is not None:
+        fields["nameYOffset"] = name_y_offset
+    if area_angle is not None:
+        fields["areaAngle"] = area_angle
+    if area_x_offset is not None:
+        fields["areaXOffset"] = area_x_offset
+    if area_y_offset is not None:
+        fields["areaYOffset"] = area_y_offset
     try:
-        if floor_texture   is not None: fields["floorTexture"]   = tex_core.make_texture(floor_texture)
-        if ceiling_texture is not None: fields["ceilingTexture"] = tex_core.make_texture(ceiling_texture)
+        if floor_texture is not None:
+            fields["floorTexture"] = tex_core.make_texture(floor_texture)
+        if ceiling_texture is not None:
+            fields["ceilingTexture"] = tex_core.make_texture(ceiling_texture)
     except KeyError as e:
         sess.undo()
         raise click.ClickException(str(e))
-    if clear_floor_texture:   fields["floorTexture"]   = None
-    if clear_ceiling_texture: fields["ceilingTexture"] = None
+    if clear_floor_texture:
+        fields["floorTexture"] = None
+    if clear_ceiling_texture:
+        fields["ceilingTexture"] = None
     if not fields:
         sess.undo()
         raise click.UsageError("nothing to set; pass at least one option")
@@ -1044,8 +1200,7 @@ def room_delete(ctx, ident):
 
 @room.command("recompute-points")
 @click.argument("ident")
-@click.option("--tol", type=float, default=20.0, show_default=True,
-                help="Snap tolerance in cm")
+@click.option("--tol", type=float, default=20.0, show_default=True, help="Snap tolerance in cm")
 @_json_flag
 @click.pass_context
 def room_recompute(ctx, ident, tol):
@@ -1066,8 +1221,7 @@ def room_recompute(ctx, ident, tol):
 
 @room.command("area")
 @click.argument("ident")
-@click.option("--units", type=click.Choice(["m2", "ft2", "cm2"]),
-                default="m2", show_default=True)
+@click.option("--units", type=click.Choice(["m2", "ft2", "cm2"]), default="m2", show_default=True)
 @_json_flag
 @click.pass_context
 def room_area_cmd(ctx, ident, units):
@@ -1078,14 +1232,21 @@ def room_area_cmd(ctx, ident, units):
         raise click.ClickException(f"room not found: {ident}")
     cm2 = rooms_core.area(r)
     converted = {
-        "m2":  cm2 / 10000,
+        "m2": cm2 / 10000,
         "cm2": cm2,
         "ft2": cm2 / 929.0304,
     }[units]
-    _emit(ctx, {
-        "id": r.id, "name": r.name, "level": r.level,
-        "area": converted, "units": units, "area_cm2": cm2,
-    })
+    _emit(
+        ctx,
+        {
+            "id": r.id,
+            "name": r.name,
+            "level": r.level,
+            "area": converted,
+            "units": units,
+            "area_cm2": cm2,
+        },
+    )
 
 
 @room.command("info")
@@ -1112,33 +1273,45 @@ def room_info(ctx, ident):
     cy = sum(ys) / len(ys)
     # Furniture inside this room's polygon
     from cli_anything.sweethome3d.core.svg.geometry import point_in_polygon
+
     poly = [(p.x, p.y) for p in pts]
-    inside = sum(1 for f in sess.home.furniture
-                  if f.level == r.level and point_in_polygon(f.x, f.y, poly))
+    inside = sum(
+        1 for f in sess.home.furniture if f.level == r.level and point_in_polygon(f.x, f.y, poly)
+    )
     # Bounding walls (within 25 cm of the polygon perimeter)
     walls_on_perim = len(find_core.find_room_walls(sess.home, r))
-    _emit(ctx, {
-        "id": r.id, "name": r.name, "level": r.level,
-        "points": len(pts),
-        "area_m2": cm2 / 10000,
-        "area_cm2": cm2,
-        "perimeter_cm": perimeter_cm,
-        "perimeter_m": perimeter_cm / 100,
-        "bounds": {"x_min": min(xs), "x_max": max(xs),
-                    "y_min": min(ys), "y_max": max(ys),
-                    "width_cm": max(xs)-min(xs),
-                    "depth_cm": max(ys)-min(ys)},
-        "centroid": {"x": cx, "y": cy},
-        "bounding_walls": walls_on_perim,
-        "furniture_inside": inside,
-        "floor_color": r.floorColor,
-        "floor_texture": r.floorTexture.catalogId if r.floorTexture else None,
-        "ceiling_color": r.ceilingColor,
-        "ceiling_texture": r.ceilingTexture.catalogId if r.ceilingTexture else None,
-    })
+    _emit(
+        ctx,
+        {
+            "id": r.id,
+            "name": r.name,
+            "level": r.level,
+            "points": len(pts),
+            "area_m2": cm2 / 10000,
+            "area_cm2": cm2,
+            "perimeter_cm": perimeter_cm,
+            "perimeter_m": perimeter_cm / 100,
+            "bounds": {
+                "x_min": min(xs),
+                "x_max": max(xs),
+                "y_min": min(ys),
+                "y_max": max(ys),
+                "width_cm": max(xs) - min(xs),
+                "depth_cm": max(ys) - min(ys),
+            },
+            "centroid": {"x": cx, "y": cy},
+            "bounding_walls": walls_on_perim,
+            "furniture_inside": inside,
+            "floor_color": r.floorColor,
+            "floor_texture": r.floorTexture.catalogId if r.floorTexture else None,
+            "ceiling_color": r.ceilingColor,
+            "ceiling_texture": r.ceilingTexture.catalogId if r.ceilingTexture else None,
+        },
+    )
 
 
 # ─────────────────────────────────────────────────────── furniture group
+
 
 @cli.group()
 def furniture():
@@ -1162,29 +1335,54 @@ def furniture_list(ctx, kind, level):
 @click.option("--width", "-w", type=float, required=True)
 @click.option("--depth", "-d", type=float, required=True)
 @click.option("--height", "-h", type=float, required=True)
-@click.option("--kind", type=click.Choice(furn_core.KINDS),
-                default="pieceOfFurniture", show_default=True)
+@click.option(
+    "--kind", type=click.Choice(furn_core.KINDS), default="pieceOfFurniture", show_default=True
+)
 @click.option("--catalog-id")
 @click.option("--model", help="Embedded content path (ZIP entry name)")
 @click.option("--level", "-l")
 @click.option("--elevation", "-e", type=float, default=0, show_default=True)
-@click.option("--angle", "-a", type=float, default=0, show_default=True,
-                help="Rotation in radians")
+@click.option("--angle", "-a", type=float, default=0, show_default=True, help="Rotation in radians")
 @click.option("--color")
 @click.option("--power", type=float, help="(light only) brightness 0-1")
 @click.pass_context
-def furniture_add(ctx, name, x, y, width, depth, height, kind, catalog_id,
-                    model, level, elevation, angle, color, power):
+def furniture_add(
+    ctx,
+    name,
+    x,
+    y,
+    width,
+    depth,
+    height,
+    kind,
+    catalog_id,
+    model,
+    level,
+    elevation,
+    angle,
+    color,
+    power,
+):
     """Add a furniture piece."""
     sess = _load_session(ctx)
     sess.checkpoint()
     try:
         f = furn_core.add_piece(
-            sess.home, name, x, y,
-            width=width, depth=depth, height=height,
-            kind=kind, catalogId=catalog_id, model=model, level=level,
-            elevation=elevation, angle=angle,
-            color=_parse_int_color(color), power=power,
+            sess.home,
+            name,
+            x,
+            y,
+            width=width,
+            depth=depth,
+            height=height,
+            kind=kind,
+            catalogId=catalog_id,
+            model=model,
+            level=level,
+            elevation=elevation,
+            angle=angle,
+            color=_parse_int_color(color),
+            power=power,
         )
     except ValueError as e:
         sess.undo()
@@ -1201,11 +1399,13 @@ def _maybe_snap(ctx, sess, x, y, level, angle, snap_default):
     """
     if not snap_default:
         return x, y, angle
-    hit = walls_core.nearest_wall(sess.home, x, y, level=level,
-                                    max_distance=200.0)
+    hit = walls_core.nearest_wall(sess.home, x, y, level=level, max_distance=200.0)
     if hit is None:
-        click.echo("warning: --snap on but no wall within 200 cm — using raw "
-                    "coordinates and provided --angle", err=True)
+        click.echo(
+            "warning: --snap on but no wall within 200 cm — using raw "
+            "coordinates and provided --angle",
+            err=True,
+        )
         return x, y, angle
     _w, sx, sy, wall_angle, _dist = hit
     return sx, sy, wall_angle
@@ -1218,30 +1418,54 @@ def _maybe_snap(ctx, sess, x, y, level, angle, snap_default):
 @click.option("--width", "-w", type=float, default=80, show_default=True)
 @click.option("--height", "-h", type=float, default=200, show_default=True)
 @click.option("--level", "-l")
-@click.option("--angle", "-a", type=float, default=0, show_default=True,
-                help="Rotation in radians (ignored when --snap is on)")
-@click.option("--catalog-id", default=None,
-                help=f"SH3D catalog id (default {furn_core.DEFAULT_DOOR_CATALOG_ID}). "
-                      "Browse with `catalog list --kind doorOrWindow`.")
-@click.option("--model", default=None,
-                help="Embedded content path (ZIP entry name)")
-@click.option("--cut-out-shape", default=None,
-                help=f"SVG path of the wall cut-out (default {furn_core.DEFAULT_CUT_OUT_SHAPE!r})")
-@click.option("--snap/--no-snap", default=True, show_default=True,
-                help="Snap to the nearest wall (within 200 cm) and align angle")
+@click.option(
+    "--angle",
+    "-a",
+    type=float,
+    default=0,
+    show_default=True,
+    help="Rotation in radians (ignored when --snap is on)",
+)
+@click.option(
+    "--catalog-id",
+    default=None,
+    help=f"SH3D catalog id (default {furn_core.DEFAULT_DOOR_CATALOG_ID}). "
+    "Browse with `catalog list --kind doorOrWindow`.",
+)
+@click.option("--model", default=None, help="Embedded content path (ZIP entry name)")
+@click.option(
+    "--cut-out-shape",
+    default=None,
+    help=f"SVG path of the wall cut-out (default {furn_core.DEFAULT_CUT_OUT_SHAPE!r})",
+)
+@click.option(
+    "--snap/--no-snap",
+    default=True,
+    show_default=True,
+    help="Snap to the nearest wall (within 200 cm) and align angle",
+)
 @_json_flag
 @click.pass_context
-def furniture_add_door(ctx, name, x, y, width, height, level, angle,
-                        catalog_id, model, cut_out_shape, snap):
+def furniture_add_door(
+    ctx, name, x, y, width, height, level, angle, catalog_id, model, cut_out_shape, snap
+):
     """Add a door (a doorOrWindow with sensible defaults)."""
     sess = _load_session(ctx)
     sess.checkpoint()
     x, y, angle = _maybe_snap(ctx, sess, x, y, level, angle, snap)
-    f = furn_core.add_door(sess.home, name, x, y,
-                            width=width, height=height,
-                            level=level, angle=angle,
-                            catalogId=catalog_id, model=model,
-                            cutOutShape=cut_out_shape)
+    f = furn_core.add_door(
+        sess.home,
+        name,
+        x,
+        y,
+        width=width,
+        height=height,
+        level=level,
+        angle=angle,
+        catalogId=catalog_id,
+        model=model,
+        cutOutShape=cut_out_shape,
+    )
     _autosave(ctx)
     _emit(ctx, f)
 
@@ -1254,30 +1478,55 @@ def furniture_add_door(ctx, name, x, y, width, height, level, angle,
 @click.option("--height", "-h", type=float, default=120, show_default=True)
 @click.option("--elevation", "-e", type=float, default=100, show_default=True)
 @click.option("--level", "-l")
-@click.option("--angle", "-a", type=float, default=0, show_default=True,
-                help="Rotation in radians (ignored when --snap is on)")
-@click.option("--catalog-id", default=None,
-                help=f"SH3D catalog id (default {furn_core.DEFAULT_WINDOW_CATALOG_ID}). "
-                      "Browse with `catalog list --kind doorOrWindow`.")
-@click.option("--model", default=None,
-                help="Embedded content path (ZIP entry name)")
-@click.option("--cut-out-shape", default=None,
-                help=f"SVG path of the wall cut-out (default {furn_core.DEFAULT_CUT_OUT_SHAPE!r})")
-@click.option("--snap/--no-snap", default=True, show_default=True,
-                help="Snap to the nearest wall (within 200 cm) and align angle")
+@click.option(
+    "--angle",
+    "-a",
+    type=float,
+    default=0,
+    show_default=True,
+    help="Rotation in radians (ignored when --snap is on)",
+)
+@click.option(
+    "--catalog-id",
+    default=None,
+    help=f"SH3D catalog id (default {furn_core.DEFAULT_WINDOW_CATALOG_ID}). "
+    "Browse with `catalog list --kind doorOrWindow`.",
+)
+@click.option("--model", default=None, help="Embedded content path (ZIP entry name)")
+@click.option(
+    "--cut-out-shape",
+    default=None,
+    help=f"SVG path of the wall cut-out (default {furn_core.DEFAULT_CUT_OUT_SHAPE!r})",
+)
+@click.option(
+    "--snap/--no-snap",
+    default=True,
+    show_default=True,
+    help="Snap to the nearest wall (within 200 cm) and align angle",
+)
 @_json_flag
 @click.pass_context
-def furniture_add_window(ctx, name, x, y, width, height, elevation, level,
-                          angle, catalog_id, model, cut_out_shape, snap):
+def furniture_add_window(
+    ctx, name, x, y, width, height, elevation, level, angle, catalog_id, model, cut_out_shape, snap
+):
     """Add a window."""
     sess = _load_session(ctx)
     sess.checkpoint()
     x, y, angle = _maybe_snap(ctx, sess, x, y, level, angle, snap)
-    f = furn_core.add_window(sess.home, name, x, y,
-                              width=width, height=height,
-                              elevation=elevation, level=level, angle=angle,
-                              catalogId=catalog_id, model=model,
-                              cutOutShape=cut_out_shape)
+    f = furn_core.add_window(
+        sess.home,
+        name,
+        x,
+        y,
+        width=width,
+        height=height,
+        elevation=elevation,
+        level=level,
+        angle=angle,
+        catalogId=catalog_id,
+        model=model,
+        cutOutShape=cut_out_shape,
+    )
     _autosave(ctx)
     _emit(ctx, f)
 
@@ -1289,22 +1538,31 @@ def furniture_add_window(ctx, name, x, y, width, height, elevation, level,
 @click.option("--elevation", "-e", type=float, default=220, show_default=True)
 @click.option("--power", type=float, default=0.5, show_default=True)
 @click.option("--color", default="#FFFFE0", show_default=True)
-@click.option("--catalog-id", default=None,
-                help=f"SH3D catalog id (default {furn_core.DEFAULT_LIGHT_CATALOG_ID})")
+@click.option(
+    "--catalog-id",
+    default=None,
+    help=f"SH3D catalog id (default {furn_core.DEFAULT_LIGHT_CATALOG_ID})",
+)
 @click.option("--model", default=None)
 @click.option("--level", "-l")
 @_json_flag
 @click.pass_context
-def furniture_add_light(ctx, name, x, y, elevation, power, color, catalog_id,
-                          model, level):
+def furniture_add_light(ctx, name, x, y, elevation, power, color, catalog_id, model, level):
     """Add a ceiling/wall light."""
     sess = _load_session(ctx)
     sess.checkpoint()
-    f = furn_core.add_light(sess.home, name, x, y,
-                             elevation=elevation, power=power,
-                             color=_parse_int_color(color) or 0xFFFFFFE0,
-                             catalogId=catalog_id, model=model,
-                             level=level)
+    f = furn_core.add_light(
+        sess.home,
+        name,
+        x,
+        y,
+        elevation=elevation,
+        power=power,
+        color=_parse_int_color(color) or 0xFFFFFFE0,
+        catalogId=catalog_id,
+        model=model,
+        level=level,
+    )
     _autosave(ctx)
     _emit(ctx, f)
 
@@ -1334,8 +1592,7 @@ def furniture_move(ctx, ident, x, y, elevation, angle):
     sess = _load_session(ctx)
     sess.checkpoint()
     try:
-        f = furn_core.move_piece(sess.home, ident, x=x, y=y,
-                                  elevation=elevation, angle=angle)
+        f = furn_core.move_piece(sess.home, ident, x=x, y=y, elevation=elevation, angle=angle)
     except KeyError:
         sess.undo()
         raise click.ClickException(f"furniture not found: {ident}")
@@ -1361,27 +1618,56 @@ def furniture_move(ctx, ident, x, y, elevation, angle):
 @click.option("--description")
 @_json_flag
 @click.pass_context
-def furniture_set(ctx, ident, name, width, depth, height, angle, elevation,
-                    color, catalog_id, model, cut_out_shape, power, visible,
-                    name_visible, description):
+def furniture_set(
+    ctx,
+    ident,
+    name,
+    width,
+    depth,
+    height,
+    angle,
+    elevation,
+    color,
+    catalog_id,
+    model,
+    cut_out_shape,
+    power,
+    visible,
+    name_visible,
+    description,
+):
     """Edit properties of an existing furniture piece in-place."""
     sess = _load_session(ctx)
     sess.checkpoint()
     fields: dict = {}
-    if name           is not None: fields["name"] = name
-    if width          is not None: fields["width"] = width
-    if depth          is not None: fields["depth"] = depth
-    if height         is not None: fields["height"] = height
-    if angle          is not None: fields["angle"] = angle
-    if elevation      is not None: fields["elevation"] = elevation
-    if color          is not None: fields["color"] = _parse_int_color(color)
-    if catalog_id     is not None: fields["catalogId"] = catalog_id
-    if model          is not None: fields["model"] = model
-    if cut_out_shape  is not None: fields["cutOutShape"] = cut_out_shape
-    if power          is not None: fields["power"] = power
-    if visible        is not None: fields["visible"] = visible
-    if name_visible   is not None: fields["nameVisible"] = name_visible
-    if description    is not None: fields["description"] = description
+    if name is not None:
+        fields["name"] = name
+    if width is not None:
+        fields["width"] = width
+    if depth is not None:
+        fields["depth"] = depth
+    if height is not None:
+        fields["height"] = height
+    if angle is not None:
+        fields["angle"] = angle
+    if elevation is not None:
+        fields["elevation"] = elevation
+    if color is not None:
+        fields["color"] = _parse_int_color(color)
+    if catalog_id is not None:
+        fields["catalogId"] = catalog_id
+    if model is not None:
+        fields["model"] = model
+    if cut_out_shape is not None:
+        fields["cutOutShape"] = cut_out_shape
+    if power is not None:
+        fields["power"] = power
+    if visible is not None:
+        fields["visible"] = visible
+    if name_visible is not None:
+        fields["nameVisible"] = name_visible
+    if description is not None:
+        fields["description"] = description
     if not fields:
         sess.undo()
         raise click.UsageError("nothing to set; pass at least one option")
@@ -1429,6 +1715,7 @@ def furniture_info(ctx, ident):
 
 # ─────────────────────────────────────────────────────── catalog group
 
+
 @cli.group()
 def catalog():
     """Stock SH3D catalog: list, search, info.
@@ -1440,10 +1727,12 @@ def catalog():
 
 
 @catalog.command("list")
-@click.option("--kind", type=click.Choice(furn_core.KINDS),
-                help="Filter by kind (doorOrWindow / pieceOfFurniture / light)")
-@click.option("--category", "-c",
-                help="Filter by category (Doors, Windows, Kitchen, Bedroom, …)")
+@click.option(
+    "--kind",
+    type=click.Choice(furn_core.KINDS),
+    help="Filter by kind (doorOrWindow / pieceOfFurniture / light)",
+)
+@click.option("--category", "-c", help="Filter by category (Doors, Windows, Kitchen, Bedroom, …)")
 @_json_flag
 @click.pass_context
 def catalog_list(ctx, kind, category):
@@ -1477,8 +1766,11 @@ def catalog_info(ctx, catalog_id):
 
 
 @catalog.command("from-project")
-@click.option("--kind", type=click.Choice(furn_core.KINDS),
-                help="Filter by kind (doorOrWindow / pieceOfFurniture / light)")
+@click.option(
+    "--kind",
+    type=click.Choice(furn_core.KINDS),
+    help="Filter by kind (doorOrWindow / pieceOfFurniture / light)",
+)
 @_json_flag
 @click.pass_context
 def catalog_from_project(ctx, kind):
@@ -1497,13 +1789,13 @@ def catalog_from_project(ctx, kind):
 
 
 @catalog.command("scan")
-@click.option("--query", "-q",
-                help="Substring filter on catalogId or name (case-insensitive)")
+@click.option("--query", "-q", help="Substring filter on catalogId or name (case-insensitive)")
 @click.option("--kind", type=click.Choice(furn_core.KINDS))
 @click.option("--category", "-c", help="Filter by category")
 @click.option("--source", help="Filter by source archive filename (substring)")
-@click.option("--summary", is_flag=True,
-                help="Emit one-row-per-source counts instead of every entry")
+@click.option(
+    "--summary", is_flag=True, help="Emit one-row-per-source counts instead of every entry"
+)
 @_json_flag
 @click.pass_context
 def catalog_scan_cmd(ctx, query, kind, category, source, summary):
@@ -1525,22 +1817,20 @@ def catalog_scan_cmd(ctx, query, kind, category, source, summary):
         entries = [e for e in entries if e.kind == kind]
     if category is not None:
         c = category.lower()
-        entries = [e for e in entries
-                    if e.category and e.category.lower() == c]
+        entries = [e for e in entries if e.category and e.category.lower() == c]
     if query is not None:
         q = query.lower()
-        entries = [e for e in entries
-                    if q in e.catalogId.lower()
-                    or (e.name and q in e.name.lower())]
+        entries = [
+            e for e in entries if q in e.catalogId.lower() or (e.name and q in e.name.lower())
+        ]
     if source is not None:
         s = source.lower()
-        entries = [e for e in entries
-                    if e.source and s in e.source.lower()]
+        entries = [e for e in entries if e.source and s in e.source.lower()]
     if summary:
         import collections
+
         by_source = collections.Counter(e.source or "(unknown)" for e in entries)
-        rows = [{"source": src, "entries": n}
-                 for src, n in by_source.most_common()]
+        rows = [{"source": src, "entries": n} for src, n in by_source.most_common()]
         _emit(ctx, rows)
         return
     _emit(ctx, entries)
@@ -1548,14 +1838,19 @@ def catalog_scan_cmd(ctx, query, kind, category, source, summary):
 
 # ─────────────────────────────────────────────────────── camera group
 
+
 @cli.group()
 def camera():
     """Camera: top, observer, activate, set."""
 
 
 @camera.command("get")
-@click.option("--kind", type=click.Choice(["topCamera", "observerCamera"]),
-                default="topCamera", show_default=True)
+@click.option(
+    "--kind",
+    type=click.Choice(["topCamera", "observerCamera"]),
+    default="topCamera",
+    show_default=True,
+)
 @_json_flag
 @click.pass_context
 def camera_get(ctx, kind):
@@ -1564,8 +1859,12 @@ def camera_get(ctx, kind):
 
 
 @camera.command("set")
-@click.option("--kind", type=click.Choice(["topCamera", "observerCamera"]),
-                default="topCamera", show_default=True)
+@click.option(
+    "--kind",
+    type=click.Choice(["topCamera", "observerCamera"]),
+    default="topCamera",
+    show_default=True,
+)
 @click.option("--x", type=float)
 @click.option("--y", type=float)
 @click.option("--z", type=float)
@@ -1577,9 +1876,9 @@ def camera_get(ctx, kind):
 def camera_set(ctx, kind, x, y, z, yaw, pitch, fov, lens):
     sess = _load_session(ctx)
     sess.checkpoint()
-    cam = cam_core.set_camera(sess.home, kind=kind,
-                                x=x, y=y, z=z, yaw=yaw, pitch=pitch,
-                                fieldOfView=fov, lens=lens)
+    cam = cam_core.set_camera(
+        sess.home, kind=kind, x=x, y=y, z=z, yaw=yaw, pitch=pitch, fieldOfView=fov, lens=lens
+    )
     _autosave(ctx)
     _emit(ctx, cam)
 
@@ -1597,9 +1896,13 @@ def camera_activate(ctx, kind):
 
 @camera.command("save")
 @click.argument("name")
-@click.option("--kind", type=click.Choice(["topCamera", "observerCamera"]),
-                default="observerCamera", show_default=True,
-                help="Which camera to snapshot")
+@click.option(
+    "--kind",
+    type=click.Choice(["topCamera", "observerCamera"]),
+    default="observerCamera",
+    show_default=True,
+    help="Which camera to snapshot",
+)
 @_json_flag
 @click.pass_context
 def camera_save(ctx, name, kind):
@@ -1611,11 +1914,18 @@ def camera_save(ctx, name, kind):
         raise click.ClickException(f"stored camera named {name!r} already exists")
     src = sess.home.observerCamera if kind == "observerCamera" else sess.home.topCamera
     stored = Camera(
-        kind=src.kind, name=name,
-        x=src.x, y=src.y, z=src.z,
-        yaw=src.yaw, pitch=src.pitch, fieldOfView=src.fieldOfView,
-        time=src.time, lens=src.lens,
-        fixedSize=src.fixedSize, renderer=src.renderer,
+        kind=src.kind,
+        name=name,
+        x=src.x,
+        y=src.y,
+        z=src.z,
+        yaw=src.yaw,
+        pitch=src.pitch,
+        fieldOfView=src.fieldOfView,
+        time=src.time,
+        lens=src.lens,
+        fixedSize=src.fixedSize,
+        renderer=src.renderer,
     )
     sess.home.storedCameras.append(stored)
     _autosave(ctx)
@@ -1650,10 +1960,14 @@ def camera_delete(ctx, name):
 
 @camera.command("go")
 @click.argument("name")
-@click.option("--target", "target_kind",
-                type=click.Choice(["topCamera", "observerCamera"]),
-                default="observerCamera", show_default=True,
-                help="Which live camera receives the stored position")
+@click.option(
+    "--target",
+    "target_kind",
+    type=click.Choice(["topCamera", "observerCamera"]),
+    default="observerCamera",
+    show_default=True,
+    help="Which live camera receives the stored position",
+)
 @_json_flag
 @click.pass_context
 def camera_go(ctx, name, target_kind):
@@ -1680,17 +1994,18 @@ def camera_go(ctx, name, target_kind):
 
 
 @camera.command("time")
-@click.option("--kind", type=click.Choice(["topCamera", "observerCamera"]),
-                default="observerCamera", show_default=True)
+@click.option(
+    "--kind",
+    type=click.Choice(["topCamera", "observerCamera"]),
+    default="observerCamera",
+    show_default=True,
+)
 @click.option("--year", type=int, default=2024, show_default=True)
-@click.option("--month", type=int, default=6, show_default=True,
-                help="1=Jan, 12=Dec")
+@click.option("--month", type=int, default=6, show_default=True, help="1=Jan, 12=Dec")
 @click.option("--day", type=int, default=21, show_default=True)
-@click.option("--hour", type=int, default=12, show_default=True,
-                help="0–23")
+@click.option("--hour", type=int, default=12, show_default=True, help="0–23")
 @click.option("--minute", type=int, default=0, show_default=True)
-@click.option("--utc", is_flag=True,
-                help="Interpret the date/time as UTC (default: local naive)")
+@click.option("--utc", is_flag=True, help="Interpret the date/time as UTC (default: local naive)")
 @_json_flag
 @click.pass_context
 def camera_time(ctx, kind, year, month, day, hour, minute, utc):
@@ -1702,14 +2017,12 @@ def camera_time(ctx, kind, year, month, day, hour, minute, utc):
     sunlight angle matching the chosen moment.
     """
     import datetime
+
     if not 1 <= month <= 12 or not 1 <= day <= 31 or not 0 <= hour <= 23:
-        raise click.UsageError(
-            "month/day/hour out of range (month 1-12, day 1-31, hour 0-23)"
-        )
+        raise click.UsageError("month/day/hour out of range (month 1-12, day 1-31, hour 0-23)")
     try:
         if utc:
-            dt = datetime.datetime(year, month, day, hour, minute,
-                                     tzinfo=datetime.timezone.utc)
+            dt = datetime.datetime(year, month, day, hour, minute, tzinfo=datetime.timezone.utc)
         else:
             dt = datetime.datetime(year, month, day, hour, minute).astimezone()
     except ValueError as e:
@@ -1717,17 +2030,21 @@ def camera_time(ctx, kind, year, month, day, hour, minute, utc):
     millis = int(dt.timestamp() * 1000)
     sess = _load_session(ctx)
     sess.checkpoint()
-    cam = cam_core.set_camera(sess.home, kind=kind, time=millis)
+    cam_core.set_camera(sess.home, kind=kind, time=millis)
     _autosave(ctx)
-    _emit(ctx, {
-        "kind": kind,
-        "time_ms": millis,
-        "iso": dt.isoformat(),
-        "summary": dt.strftime("%a %d %b %Y %H:%M %Z").strip(),
-    })
+    _emit(
+        ctx,
+        {
+            "kind": kind,
+            "time_ms": millis,
+            "iso": dt.isoformat(),
+            "summary": dt.strftime("%a %d %b %Y %H:%M %Z").strip(),
+        },
+    )
 
 
 # ─────────────────────────────────────────────────────── annotation group
+
 
 @cli.group()
 def dimension():
@@ -1756,9 +2073,16 @@ def dimension_add(ctx, x_start, y_start, x_end, y_end, offset, level, color):
     sess = _load_session(ctx)
     sess.checkpoint()
     try:
-        d = ann_core.add_dimension(sess.home, x_start, y_start, x_end, y_end,
-                                     offset=offset, level=level,
-                                     color=_parse_int_color(color))
+        d = ann_core.add_dimension(
+            sess.home,
+            x_start,
+            y_start,
+            x_end,
+            y_end,
+            offset=offset,
+            level=level,
+            color=_parse_int_color(color),
+        )
     except ValueError as e:
         sess.undo()
         raise click.ClickException(str(e))
@@ -1790,8 +2114,9 @@ def dimension_delete(ctx, ident):
 @click.option("--visible-in-3d/--invisible-in-3d", default=None)
 @_json_flag
 @click.pass_context
-def dimension_set(ctx, ident, offset, color, end_mark_size,
-                    elevation_start, elevation_end, pitch, visible_in_3d):
+def dimension_set(
+    ctx, ident, offset, color, end_mark_size, elevation_start, elevation_end, pitch, visible_in_3d
+):
     """Edit an existing dimension line."""
     sess = _load_session(ctx)
     sess.checkpoint()
@@ -1803,13 +2128,20 @@ def dimension_set(ctx, ident, offset, color, end_mark_size,
     if d is None:
         sess.undo()
         raise click.ClickException(f"dimension not found: {ident}")
-    if offset           is not None: d.offset = offset
-    if color            is not None: d.color = _parse_int_color(color)
-    if end_mark_size    is not None: d.endMarkSize = end_mark_size
-    if elevation_start  is not None: d.elevationStart = elevation_start
-    if elevation_end    is not None: d.elevationEnd = elevation_end
-    if pitch            is not None: d.pitch = pitch
-    if visible_in_3d    is not None: d.visibleIn3D = visible_in_3d
+    if offset is not None:
+        d.offset = offset
+    if color is not None:
+        d.color = _parse_int_color(color)
+    if end_mark_size is not None:
+        d.endMarkSize = end_mark_size
+    if elevation_start is not None:
+        d.elevationStart = elevation_start
+    if elevation_end is not None:
+        d.elevationEnd = elevation_end
+    if pitch is not None:
+        d.pitch = pitch
+    if visible_in_3d is not None:
+        d.visibleIn3D = visible_in_3d
     _autosave(ctx)
     _emit(ctx, d)
 
@@ -1840,8 +2172,9 @@ def label_add(ctx, text, x, y, level, angle, color):
     sess = _load_session(ctx)
     sess.checkpoint()
     try:
-        l = ann_core.add_label(sess.home, text, x, y, level=level,
-                                 angle=angle, color=_parse_int_color(color))
+        l = ann_core.add_label(
+            sess.home, text, x, y, level=level, angle=angle, color=_parse_int_color(color)
+        )
     except ValueError as e:
         sess.undo()
         raise click.ClickException(str(e))
@@ -1874,8 +2207,7 @@ def label_delete(ctx, ident):
 @click.option("--outline-color")
 @_json_flag
 @click.pass_context
-def label_set(ctx, ident, text, x, y, angle, elevation, pitch, color,
-                outline_color):
+def label_set(ctx, ident, text, x, y, angle, elevation, pitch, color, outline_color):
     """Edit an existing label in-place."""
     sess = _load_session(ctx)
     sess.checkpoint()
@@ -1887,14 +2219,22 @@ def label_set(ctx, ident, text, x, y, angle, elevation, pitch, color,
     if target is None:
         sess.undo()
         raise click.ClickException(f"label not found: {ident}")
-    if text          is not None: target.text = text
-    if x             is not None: target.x = x
-    if y             is not None: target.y = y
-    if angle         is not None: target.angle = angle
-    if elevation     is not None: target.elevation = elevation
-    if pitch         is not None: target.pitch = pitch
-    if color         is not None: target.color = _parse_int_color(color)
-    if outline_color is not None: target.outlineColor = _parse_int_color(outline_color)
+    if text is not None:
+        target.text = text
+    if x is not None:
+        target.x = x
+    if y is not None:
+        target.y = y
+    if angle is not None:
+        target.angle = angle
+    if elevation is not None:
+        target.elevation = elevation
+    if pitch is not None:
+        target.pitch = pitch
+    if color is not None:
+        target.color = _parse_int_color(color)
+    if outline_color is not None:
+        target.outlineColor = _parse_int_color(outline_color)
     _autosave(ctx)
     _emit(ctx, target)
 
@@ -1916,27 +2256,32 @@ def compass_get(ctx):
 @click.option("--x", type=float)
 @click.option("--y", type=float)
 @click.option("--diameter", type=float)
-@click.option("--north", "north_direction", type=float,
-                help="North direction in radians")
+@click.option("--north", "north_direction", type=float, help="North direction in radians")
 @click.option("--longitude", type=float)
 @click.option("--latitude", type=float)
 @click.option("--tz", "time_zone")
 @click.option("--visible/--hidden", default=None)
 @click.pass_context
-def compass_set(ctx, x, y, diameter, north_direction, longitude, latitude,
-                  time_zone, visible):
+def compass_set(ctx, x, y, diameter, north_direction, longitude, latitude, time_zone, visible):
     sess = _load_session(ctx)
     sess.checkpoint()
-    c = ann_core.set_compass(sess.home,
-                               x=x, y=y, diameter=diameter,
-                               northDirection=north_direction,
-                               longitude=longitude, latitude=latitude,
-                               timeZone=time_zone, visible=visible)
+    c = ann_core.set_compass(
+        sess.home,
+        x=x,
+        y=y,
+        diameter=diameter,
+        northDirection=north_direction,
+        longitude=longitude,
+        latitude=latitude,
+        timeZone=time_zone,
+        visible=visible,
+    )
     _autosave(ctx)
     _emit(ctx, c)
 
 
 # ─────────────────────────────────────────────────────── polyline group
+
 
 @cli.group()
 def polyline():
@@ -1953,12 +2298,15 @@ def polyline_list(ctx, level):
 
 
 @polyline.command("add")
-@click.option("--points", required=True,
-                help="Vertex list as 'x1,y1 x2,y2 …' (min 2 points)")
+@click.option("--points", required=True, help="Vertex list as 'x1,y1 x2,y2 …' (min 2 points)")
 @click.option("--thickness", "-t", type=float, default=1.0, show_default=True)
 @click.option("--color", default=None)
-@click.option("--closed/--open", default=False, show_default=True,
-                help="Whether to close the path (last point joins first)")
+@click.option(
+    "--closed/--open",
+    default=False,
+    show_default=True,
+    help="Whether to close the path (last point joins first)",
+)
 @click.option("--level", "-l")
 @_json_flag
 @click.pass_context
@@ -1974,10 +2322,14 @@ def polyline_add(ctx, points, thickness, color, closed, level):
     sess = _load_session(ctx)
     sess.checkpoint()
     try:
-        p = ann_core.add_polyline(sess.home, pts,
-                                    thickness=thickness,
-                                    color=_parse_int_color(color),
-                                    closedPath=closed, level=level)
+        p = ann_core.add_polyline(
+            sess.home,
+            pts,
+            thickness=thickness,
+            color=_parse_int_color(color),
+            closedPath=closed,
+            level=level,
+        )
     except ValueError as e:
         sess.undo()
         raise click.ClickException(str(e))
@@ -2004,24 +2356,35 @@ def polyline_delete(ctx, ident):
 @click.option("--color")
 @click.option("--closed/--open", "closed_path", default=None)
 @click.option("--cap-style", type=click.Choice(["BUTT", "SQUARE", "ROUND"]))
-@click.option("--join-style", type=click.Choice(["BEVEL", "MITER", "ROUND",
-                                                     "CURVED"]))
-@click.option("--dash-style", type=click.Choice(["SOLID", "DOT", "DASH",
-                                                     "DASH_DOT", "DASH_DOT_DOT",
-                                                     "CUSTOMIZED"]))
+@click.option("--join-style", type=click.Choice(["BEVEL", "MITER", "ROUND", "CURVED"]))
+@click.option(
+    "--dash-style",
+    type=click.Choice(["SOLID", "DOT", "DASH", "DASH_DOT", "DASH_DOT_DOT", "CUSTOMIZED"]),
+)
 @click.option("--dash-pattern", help="Custom dash pattern as space-separated floats")
 @click.option("--dash-offset", type=float)
-@click.option("--start-arrow",
-                type=click.Choice(["NONE", "DELTA", "OPEN", "DISC"]))
-@click.option("--end-arrow",
-                type=click.Choice(["NONE", "DELTA", "OPEN", "DISC"]))
+@click.option("--start-arrow", type=click.Choice(["NONE", "DELTA", "OPEN", "DISC"]))
+@click.option("--end-arrow", type=click.Choice(["NONE", "DELTA", "OPEN", "DISC"]))
 @click.option("--visible-in-3d/--invisible-in-3d", default=None)
 @click.option("--elevation", type=float)
 @_json_flag
 @click.pass_context
-def polyline_set(ctx, ident, thickness, color, closed_path, cap_style,
-                  join_style, dash_style, dash_pattern, dash_offset,
-                  start_arrow, end_arrow, visible_in_3d, elevation):
+def polyline_set(
+    ctx,
+    ident,
+    thickness,
+    color,
+    closed_path,
+    cap_style,
+    join_style,
+    dash_style,
+    dash_pattern,
+    dash_offset,
+    start_arrow,
+    end_arrow,
+    visible_in_3d,
+    elevation,
+):
     """Edit an existing polyline in-place."""
     sess = _load_session(ctx)
     sess.checkpoint()
@@ -2033,23 +2396,36 @@ def polyline_set(ctx, ident, thickness, color, closed_path, cap_style,
     if target is None:
         sess.undo()
         raise click.ClickException(f"polyline not found: {ident}")
-    if thickness     is not None: target.thickness = thickness
-    if color         is not None: target.color = _parse_int_color(color)
-    if closed_path   is not None: target.closedPath = closed_path
-    if cap_style     is not None: target.capStyle = cap_style
-    if join_style    is not None: target.joinStyle = join_style
-    if dash_style    is not None: target.dashStyle = dash_style
-    if dash_pattern  is not None: target.dashPattern = dash_pattern
-    if dash_offset   is not None: target.dashOffset = dash_offset
-    if start_arrow   is not None: target.startArrowStyle = start_arrow
-    if end_arrow     is not None: target.endArrowStyle = end_arrow
-    if visible_in_3d is not None: target.visibleIn3D = visible_in_3d
-    if elevation     is not None: target.elevation = elevation
+    if thickness is not None:
+        target.thickness = thickness
+    if color is not None:
+        target.color = _parse_int_color(color)
+    if closed_path is not None:
+        target.closedPath = closed_path
+    if cap_style is not None:
+        target.capStyle = cap_style
+    if join_style is not None:
+        target.joinStyle = join_style
+    if dash_style is not None:
+        target.dashStyle = dash_style
+    if dash_pattern is not None:
+        target.dashPattern = dash_pattern
+    if dash_offset is not None:
+        target.dashOffset = dash_offset
+    if start_arrow is not None:
+        target.startArrowStyle = start_arrow
+    if end_arrow is not None:
+        target.endArrowStyle = end_arrow
+    if visible_in_3d is not None:
+        target.visibleIn3D = visible_in_3d
+    if elevation is not None:
+        target.elevation = elevation
     _autosave(ctx)
     _emit(ctx, target)
 
 
 # ─────────────────────────────────────────────────────── textures group
+
 
 @cli.group()
 def textures():
@@ -2062,9 +2438,12 @@ def textures():
 
 
 @textures.command("list")
-@click.option("--category", "-c",
-                type=click.Choice(["Floor", "Wall", "Sky", "floor", "wall", "sky"]),
-                help="Filter by texture category")
+@click.option(
+    "--category",
+    "-c",
+    type=click.Choice(["Floor", "Wall", "Sky", "floor", "wall", "sky"]),
+    help="Filter by texture category",
+)
 @_json_flag
 @click.pass_context
 def textures_list(ctx, category):
@@ -2074,8 +2453,9 @@ def textures_list(ctx, category):
 
 @textures.command("search")
 @click.argument("query")
-@click.option("--category", "-c",
-                type=click.Choice(["Floor", "Wall", "Sky", "floor", "wall", "sky"]))
+@click.option(
+    "--category", "-c", type=click.Choice(["Floor", "Wall", "Sky", "floor", "wall", "sky"])
+)
 @_json_flag
 @click.pass_context
 def textures_search(ctx, query, category):
@@ -2100,6 +2480,7 @@ def textures_info(ctx, catalog_id):
 
 # ─────────────────────────────────────────────────────── find group
 
+
 @cli.group()
 def find():
     """Locate model objects by spatial / semantic filters.
@@ -2122,12 +2503,9 @@ def _parse_xy(s: str) -> tuple[float, float]:
 @click.option("--name", help="Substring match against room name")
 @click.option("--level", "-l", help="Level name or id")
 @click.option("--contains", help="Keep only rooms whose polygon contains X,Y")
-@click.option("--unnamed", is_flag=True,
-                help="Only rooms with no name (importer fragments)")
-@click.option("--area-min", type=float,
-                help="Only rooms with area >= this many m²")
-@click.option("--area-max", type=float,
-                help="Only rooms with area <= this many m²")
+@click.option("--unnamed", is_flag=True, help="Only rooms with no name (importer fragments)")
+@click.option("--area-min", type=float, help="Only rooms with area >= this many m²")
+@click.option("--area-max", type=float, help="Only rooms with area <= this many m²")
 @_json_flag
 @click.pass_context
 def find_rooms_cmd(ctx, name, level, contains, unnamed, area_min, area_max):
@@ -2137,15 +2515,16 @@ def find_rooms_cmd(ctx, name, level, contains, unnamed, area_min, area_max):
         rooms = [r for r in rooms if not r.name]
     if area_min is not None or area_max is not None:
         rooms = [
-            r for r in rooms
+            r
+            for r in rooms
             if (area_min is None or rooms_core.area(r) / 10000 >= area_min)
             and (area_max is None or rooms_core.area(r) / 10000 <= area_max)
         ]
     if contains is not None:
         from cli_anything.sweethome3d.core.svg.geometry import point_in_polygon
+
         cx, cy = _parse_xy(contains)
-        rooms = [r for r in rooms
-                  if point_in_polygon(cx, cy, [(p.x, p.y) for p in r.points])]
+        rooms = [r for r in rooms if point_in_polygon(cx, cy, [(p.x, p.y) for p in r.points])]
     _emit(ctx, rooms)
 
 
@@ -2154,33 +2533,50 @@ def find_rooms_cmd(ctx, name, level, contains, unnamed, area_min, area_max):
 @click.option("--level", "-l")
 @click.option("--horizontal", is_flag=True, help="Only walls aligned to the X axis")
 @click.option("--vertical", is_flag=True, help="Only walls aligned to the Y axis")
-@click.option("--thickness", type=float,
-                help="Only walls matching this thickness (±0.5 cm)")
-@click.option("--unlinked", is_flag=True,
-                help="Only walls with no wallAtStart and no wallAtEnd "
-                     "(surfaces import-corner-fuse failures)")
-@click.option("--max-distance", type=float, default=25.0, show_default=True,
-                help="Max distance from --near point in cm")
+@click.option("--thickness", type=float, help="Only walls matching this thickness (±0.5 cm)")
+@click.option(
+    "--unlinked",
+    is_flag=True,
+    help="Only walls with no wallAtStart and no wallAtEnd (surfaces import-corner-fuse failures)",
+)
+@click.option(
+    "--max-distance",
+    type=float,
+    default=25.0,
+    show_default=True,
+    help="Max distance from --near point in cm",
+)
 @_json_flag
 @click.pass_context
-def find_walls_cmd(ctx, near, level, horizontal, vertical, thickness,
-                    unlinked, max_distance):
+def find_walls_cmd(ctx, near, level, horizontal, vertical, thickness, unlinked, max_distance):
     sess = _load_session(ctx)
     h_flag: Optional[bool] = True if horizontal else None
     v_flag: Optional[bool] = True if vertical else None
     u_flag: Optional[bool] = True if unlinked else None
     if near is not None:
         np = _parse_xy(near)
-        w = find_core.find_wall(sess.home, near_point=np, level=level,
-                                  horizontal=h_flag, vertical=v_flag,
-                                  thickness=thickness,
-                                  max_distance_cm=max_distance)
+        w = find_core.find_wall(
+            sess.home,
+            near_point=np,
+            level=level,
+            horizontal=h_flag,
+            vertical=v_flag,
+            thickness=thickness,
+            max_distance_cm=max_distance,
+        )
         _emit(ctx, [w] if w is not None else [])
         return
-    _emit(ctx, find_core.find_walls(sess.home, level=level,
-                                       horizontal=h_flag, vertical=v_flag,
-                                       thickness=thickness,
-                                       unlinked=u_flag))
+    _emit(
+        ctx,
+        find_core.find_walls(
+            sess.home,
+            level=level,
+            horizontal=h_flag,
+            vertical=v_flag,
+            thickness=thickness,
+            unlinked=u_flag,
+        ),
+    )
 
 
 @find.command("pieces")
@@ -2188,21 +2584,24 @@ def find_walls_cmd(ctx, near, level, horizontal, vertical, thickness,
 @click.option("--name")
 @click.option("--catalog")
 @click.option("--level", "-l")
-@click.option("--in-room", "in_room",
-                help="Restrict to pieces whose centre falls inside this room")
+@click.option("--in-room", "in_room", help="Restrict to pieces whose centre falls inside this room")
 @click.option("--near", help="Pieces within --max-distance of X,Y")
 @click.option("--max-distance", type=float, default=200.0, show_default=True)
 @_json_flag
 @click.pass_context
-def find_pieces_cmd(ctx, kind, name, catalog, level, in_room, near,
-                     max_distance):
+def find_pieces_cmd(ctx, kind, name, catalog, level, in_room, near, max_distance):
     sess = _load_session(ctx)
     kwargs: dict = {}
-    if kind     is not None: kwargs["kind"] = kind
-    if name     is not None: kwargs["name"] = name
-    if catalog  is not None: kwargs["catalog"] = catalog
-    if level    is not None: kwargs["level"] = level
-    if near     is not None: kwargs["near_point"] = _parse_xy(near)
+    if kind is not None:
+        kwargs["kind"] = kind
+    if name is not None:
+        kwargs["name"] = name
+    if catalog is not None:
+        kwargs["catalog"] = catalog
+    if level is not None:
+        kwargs["level"] = level
+    if near is not None:
+        kwargs["near_point"] = _parse_xy(near)
     kwargs["max_distance_cm"] = max_distance
     if in_room is not None:
         room = find_core.find_room(sess.home, name=in_room)
@@ -2222,9 +2621,12 @@ def find_pieces_cmd(ctx, kind, name, catalog, level, in_room, near,
 def find_doors_cmd(ctx, name, level, in_room, near):
     sess = _load_session(ctx)
     kwargs: dict = {}
-    if name  is not None: kwargs["name"] = name
-    if level is not None: kwargs["level"] = level
-    if near  is not None: kwargs["near_point"] = _parse_xy(near)
+    if name is not None:
+        kwargs["name"] = name
+    if level is not None:
+        kwargs["level"] = level
+    if near is not None:
+        kwargs["near_point"] = _parse_xy(near)
     if in_room is not None:
         room = find_core.find_room(sess.home, name=in_room)
         if room is None:
@@ -2243,9 +2645,12 @@ def find_doors_cmd(ctx, name, level, in_room, near):
 def find_lights_cmd(ctx, name, level, in_room, near):
     sess = _load_session(ctx)
     kwargs: dict = {}
-    if name  is not None: kwargs["name"] = name
-    if level is not None: kwargs["level"] = level
-    if near  is not None: kwargs["near_point"] = _parse_xy(near)
+    if name is not None:
+        kwargs["name"] = name
+    if level is not None:
+        kwargs["level"] = level
+    if near is not None:
+        kwargs["near_point"] = _parse_xy(near)
     if in_room is not None:
         room = find_core.find_room(sess.home, name=in_room)
         if room is None:
@@ -2255,6 +2660,7 @@ def find_lights_cmd(ctx, name, level, in_room, near):
 
 
 # ─────────────────────────────────────────────────────── environment group
+
 
 @cli.group()
 def environment():
@@ -2275,49 +2681,80 @@ def environment_get(ctx):
 @click.option("--light-color")
 @click.option("--ceiling-light-color")
 @click.option("--walls-alpha", type=float)
-@click.option("--drawing-mode",
-                type=click.Choice(["FILL", "OUTLINE", "FILL_AND_OUTLINE"]))
-@click.option("--sky-texture", "sky_texture",
-                help="Stock texture catalogId for the sky "
-                     "(textures list --category Sky)")
-@click.option("--ground-texture", "ground_texture",
-                help="Stock texture catalogId for the ground")
+@click.option("--drawing-mode", type=click.Choice(["FILL", "OUTLINE", "FILL_AND_OUTLINE"]))
+@click.option(
+    "--sky-texture",
+    "sky_texture",
+    help="Stock texture catalogId for the sky (textures list --category Sky)",
+)
+@click.option("--ground-texture", "ground_texture", help="Stock texture catalogId for the ground")
 @click.option("--clear-sky-texture", is_flag=True)
 @click.option("--clear-ground-texture", is_flag=True)
-@click.option("--subpart-size-under-light", type=float,
-                help="Mesh subdivision under each light (0 = engine default)")
-@click.option("--all-levels-visible/--current-level-only", default=None,
-                help="Show all level geometry in 3D even when one is selected")
-@click.option("--observer-elevation-adjusted/--observer-elevation-fixed",
-                default=None,
-                help="Whether observer camera elevation tracks the active level")
-@click.option("--background-on-ground/--background-off-ground", default=None,
-                help="Project the background image onto the 3D ground plane")
+@click.option(
+    "--subpart-size-under-light",
+    type=float,
+    help="Mesh subdivision under each light (0 = engine default)",
+)
+@click.option(
+    "--all-levels-visible/--current-level-only",
+    default=None,
+    help="Show all level geometry in 3D even when one is selected",
+)
+@click.option(
+    "--observer-elevation-adjusted/--observer-elevation-fixed",
+    default=None,
+    help="Whether observer camera elevation tracks the active level",
+)
+@click.option(
+    "--background-on-ground/--background-off-ground",
+    default=None,
+    help="Project the background image onto the 3D ground plane",
+)
 @click.pass_context
-def environment_set(ctx, sky_color, ground_color, light_color,
-                      ceiling_light_color, walls_alpha, drawing_mode,
-                      sky_texture, ground_texture,
-                      clear_sky_texture, clear_ground_texture,
-                      subpart_size_under_light, all_levels_visible,
-                      observer_elevation_adjusted, background_on_ground):
+def environment_set(
+    ctx,
+    sky_color,
+    ground_color,
+    light_color,
+    ceiling_light_color,
+    walls_alpha,
+    drawing_mode,
+    sky_texture,
+    ground_texture,
+    clear_sky_texture,
+    clear_ground_texture,
+    subpart_size_under_light,
+    all_levels_visible,
+    observer_elevation_adjusted,
+    background_on_ground,
+):
     sess = _load_session(ctx)
     sess.checkpoint()
     fields = {}
-    if sky_color is not None:    fields["skyColor"] = _parse_int_color(sky_color)
-    if ground_color is not None: fields["groundColor"] = _parse_int_color(ground_color)
-    if light_color is not None:  fields["lightColor"] = _parse_int_color(light_color)
+    if sky_color is not None:
+        fields["skyColor"] = _parse_int_color(sky_color)
+    if ground_color is not None:
+        fields["groundColor"] = _parse_int_color(ground_color)
+    if light_color is not None:
+        fields["lightColor"] = _parse_int_color(light_color)
     if ceiling_light_color is not None:
         fields["ceilingLightColor"] = _parse_int_color(ceiling_light_color)
-    if walls_alpha is not None:  fields["wallsAlpha"] = walls_alpha
-    if drawing_mode is not None: fields["drawingMode"] = drawing_mode
+    if walls_alpha is not None:
+        fields["wallsAlpha"] = walls_alpha
+    if drawing_mode is not None:
+        fields["drawingMode"] = drawing_mode
     try:
-        if sky_texture is not None:    fields["skyTexture"]    = tex_core.make_texture(sky_texture)
-        if ground_texture is not None: fields["groundTexture"] = tex_core.make_texture(ground_texture)
+        if sky_texture is not None:
+            fields["skyTexture"] = tex_core.make_texture(sky_texture)
+        if ground_texture is not None:
+            fields["groundTexture"] = tex_core.make_texture(ground_texture)
     except KeyError as e:
         sess.undo()
         raise click.ClickException(str(e))
-    if clear_sky_texture:    fields["skyTexture"] = None
-    if clear_ground_texture: fields["groundTexture"] = None
+    if clear_sky_texture:
+        fields["skyTexture"] = None
+    if clear_ground_texture:
+        fields["groundTexture"] = None
     if subpart_size_under_light is not None:
         fields["subpartSizeUnderLight"] = subpart_size_under_light
     if all_levels_visible is not None:
@@ -2349,16 +2786,33 @@ def environment_photo_size(ctx, width, height):
 
 @environment.command("video-size")
 @click.argument("width", type=int)
-@click.option("--aspect", "aspect_ratio",
-                type=click.Choice(["RATIO_4_3", "RATIO_16_9", "RATIO_3_2",
-                                   "RATIO_24_10", "RATIO_2_1", "SQUARE_RATIO",
-                                   "RATIO_16_10", "VIEW_3D_RATIO"]),
-                default="RATIO_4_3", show_default=True)
+@click.option(
+    "--aspect",
+    "aspect_ratio",
+    type=click.Choice(
+        [
+            "RATIO_4_3",
+            "RATIO_16_9",
+            "RATIO_3_2",
+            "RATIO_24_10",
+            "RATIO_2_1",
+            "SQUARE_RATIO",
+            "RATIO_16_10",
+            "VIEW_3D_RATIO",
+        ]
+    ),
+    default="RATIO_4_3",
+    show_default=True,
+)
 @click.option("--frame-rate", type=int, default=25, show_default=True)
-@click.option("--quality", type=int, default=0, show_default=True,
-                help="0=low … 3=best")
-@click.option("--speed", type=float, default=240, show_default=True,
-                help="Playback speed multiplier (240 = SH3D default)")
+@click.option("--quality", type=int, default=0, show_default=True, help="0=low … 3=best")
+@click.option(
+    "--speed",
+    type=float,
+    default=240,
+    show_default=True,
+    help="Playback speed multiplier (240 = SH3D default)",
+)
 @_json_flag
 @click.pass_context
 def environment_video_size(ctx, width, aspect_ratio, frame_rate, quality, speed):
@@ -2366,10 +2820,14 @@ def environment_video_size(ctx, width, aspect_ratio, frame_rate, quality, speed)
     sess = _load_session(ctx)
     sess.checkpoint()
     try:
-        env = env_core.set_video_size(sess.home, width,
-                                       aspectRatio=aspect_ratio,
-                                       frameRate=frame_rate,
-                                       quality=quality, speed=speed)
+        env = env_core.set_video_size(
+            sess.home,
+            width,
+            aspectRatio=aspect_ratio,
+            frameRate=frame_rate,
+            quality=quality,
+            speed=speed,
+        )
     except ValueError as e:
         sess.undo()
         raise click.ClickException(str(e))
@@ -2378,6 +2836,7 @@ def environment_video_size(ctx, width, aspect_ratio, frame_rate, quality, speed)
 
 
 # ─────────────────────────────────────────────────────── export group
+
 
 @cli.group()
 def export():
@@ -2393,12 +2852,12 @@ def export():
 def export_svg_cmd(ctx, output, padding, scale, level):
     """Render the home plan as an SVG file."""
     sess = _load_session(ctx)
-    path = export_core.export_svg(sess.home, output,
-                                    padding=padding, scale=scale, level=level)
+    path = export_core.export_svg(sess.home, output, padding=padding, scale=scale, level=level)
     _emit(ctx, {"exported": path, "format": "svg"})
 
 
 # ─────────────────────────────────────────────────────── import group
+
 
 @cli.group("import")
 def import_grp():
@@ -2406,12 +2865,22 @@ def import_grp():
 
 
 @import_grp.command("svg")
-@click.option("--spec", "spec_path", required=True, type=click.Path(exists=True),
-              help="YAML spec file consumed by svg_to_home_multi()")
-@click.option("--output", "-o", "output_path", type=click.Path(),
-              default=None, help="Output .sh3d path (overrides spec meta.output)")
-@click.option("--name", "-n", default=None,
-              help="Home name (overrides spec meta.name)")
+@click.option(
+    "--spec",
+    "spec_path",
+    required=True,
+    type=click.Path(exists=True),
+    help="YAML spec file consumed by svg_to_home_multi()",
+)
+@click.option(
+    "--output",
+    "-o",
+    "output_path",
+    type=click.Path(),
+    default=None,
+    help="Output .sh3d path (overrides spec meta.output)",
+)
+@click.option("--name", "-n", default=None, help="Home name (overrides spec meta.name)")
 @_json_flag
 @click.pass_context
 def import_svg(ctx, spec_path, output_path, name):
@@ -2455,15 +2924,26 @@ def import_svg(ctx, spec_path, output_path, name):
 
 @import_grp.command("pdf")
 @click.argument("pdf_path", type=click.Path(exists=True))
-@click.option("--output", "-o", "output_path", required=True, type=click.Path(),
-              help="Output .sh3d path")
-@click.option("--plan", default=None,
-              help="Plan title to isolate on a multi-drawing sheet, e.g. 'Ground Floor - Proposed'")
-@click.option("--backend", type=click.Choice(["geometry", "model"]), default="geometry",
-              help="geometry = offline poché extraction (walls); model = external floorplan "
-                   "model (walls+doors+windows+rooms, needs --model-cmd/$SH3D_MODEL_CMD)")
-@click.option("--model-cmd", default=None,
-              help="Model backend command with {in}/{out} placeholders (or set $SH3D_MODEL_CMD)")
+@click.option(
+    "--output", "-o", "output_path", required=True, type=click.Path(), help="Output .sh3d path"
+)
+@click.option(
+    "--plan",
+    default=None,
+    help="Plan title to isolate on a multi-drawing sheet, e.g. 'Ground Floor - Proposed'",
+)
+@click.option(
+    "--backend",
+    type=click.Choice(["geometry", "model"]),
+    default="geometry",
+    help="geometry = offline poché extraction (walls); model = external floorplan "
+    "model (walls+doors+windows+rooms, needs --model-cmd/$SH3D_MODEL_CMD)",
+)
+@click.option(
+    "--model-cmd",
+    default=None,
+    help="Model backend command with {in}/{out} placeholders (or set $SH3D_MODEL_CMD)",
+)
 @click.option("--dpi", type=int, default=200, help="Render DPI for the model backend")
 @click.option("--page", type=int, default=0)
 @_json_flag
@@ -2471,9 +2951,16 @@ def import_svg(ctx, spec_path, output_path, name):
 def import_pdf(ctx, pdf_path, output_path, plan, backend, model_cmd, dpi, page):
     """Convert a vector architect/estate-agent floorplan PDF into a new .sh3d."""
     from cli_anything.sweethome3d.core.pdf_import import pdf_to_home
+
     try:
-        home = pdf_to_home(pdf_path, page_index=page, plan_title=plan,
-                           backend=backend, model_cmd=model_cmd, dpi=dpi)
+        home = pdf_to_home(
+            pdf_path,
+            page_index=page,
+            plan_title=plan,
+            backend=backend,
+            model_cmd=model_cmd,
+            dpi=dpi,
+        )
     except Exception as e:
         raise click.ClickException(f"PDF import failed: {e}")
     try:
@@ -2481,12 +2968,21 @@ def import_pdf(ctx, pdf_path, output_path, plan, backend, model_cmd, dpi, page):
     except Exception as e:
         raise click.ClickException(f"save failed: {e}")
     summary = proj_core.info(home)
-    _emit(ctx, {"created": output_path, "backend": backend, "plan": plan,
-                "walls": summary["walls"], "rooms": summary["rooms"],
-                "doors_and_windows": summary["doors_and_windows"]})
+    _emit(
+        ctx,
+        {
+            "created": output_path,
+            "backend": backend,
+            "plan": plan,
+            "walls": summary["walls"],
+            "rooms": summary["rooms"],
+            "doors_and_windows": summary["doors_and_windows"],
+        },
+    )
 
 
 # ─────────────────────────────────────────────────────── render group
+
 
 @cli.group()
 def render():
@@ -2505,8 +3001,7 @@ def render_open(ctx, wait):
         pid_or_rc = backend.open_in_app(sess.path, wait=wait)
     except backend.Sweethome3DNotInstalled as e:
         raise click.ClickException(str(e))
-    _emit(ctx, {"sh3d": sess.path, "wait": wait,
-                  ("returncode" if wait else "pid"): pid_or_rc})
+    _emit(ctx, {"sh3d": sess.path, "wait": wait, ("returncode" if wait else "pid"): pid_or_rc})
 
 
 @render.command("status")
@@ -2523,56 +3018,107 @@ def render_status(ctx):
 
 @render.command("photo")
 @click.argument("output", type=click.Path())
-@click.option("--engine",
-              type=click.Choice(["gpu_draft", "cpu_photo", "gpu_photo"]),
-              default=None,
-              help=(
-                  "Render engine: gpu_draft (fast OpenGL), cpu_photo (Sunflow GI), "
-                  "gpu_photo (Blender Cycles+OptiX). Mutually exclusive with --gpu/--no-gpu."
-              ))
-@click.option("--gpu/--no-gpu", default=None,
-              help="[DEPRECATED] Use --engine instead. "
-                   "--gpu maps to gpu_draft, --no-gpu maps to cpu_photo.")
-@click.option("--quality", type=click.Choice(["LOW", "MEDIUM", "HIGH"]),
-              default="LOW", show_default=True,
-              help="Quality level (applies to cpu_photo engine)")
-@click.option("--samples", type=int, default=256, show_default=True,
-              help="Cycles sample count (applies to gpu_photo engine)")
+@click.option(
+    "--engine",
+    type=click.Choice(["gpu_draft", "cpu_photo", "gpu_photo"]),
+    default=None,
+    help=(
+        "Render engine: gpu_draft (fast OpenGL), cpu_photo (Sunflow GI), "
+        "gpu_photo (Blender Cycles+OptiX). Mutually exclusive with --gpu/--no-gpu."
+    ),
+)
+@click.option(
+    "--gpu/--no-gpu",
+    default=None,
+    help="[DEPRECATED] Use --engine instead. --gpu maps to gpu_draft, --no-gpu maps to cpu_photo.",
+)
+@click.option(
+    "--quality",
+    type=click.Choice(["LOW", "MEDIUM", "HIGH"]),
+    default="LOW",
+    show_default=True,
+    help="Quality level (applies to cpu_photo engine)",
+)
+@click.option(
+    "--samples",
+    type=int,
+    default=256,
+    show_default=True,
+    help="Cycles sample count (applies to gpu_photo engine)",
+)
 @click.option("--width", "-w", type=int, default=1400, show_default=True)
 @click.option("--height", "-h", type=int, default=900, show_default=True)
-@click.option("--from-camera", "from_camera", default=None,
-              help="Render from a named stored camera (from `camera save`). "
-                   "Loads the stored pose into the active camera before render.")
-@click.option("--levels", "levels_include", default=None,
-              help="Comma-separated level ids or names to keep visible for "
-                   "this render. Other levels are temporarily hidden; the "
-                   "saved project is not modified. "
-                   "Example: --levels 'Level 0,Level 1'")
-@click.option("--exclude-levels", "levels_exclude", default=None,
-              help="Comma-separated level ids or names to hide for this "
-                   "render. Inverse of --levels. Mutually exclusive with "
-                   "--levels.")
-@click.option("--hide-ceilings", is_flag=True, default=False,
-              help="Hide ceilings on visible-level rooms for this render. "
-                   "Pair with a straight-down top camera to get a true "
-                   "floor-plan view that shows floor textures and "
-                   "furniture inside rooms.")
-@click.option("--view",
-              type=click.Choice(["camera", "top", "iso"]),
-              default="camera", show_default=True,
-              help=(
-                  "Camera framing preset for gpu_photo. "
-                  "camera = use the stored / sidecar camera (default); "
-                  "top = orthographic straight-down plan view fitted to the level; "
-                  "iso = fitted 3/4 perspective view."
-              ))
-@click.option("--timeout", "timeout_s", type=int, default=600, show_default=True,
-              help="Render timeout in seconds")
+@click.option(
+    "--from-camera",
+    "from_camera",
+    default=None,
+    help="Render from a named stored camera (from `camera save`). "
+    "Loads the stored pose into the active camera before render.",
+)
+@click.option(
+    "--levels",
+    "levels_include",
+    default=None,
+    help="Comma-separated level ids or names to keep visible for "
+    "this render. Other levels are temporarily hidden; the "
+    "saved project is not modified. "
+    "Example: --levels 'Level 0,Level 1'",
+)
+@click.option(
+    "--exclude-levels",
+    "levels_exclude",
+    default=None,
+    help="Comma-separated level ids or names to hide for this "
+    "render. Inverse of --levels. Mutually exclusive with "
+    "--levels.",
+)
+@click.option(
+    "--hide-ceilings",
+    is_flag=True,
+    default=False,
+    help="Hide ceilings on visible-level rooms for this render. "
+    "Pair with a straight-down top camera to get a true "
+    "floor-plan view that shows floor textures and "
+    "furniture inside rooms.",
+)
+@click.option(
+    "--view",
+    type=click.Choice(["camera", "top", "iso"]),
+    default="camera",
+    show_default=True,
+    help=(
+        "Camera framing preset for gpu_photo. "
+        "camera = use the stored / sidecar camera (default); "
+        "top = orthographic straight-down plan view fitted to the level; "
+        "iso = fitted 3/4 perspective view."
+    ),
+)
+@click.option(
+    "--timeout",
+    "timeout_s",
+    type=int,
+    default=600,
+    show_default=True,
+    help="Render timeout in seconds",
+)
 @_json_flag
 @click.pass_context
-def render_photo(ctx, output, engine, gpu, quality, samples, width, height,
-                  from_camera, levels_include, levels_exclude, hide_ceilings,
-                  view, timeout_s):
+def render_photo(
+    ctx,
+    output,
+    engine,
+    gpu,
+    quality,
+    samples,
+    width,
+    height,
+    from_camera,
+    levels_include,
+    levels_exclude,
+    hide_ceilings,
+    view,
+    timeout_s,
+):
     """Render a photo-realistic image of the loaded project.
 
     \b
@@ -2591,18 +3137,21 @@ def render_photo(ctx, output, engine, gpu, quality, samples, width, height,
     # camera so the render uses its pose. We save the project after so the
     # downstream Java/Blender path sees the updated camera on disk.
     if from_camera is not None:
-        stored = next((c for c in sess.home.storedCameras
-                       if c.name == from_camera), None)
+        stored = next((c for c in sess.home.storedCameras if c.name == from_camera), None)
         if stored is None:
             raise click.ClickException(
                 f"stored camera not found: {from_camera!r}. "
                 f"Available: {[c.name for c in sess.home.storedCameras]}"
             )
         # Match the stored camera kind so framing maps cleanly
-        target = (sess.home.observerCamera if stored.kind == "observerCamera"
-                   else sess.home.topCamera)
-        target.x = stored.x; target.y = stored.y; target.z = stored.z
-        target.yaw = stored.yaw; target.pitch = stored.pitch
+        target = (
+            sess.home.observerCamera if stored.kind == "observerCamera" else sess.home.topCamera
+        )
+        target.x = stored.x
+        target.y = stored.y
+        target.z = stored.z
+        target.yaw = stored.yaw
+        target.pitch = stored.pitch
         target.fieldOfView = stored.fieldOfView
         target.lens = stored.lens
         if stored.time is not None:
@@ -2619,6 +3168,7 @@ def render_photo(ctx, output, engine, gpu, quality, samples, width, height,
 
     if gpu is not None:
         import warnings
+
         warnings.warn(
             "--gpu/--no-gpu is deprecated; use --engine gpu_draft or --engine cpu_photo",
             DeprecationWarning,
@@ -2631,7 +3181,8 @@ def render_photo(ctx, output, engine, gpu, quality, samples, width, height,
 
     try:
         from cli_anything.sweethome3d.core.render_runtime import (  # noqa: PLC0415
-            filtered_levels, render as _render,
+            filtered_levels,
+            render as _render,
         )
     except ImportError as e:
         raise click.ClickException(
@@ -2640,9 +3191,7 @@ def render_photo(ctx, output, engine, gpu, quality, samples, width, height,
         )
 
     if levels_include and levels_exclude:
-        raise click.UsageError(
-            "--levels and --exclude-levels are mutually exclusive"
-        )
+        raise click.UsageError("--levels and --exclude-levels are mutually exclusive")
 
     # Build kwargs — let render_runtime handle gpu→engine mapping
     kwargs: dict = dict(
@@ -2676,6 +3225,7 @@ def render_photo(ctx, output, engine, gpu, quality, samples, width, height,
 
 # ─────────────────────────────────────────────────────── edit group
 
+
 @cli.group()
 def edit():
     """Edit: mutate rooms, walls, lights, and doors in-place."""
@@ -2685,8 +3235,9 @@ def edit():
 @click.option("--room", "room_name", required=True, help="Room name (substring match)")
 @click.option("--level", "level_name", default=None, help="Level name to narrow match")
 @click.option("--color", required=True, help="Floor color as #RRGGBB")
-@click.option("--output", "-o", type=click.Path(), default=None,
-              help="Save to a new file instead of in-place")
+@click.option(
+    "--output", "-o", type=click.Path(), default=None, help="Save to a new file instead of in-place"
+)
 @_json_flag
 @click.pass_context
 def edit_floor(ctx, room_name, level_name, color, output):
@@ -2718,27 +3269,41 @@ def edit_floor(ctx, room_name, level_name, color, output):
 
     dest = output or project_path
     save_home(home, dest)
-    _emit(ctx, {
-        "changed": f"floor color of room '{room.name}'",
-        "id": room.id,
-        "before": before,
-        "after": after,
-        "saved_to": dest,
-    })
+    _emit(
+        ctx,
+        {
+            "changed": f"floor color of room '{room.name}'",
+            "id": room.id,
+            "before": before,
+            "after": after,
+            "saved_to": dest,
+        },
+    )
 
 
 @edit.command("wall")
-@click.option("--near", "near_xy", required=True,
-              help="X,Y coordinates near the wall (e.g. 100,200)")
-@click.option("--side", type=click.Choice(["north", "south", "east", "west"]),
-              default=None, help="Which side of the wall to paint")
+@click.option(
+    "--near", "near_xy", required=True, help="X,Y coordinates near the wall (e.g. 100,200)"
+)
+@click.option(
+    "--side",
+    type=click.Choice(["north", "south", "east", "west"]),
+    default=None,
+    help="Which side of the wall to paint",
+)
 @click.option("--color", required=True, help="Color as #RRGGBB")
-@click.option("--left-color", "left_color", default=None,
-              help="Explicit left-side color override (#RRGGBB)")
-@click.option("--right-color", "right_color", default=None,
-              help="Explicit right-side color override (#RRGGBB)")
-@click.option("--output", "-o", type=click.Path(), default=None,
-              help="Save to a new file instead of in-place")
+@click.option(
+    "--left-color", "left_color", default=None, help="Explicit left-side color override (#RRGGBB)"
+)
+@click.option(
+    "--right-color",
+    "right_color",
+    default=None,
+    help="Explicit right-side color override (#RRGGBB)",
+)
+@click.option(
+    "--output", "-o", type=click.Path(), default=None, help="Save to a new file instead of in-place"
+)
 @_json_flag
 @click.pass_context
 def edit_wall(ctx, near_xy, side, color, left_color, right_color, output):
@@ -2759,9 +3324,7 @@ def edit_wall(ctx, near_xy, side, color, left_color, right_color, output):
     home = open_home(project_path)
     w = find.find_wall(home, near_point=(px, py))
     if w is None:
-        raise click.ClickException(
-            f"no wall found near ({px}, {py}) within 25 cm"
-        )
+        raise click.ClickException(f"no wall found near ({px}, {py}) within 25 cm")
 
     before = {
         "id": w.id,
@@ -2788,8 +3351,7 @@ def edit_wall(ctx, near_xy, side, color, left_color, right_color, output):
         rn_y = math.sin(right_normal_angle)
 
         # Determine which normal faces the named cardinal direction
-        cardinal = {"north": (0, -1), "south": (0, 1),
-                    "east": (1, 0), "west": (-1, 0)}
+        cardinal = {"north": (0, -1), "south": (0, 1), "east": (1, 0), "west": (-1, 0)}
         dx, dy = cardinal[side]
         dot_right = rn_x * dx + rn_y * dy
         if dot_right > 0:
@@ -2811,26 +3373,27 @@ def edit_wall(ctx, near_xy, side, color, left_color, right_color, output):
     }
     dest = output or project_path
     save_home(home, dest)
-    _emit(ctx, {
-        "changed": desc,
-        "id": w.id,
-        "before": before,
-        "after": after,
-        "saved_to": dest,
-    })
+    _emit(
+        ctx,
+        {
+            "changed": desc,
+            "id": w.id,
+            "before": before,
+            "after": after,
+            "saved_to": dest,
+        },
+    )
 
 
 @edit.command("light")
 @click.option("--name", "light_name", required=True, help="Light name (substring match)")
-@click.option("--in-room", "in_room_name", default=None,
-              help="Narrow to lights in this room")
-@click.option("--catalog", "catalog_id", required=True,
-              help="New SH3D catalog ID for the light")
-@click.option("--power", type=float, default=None,
-              help="Light power 0..1 (optional)")
+@click.option("--in-room", "in_room_name", default=None, help="Narrow to lights in this room")
+@click.option("--catalog", "catalog_id", required=True, help="New SH3D catalog ID for the light")
+@click.option("--power", type=float, default=None, help="Light power 0..1 (optional)")
 @click.option("--color", default=None, help="Light color (#RRGGBB, optional)")
-@click.option("--output", "-o", type=click.Path(), default=None,
-              help="Save to a new file instead of in-place")
+@click.option(
+    "--output", "-o", type=click.Path(), default=None, help="Save to a new file instead of in-place"
+)
 @_json_flag
 @click.pass_context
 def edit_light(ctx, light_name, in_room_name, catalog_id, power, color, output):
@@ -2885,23 +3448,27 @@ def edit_light(ctx, light_name, in_room_name, catalog_id, power, color, output):
     }
     dest = output or project_path
     save_home(home, dest)
-    _emit(ctx, {
-        "changed": f"light '{f.name}' catalogId → {catalog_id}",
-        "id": f.id,
-        "before": before,
-        "after": after,
-        "saved_to": dest,
-    })
+    _emit(
+        ctx,
+        {
+            "changed": f"light '{f.name}' catalogId → {catalog_id}",
+            "id": f.id,
+            "before": before,
+            "after": after,
+            "saved_to": dest,
+        },
+    )
 
 
 @edit.command("door")
 @click.option("--name", "door_name", required=True, help="Door name (substring match)")
-@click.option("--near", "near_xy", default=None,
-              help="X,Y to narrow match (e.g. 100,200)")
-@click.option("--flip", is_flag=True, required=True,
-              help="Flip door direction (rotate by π radians)")
-@click.option("--output", "-o", type=click.Path(), default=None,
-              help="Save to a new file instead of in-place")
+@click.option("--near", "near_xy", default=None, help="X,Y to narrow match (e.g. 100,200)")
+@click.option(
+    "--flip", is_flag=True, required=True, help="Flip door direction (rotate by π radians)"
+)
+@click.option(
+    "--output", "-o", type=click.Path(), default=None, help="Save to a new file instead of in-place"
+)
 @_json_flag
 @click.pass_context
 def edit_door(ctx, door_name, near_xy, flip, output):
@@ -2939,26 +3506,39 @@ def edit_door(ctx, door_name, near_xy, flip, output):
 
     dest = output or project_path
     save_home(home, dest)
-    _emit(ctx, {
-        "changed": f"door '{d.name}' flipped",
-        "id": d.id,
-        "before": before,
-        "after": after,
-        "saved_to": dest,
-    })
+    _emit(
+        ctx,
+        {
+            "changed": f"door '{d.name}' flipped",
+            "id": d.id,
+            "before": before,
+            "after": after,
+            "saved_to": dest,
+        },
+    )
 
 
 # ─────────────────────────────────────────────────────── watch command
 
+
 @cli.command("watch")
 @click.argument("sh3d_path", type=click.Path(exists=True))
-@click.option("--output", "-o", type=click.Path(), default=None,
-              help="Output PNG path (default: same name as .sh3d with .png)")
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    default=None,
+    help="Output PNG path (default: same name as .sh3d with .png)",
+)
 @click.option("--gpu/--no-gpu", default=True, show_default=True)
 @click.option("-w", "--width", "width", type=int, default=1400, show_default=True)
 @click.option("-h", "--height", "height", type=int, default=900, show_default=True)
-@click.option("--engine", "engine_opts", multiple=True,
-              help="Extra engine options (repeatable key=value pairs)")
+@click.option(
+    "--engine",
+    "engine_opts",
+    multiple=True,
+    help="Extra engine options (repeatable key=value pairs)",
+)
 @click.pass_context
 def watch_cmd(ctx, sh3d_path, output, gpu, width, height, engine_opts):
     """Watch a .sh3d file and re-render to PNG on every save.
@@ -2985,8 +3565,11 @@ def watch_cmd(ctx, sh3d_path, output, gpu, width, height, engine_opts):
         t0 = time.monotonic()
         try:
             result = _render(
-                sh3d_path, output,
-                gpu=gpu, width=width, height=height,
+                sh3d_path,
+                output,
+                gpu=gpu,
+                width=width,
+                height=height,
             )
             elapsed = result.get("elapsed_s", time.monotonic() - t0)
             engine = result.get("engine", "?")
@@ -3000,14 +3583,12 @@ def watch_cmd(ctx, sh3d_path, output, gpu, width, height, engine_opts):
     try:
         from watchdog.observers import Observer
         from watchdog.events import FileSystemEventHandler
+
         _use_watchdog = True
     except ImportError:
         pass
 
-    click.echo(
-        f"watching {sh3d_path} → {output} "
-        f"({'watchdog' if _use_watchdog else 'polling'})"
-    )
+    click.echo(f"watching {sh3d_path} → {output} ({'watchdog' if _use_watchdog else 'polling'})")
 
     # Initial render
     _do_render()
@@ -3049,6 +3630,7 @@ def watch_cmd(ctx, sh3d_path, output, gpu, width, height, engine_opts):
 
 # ─────────────────────────────────────────────────────── furniture groups
 
+
 @cli.group()
 def group():
     """Furniture groups: bundle pieces that move/rotate together."""
@@ -3066,8 +3648,7 @@ def group_list(ctx, level):
 
 @group.command("create")
 @click.argument("name")
-@click.option("--pieces", "-p", "pieces", required=True,
-                help="Comma-separated piece ids or names")
+@click.option("--pieces", "-p", "pieces", required=True, help="Comma-separated piece ids or names")
 @click.option("--level", "-l", help="Override level (default: first piece's level)")
 @_json_flag
 @click.pass_context
@@ -3077,8 +3658,7 @@ def group_create(ctx, name, pieces, level):
     sess.checkpoint()
     idents = [p.strip() for p in pieces.split(",") if p.strip()]
     try:
-        grp = group_core.create_group(sess.home, name,
-                                        piece_idents=idents, level=level)
+        grp = group_core.create_group(sess.home, name, piece_idents=idents, level=level)
     except (KeyError, ValueError) as e:
         sess.undo()
         raise click.ClickException(str(e))
@@ -3100,8 +3680,9 @@ def group_info(ctx, ident):
 
 @group.command("add")
 @click.argument("group_ident")
-@click.option("--pieces", "-p", "pieces", required=True,
-                help="Comma-separated piece ids or names to add")
+@click.option(
+    "--pieces", "-p", "pieces", required=True, help="Comma-separated piece ids or names to add"
+)
 @_json_flag
 @click.pass_context
 def group_add(ctx, group_ident, pieces):
@@ -3119,8 +3700,9 @@ def group_add(ctx, group_ident, pieces):
 
 @group.command("remove")
 @click.argument("group_ident")
-@click.option("--pieces", "-p", "pieces", required=True,
-                help="Comma-separated piece ids or names to remove")
+@click.option(
+    "--pieces", "-p", "pieces", required=True, help="Comma-separated piece ids or names to remove"
+)
 @_json_flag
 @click.pass_context
 def group_remove(ctx, group_ident, pieces):
@@ -3181,20 +3763,27 @@ def group_delete(ctx, ident):
 @click.option("--creator")
 @_json_flag
 @click.pass_context
-def group_set(ctx, ident, name, angle, visible, movable, name_visible,
-                price, description, creator):
+def group_set(ctx, ident, name, angle, visible, movable, name_visible, price, description, creator):
     """Update properties on an existing group."""
     sess = _load_session(ctx)
     sess.checkpoint()
     fields = {}
-    if name is not None: fields["name"] = name
-    if angle is not None: fields["angle"] = angle
-    if visible is not None: fields["visible"] = visible
-    if movable is not None: fields["movable"] = movable
-    if name_visible is not None: fields["nameVisible"] = name_visible
-    if price is not None: fields["price"] = price
-    if description is not None: fields["description"] = description
-    if creator is not None: fields["creator"] = creator
+    if name is not None:
+        fields["name"] = name
+    if angle is not None:
+        fields["angle"] = angle
+    if visible is not None:
+        fields["visible"] = visible
+    if movable is not None:
+        fields["movable"] = movable
+    if name_visible is not None:
+        fields["nameVisible"] = name_visible
+    if price is not None:
+        fields["price"] = price
+    if description is not None:
+        fields["description"] = description
+    if creator is not None:
+        fields["creator"] = creator
     if not fields:
         sess.undo()
         raise click.UsageError("provide at least one --field option")
@@ -3208,6 +3797,7 @@ def group_set(ctx, ident, name, angle, visible, movable, name_visible,
 
 
 # ─────────────────────────────────────────────────────── material group
+
 
 @cli.group()
 def material():
@@ -3238,14 +3828,17 @@ def material_list(ctx, piece):
 @click.option("--clear-texture", is_flag=True)
 @_json_flag
 @click.pass_context
-def material_set(ctx, piece, name, color, shininess, texture_id, key,
-                   clear_color, clear_shininess, clear_texture):
+def material_set(
+    ctx, piece, name, color, shininess, texture_id, key, clear_color, clear_shininess, clear_texture
+):
     """Set or update one material override on a piece."""
     sess = _load_session(ctx)
     sess.checkpoint()
     try:
         mat = mat_core.set_material(
-            sess.home, piece, name,
+            sess.home,
+            piece,
+            name,
             color=_parse_int_color(color),
             shininess=shininess,
             texture_id=texture_id,
@@ -3299,6 +3892,7 @@ def material_clear_all(ctx, piece):
 
 # ─────────────────────────────────────────────────────── sash group
 
+
 @cli.group()
 def sash():
     """Door / window sashes — pivoting leaf geometry."""
@@ -3318,25 +3912,34 @@ def sash_list(ctx, piece):
 
 @sash.command("add")
 @click.argument("piece")
-@click.option("--x-axis", "x_axis", type=float, required=True,
-                help="Pivot X (fraction of piece width)")
-@click.option("--y-axis", "y_axis", type=float, required=True,
-                help="Pivot Y (fraction of piece depth)")
-@click.option("--width", type=float, required=True,
-                help="Sash width (fraction of piece width)")
-@click.option("--start-angle", "start_angle", type=float, required=True,
-                help="Sash start angle (radians)")
-@click.option("--end-angle", "end_angle", type=float, required=True,
-                help="Sash end angle (radians)")
+@click.option(
+    "--x-axis", "x_axis", type=float, required=True, help="Pivot X (fraction of piece width)"
+)
+@click.option(
+    "--y-axis", "y_axis", type=float, required=True, help="Pivot Y (fraction of piece depth)"
+)
+@click.option("--width", type=float, required=True, help="Sash width (fraction of piece width)")
+@click.option(
+    "--start-angle", "start_angle", type=float, required=True, help="Sash start angle (radians)"
+)
+@click.option(
+    "--end-angle", "end_angle", type=float, required=True, help="Sash end angle (radians)"
+)
 @_json_flag
 @click.pass_context
 def sash_add(ctx, piece, x_axis, y_axis, width, start_angle, end_angle):
     sess = _load_session(ctx)
     sess.checkpoint()
     try:
-        s = sash_core.add_sash(sess.home, piece,
-                                 xAxis=x_axis, yAxis=y_axis, width=width,
-                                 startAngle=start_angle, endAngle=end_angle)
+        s = sash_core.add_sash(
+            sess.home,
+            piece,
+            xAxis=x_axis,
+            yAxis=y_axis,
+            width=width,
+            startAngle=start_angle,
+            endAngle=end_angle,
+        )
     except (KeyError, ValueError) as e:
         sess.undo()
         raise click.ClickException(str(e))
@@ -3377,6 +3980,7 @@ def sash_clear(ctx, piece):
 
 # ─────────────────────────────────────────────────────── emitter group
 
+
 @cli.group()
 def emitter():
     """Per-light point emitters & emissive material groups."""
@@ -3412,10 +4016,9 @@ def emitter_source_add(ctx, piece, x, y, z, color, diameter):
     sess = _load_session(ctx)
     sess.checkpoint()
     try:
-        src = light_core.add_source(sess.home, piece,
-                                       x=x, y=y, z=z,
-                                       color=_parse_int_color(color),
-                                       diameter=diameter)
+        src = light_core.add_source(
+            sess.home, piece, x=x, y=y, z=z, color=_parse_int_color(color), diameter=diameter
+        )
     except (KeyError, ValueError) as e:
         sess.undo()
         raise click.ClickException(str(e))
@@ -3524,6 +4127,7 @@ def emitter_material_clear(ctx, piece):
 
 # ─────────────────────────────────────────────────────── shelf group
 
+
 @cli.group()
 def shelf():
     """Shelf-unit shelves — flat planes or 3D box compartments."""
@@ -3543,10 +4147,10 @@ def shelf_list(ctx, piece):
 
 @shelf.command("add")
 @click.argument("piece")
-@click.option("--elevation", type=float,
-                help="Flat shelf elevation (cm) — mutually exclusive with --bounds")
-@click.option("--bounds",
-                help="Box shelf bounds: xLo,yLo,zLo,xUp,yUp,zUp (cm)")
+@click.option(
+    "--elevation", type=float, help="Flat shelf elevation (cm) — mutually exclusive with --bounds"
+)
+@click.option("--bounds", help="Box shelf bounds: xLo,yLo,zLo,xUp,yUp,zUp (cm)")
 @_json_flag
 @click.pass_context
 def shelf_add(ctx, piece, elevation, bounds):
@@ -3564,9 +4168,16 @@ def shelf_add(ctx, piece, elevation, bounds):
                     "--bounds requires 6 comma-separated floats: xLo,yLo,zLo,xUp,yUp,zUp"
                 )
             xLo, yLo, zLo, xUp, yUp, zUp = parts
-            sh = shelf_core.add_box_shelf(sess.home, piece,
-                                            xLower=xLo, yLower=yLo, zLower=zLo,
-                                            xUpper=xUp, yUpper=yUp, zUpper=zUp)
+            sh = shelf_core.add_box_shelf(
+                sess.home,
+                piece,
+                xLower=xLo,
+                yLower=yLo,
+                zLower=zLo,
+                xUpper=xUp,
+                yUpper=yUp,
+                zUpper=zUp,
+            )
     except (KeyError, ValueError) as e:
         sess.undo()
         raise click.ClickException(str(e))
@@ -3607,6 +4218,7 @@ def shelf_clear(ctx, piece):
 
 # ─────────────────────────────────────────────────────── background image
 
+
 @cli.group()
 def background():
     """Background plan image — calibrated PNG overlay."""
@@ -3614,28 +4226,66 @@ def background():
 
 @background.command("set")
 @click.argument("image_path", type=click.Path(exists=True, dir_okay=False))
-@click.option("--scale-distance", "scale_distance", type=float, required=True,
-                help="Real-world distance (cm) the scale line represents")
-@click.option("--x-start", "x_start", type=float, required=True,
-                help="Scale line start X (px in source image)")
-@click.option("--y-start", "y_start", type=float, required=True,
-                help="Scale line start Y (px in source image)")
-@click.option("--x-end", "x_end", type=float, required=True,
-                help="Scale line end X (px in source image)")
-@click.option("--y-end", "y_end", type=float, required=True,
-                help="Scale line end Y (px in source image)")
-@click.option("--x-origin", "x_origin", type=float, default=0,
-                show_default=True, help="Image origin X in plan coordinates")
-@click.option("--y-origin", "y_origin", type=float, default=0,
-                show_default=True, help="Image origin Y in plan coordinates")
-@click.option("--level", "-l",
-                help="Attach to a level (default: home root)")
-@click.option("--hidden", is_flag=True,
-                help="Add invisibly (toggle later with `background show`)")
+@click.option(
+    "--scale-distance",
+    "scale_distance",
+    type=float,
+    required=True,
+    help="Real-world distance (cm) the scale line represents",
+)
+@click.option(
+    "--x-start",
+    "x_start",
+    type=float,
+    required=True,
+    help="Scale line start X (px in source image)",
+)
+@click.option(
+    "--y-start",
+    "y_start",
+    type=float,
+    required=True,
+    help="Scale line start Y (px in source image)",
+)
+@click.option(
+    "--x-end", "x_end", type=float, required=True, help="Scale line end X (px in source image)"
+)
+@click.option(
+    "--y-end", "y_end", type=float, required=True, help="Scale line end Y (px in source image)"
+)
+@click.option(
+    "--x-origin",
+    "x_origin",
+    type=float,
+    default=0,
+    show_default=True,
+    help="Image origin X in plan coordinates",
+)
+@click.option(
+    "--y-origin",
+    "y_origin",
+    type=float,
+    default=0,
+    show_default=True,
+    help="Image origin Y in plan coordinates",
+)
+@click.option("--level", "-l", help="Attach to a level (default: home root)")
+@click.option("--hidden", is_flag=True, help="Add invisibly (toggle later with `background show`)")
 @_json_flag
 @click.pass_context
-def background_set(ctx, image_path, scale_distance, x_start, y_start,
-                     x_end, y_end, x_origin, y_origin, level, hidden):
+def background_set(
+    ctx,
+    image_path,
+    scale_distance,
+    x_start,
+    y_start,
+    x_end,
+    y_end,
+    x_origin,
+    y_origin,
+    level,
+    hidden,
+):
     """Attach a calibrated background image to the home or a level."""
     sess = _load_session(ctx)
     sess.checkpoint()
@@ -3644,9 +4294,12 @@ def background_set(ctx, image_path, scale_distance, x_start, y_start,
             sess.home,
             image_path=image_path,
             scale_distance_cm=scale_distance,
-            scale_x_start=x_start, scale_y_start=y_start,
-            scale_x_end=x_end, scale_y_end=y_end,
-            x_origin=x_origin, y_origin=y_origin,
+            scale_x_start=x_start,
+            scale_y_start=y_start,
+            scale_x_end=x_end,
+            scale_y_end=y_end,
+            x_origin=x_origin,
+            y_origin=y_origin,
             visible=not hidden,
             level=level,
             session_add_content=sess.add_content,
@@ -3729,6 +4382,7 @@ def background_info(ctx, level):
 
 # ─────────────────────────────────────────────────────── print settings
 
+
 @cli.group("print")
 def print_grp():
     """Print settings — paper size, margins, orientation, level filter."""
@@ -3752,41 +4406,61 @@ def print_get(ctx):
 @click.option("--left-margin", "left_margin", type=float)
 @click.option("--bottom-margin", "bottom_margin", type=float)
 @click.option("--right-margin", "right_margin", type=float)
-@click.option("--orientation",
-                type=click.Choice(["PORTRAIT", "LANDSCAPE", "REVERSE_LANDSCAPE"]))
+@click.option("--orientation", type=click.Choice(["PORTRAIT", "LANDSCAPE", "REVERSE_LANDSCAPE"]))
 @click.option("--header-format", "header_format")
 @click.option("--footer-format", "footer_format")
-@click.option("--plan-scale", "plan_scale", type=float,
-                help="Plan view scale (e.g. 100 for 1:100)")
-@click.option("--furniture-printed/--no-furniture-printed",
-                "furniture_printed", default=None)
-@click.option("--plan-printed/--no-plan-printed",
-                "plan_printed", default=None)
-@click.option("--view3d-printed/--no-view3d-printed",
-                "view3d_printed", default=None)
+@click.option("--plan-scale", "plan_scale", type=float, help="Plan view scale (e.g. 100 for 1:100)")
+@click.option("--furniture-printed/--no-furniture-printed", "furniture_printed", default=None)
+@click.option("--plan-printed/--no-plan-printed", "plan_printed", default=None)
+@click.option("--view3d-printed/--no-view3d-printed", "view3d_printed", default=None)
 @_json_flag
 @click.pass_context
-def print_set(ctx, paper_width, paper_height, top_margin, left_margin,
-               bottom_margin, right_margin, orientation, header_format,
-               footer_format, plan_scale, furniture_printed,
-               plan_printed, view3d_printed):
+def print_set(
+    ctx,
+    paper_width,
+    paper_height,
+    top_margin,
+    left_margin,
+    bottom_margin,
+    right_margin,
+    orientation,
+    header_format,
+    footer_format,
+    plan_scale,
+    furniture_printed,
+    plan_printed,
+    view3d_printed,
+):
     """Create or update print configuration."""
     sess = _load_session(ctx)
     sess.checkpoint()
     fields = {}
-    if paper_width is not None: fields["paperWidth"] = paper_width
-    if paper_height is not None: fields["paperHeight"] = paper_height
-    if top_margin is not None: fields["paperTopMargin"] = top_margin
-    if left_margin is not None: fields["paperLeftMargin"] = left_margin
-    if bottom_margin is not None: fields["paperBottomMargin"] = bottom_margin
-    if right_margin is not None: fields["paperRightMargin"] = right_margin
-    if orientation is not None: fields["paperOrientation"] = orientation
-    if header_format is not None: fields["headerFormat"] = header_format
-    if footer_format is not None: fields["footerFormat"] = footer_format
-    if plan_scale is not None: fields["planScale"] = plan_scale
-    if furniture_printed is not None: fields["furniturePrinted"] = furniture_printed
-    if plan_printed is not None: fields["planPrinted"] = plan_printed
-    if view3d_printed is not None: fields["view3DPrinted"] = view3d_printed
+    if paper_width is not None:
+        fields["paperWidth"] = paper_width
+    if paper_height is not None:
+        fields["paperHeight"] = paper_height
+    if top_margin is not None:
+        fields["paperTopMargin"] = top_margin
+    if left_margin is not None:
+        fields["paperLeftMargin"] = left_margin
+    if bottom_margin is not None:
+        fields["paperBottomMargin"] = bottom_margin
+    if right_margin is not None:
+        fields["paperRightMargin"] = right_margin
+    if orientation is not None:
+        fields["paperOrientation"] = orientation
+    if header_format is not None:
+        fields["headerFormat"] = header_format
+    if footer_format is not None:
+        fields["footerFormat"] = footer_format
+    if plan_scale is not None:
+        fields["planScale"] = plan_scale
+    if furniture_printed is not None:
+        fields["furniturePrinted"] = furniture_printed
+    if plan_printed is not None:
+        fields["planPrinted"] = plan_printed
+    if view3d_printed is not None:
+        fields["view3DPrinted"] = view3d_printed
     try:
         pr = print_core.set_print(sess.home, **fields)
     except (AttributeError, ValueError) as e:
@@ -3844,8 +4518,12 @@ def print_remove_level(ctx, ident):
 
 
 @print_grp.command("set-levels")
-@click.option("--levels", "-L", required=True,
-                help="Comma-separated level ids/names; replaces the current list")
+@click.option(
+    "--levels",
+    "-L",
+    required=True,
+    help="Comma-separated level ids/names; replaces the current list",
+)
 @_json_flag
 @click.pass_context
 def print_set_levels(ctx, levels):
@@ -3862,6 +4540,7 @@ def print_set_levels(ctx, levels):
 
 
 # ─────────────────────────────────────────────────────── undo/redo
+
 
 @cli.command("undo")
 @click.pass_context
@@ -3895,10 +4574,15 @@ def status_cmd(ctx):
 
 # ─────────────────────────────────────────────────────── REPL
 
+
 @cli.command("repl", hidden=True)
-@click.option("--project-path", "project_path",
-                type=click.Path(), default=None,
-                help="Project path (auto-load into REPL)")
+@click.option(
+    "--project-path",
+    "project_path",
+    type=click.Path(),
+    default=None,
+    help="Project path (auto-load into REPL)",
+)
 @click.pass_context
 def repl(ctx, project_path):
     """Interactive REPL (default behavior when no subcommand is given)."""
@@ -3918,8 +4602,7 @@ def repl(ctx, project_path):
         name = (sess.home.name if sess and sess.home else None) or ""
         modified = bool(sess and sess.modified)
         try:
-            line = skin.get_input(pt_session,
-                                    project_name=name, modified=modified)
+            line = skin.get_input(pt_session, project_name=name, modified=modified)
         except (EOFError, KeyboardInterrupt):
             break
         line = (line or "").strip()
@@ -3936,8 +4619,9 @@ def repl(ctx, project_path):
             skin.error(f"parse error: {e}")
             continue
         try:
-            cli.main(args=args, prog_name="cli-anything-sweethome3d",
-                      standalone_mode=False, obj=ctx.obj)
+            cli.main(
+                args=args, prog_name="cli-anything-sweethome3d", standalone_mode=False, obj=ctx.obj
+            )
         except click.exceptions.UsageError as e:
             skin.error(str(e))
         except click.exceptions.ClickException as e:

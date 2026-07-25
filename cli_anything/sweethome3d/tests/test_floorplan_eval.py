@@ -5,6 +5,7 @@ reacts correctly: perfect match = 10, position error degrades the score, a
 missing/extra object degrades recall/precision, and doors vs windows are scored
 in the right bucket.
 """
+
 import copy
 import pytest
 
@@ -13,14 +14,20 @@ from cli_anything.sweethome3d.core import floorplan_eval as fe
 
 
 def _opening(name, x, y):
-    return PieceOfFurniture(name=name, x=x, y=y, width=80, depth=10, height=200, kind="doorOrWindow")
+    return PieceOfFurniture(
+        name=name, x=x, y=y, width=80, depth=10, height=200, kind="doorOrWindow"
+    )
 
 
 def _house():
     """A small but complete home: 4 walls (a box), 1 door, 1 window, 1 room."""
     h = Home()
-    h.walls += [Wall(0, 0, 400, 0), Wall(400, 0, 400, 300),
-                Wall(400, 300, 0, 300), Wall(0, 300, 0, 0)]
+    h.walls += [
+        Wall(0, 0, 400, 0),
+        Wall(400, 0, 400, 300),
+        Wall(400, 300, 0, 300),
+        Wall(0, 300, 0, 0),
+    ]
     h.furniture += [_opening("Front door", 200, 0), _opening("Kitchen window", 400, 150)]
     h.rooms.append(Room(points=[Point(0, 0), Point(400, 0), Point(400, 300), Point(0, 300)]))
     return h
@@ -55,8 +62,8 @@ def test_small_wall_shift_keeps_match_but_lowers_score():
     pred = copy.deepcopy(truth)
     pred.walls[0] = Wall(0, 20, 400, 20)  # shift one wall 20 cm (within 60 cm tol)
     r = fe.score_homes(truth, pred)
-    assert r["walls"]["recall"] == 1.0          # still matched
-    assert r["walls"]["mean_err_cm"] > 0        # but error registered
+    assert r["walls"]["recall"] == 1.0  # still matched
+    assert r["walls"]["mean_err_cm"] > 0  # but error registered
     assert r["walls"]["subscore"] < 1.0
     assert r["score"] < 10.0
 
@@ -66,7 +73,7 @@ def test_large_wall_shift_breaks_match():
     pred = copy.deepcopy(truth)
     pred.walls[0] = Wall(0, 500, 400, 500)  # 500 cm away → beyond tol, unmatched
     r = fe.score_homes(truth, pred)
-    assert r["walls"]["recall"] == 0.75         # 3 of 4 matched
+    assert r["walls"]["recall"] == 0.75  # 3 of 4 matched
     assert r["walls"]["matched"] == 3
 
 

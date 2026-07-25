@@ -16,16 +16,24 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.dirname(os.path.abspath(__file__))))))
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+)
 
 from cli_anything.sweethome3d.core.designer import (
-    Designer, WallHandle, RoomHandle,
-    _dist, _pt_to_seg_dist, _polygon_area, _pt_in_polygon, _polygon_centroid,
+    Designer,
+    WallHandle,
+    RoomHandle,
+    _dist,
+    _pt_to_seg_dist,
+    _polygon_area,
+    _pt_in_polygon,
+    _polygon_centroid,
 )
 
 
 # ─────────────────────────── Geometry helpers ────────────────────────────────
+
 
 class TestGeometryHelpers:
     def test_dist(self):
@@ -60,6 +68,7 @@ class TestGeometryHelpers:
 
 # ─────────────────────────── Designer creation ───────────────────────────────
 
+
 class TestDesignerCreation:
     def test_create_default(self):
         d = Designer()
@@ -77,6 +86,7 @@ class TestDesignerCreation:
 
 # ─────────────────────────── Level management ────────────────────────────────
 
+
 class TestLevels:
     def test_add_level(self):
         d = Designer()
@@ -89,7 +99,7 @@ class TestLevels:
     def test_add_multiple_levels(self):
         d = Designer()
         g = d.add_level("Ground", floor_height=0)
-        f = d.add_level("First",  floor_height=250)
+        f = d.add_level("First", floor_height=250)
         assert len(d._levels) == 2
         assert g.idx == 0
         assert f.idx == 1
@@ -118,6 +128,7 @@ class TestLevels:
 
 
 # ─────────────────────────── Envelope ────────────────────────────────────────
+
 
 class TestEnvelope:
     def _make(self):
@@ -177,6 +188,7 @@ class TestEnvelope:
 
 # ─────────────────────────── Partitions ──────────────────────────────────────
 
+
 class TestPartitions:
     def _make_with_envelope(self):
         d = Designer()
@@ -235,20 +247,23 @@ class TestPartitions:
     def test_validate_detects_orphan(self):
         d, g = self._make_with_envelope()
         # Add a wall that doesn't touch anything (fake directly)
-        g.walls.append({
-            "id": "orphan-wall",
-            "start": [200, 200],
-            "end": [200, 600],
-            "thickness": 10,
-            "is_envelope": False,
-            "facing": None,
-            "level_id": g.id,
-        })
+        g.walls.append(
+            {
+                "id": "orphan-wall",
+                "start": [200, 200],
+                "end": [200, 600],
+                "thickness": 10,
+                "is_envelope": False,
+                "facing": None,
+                "level_id": g.id,
+            }
+        )
         report = d.validate()
         assert any(o["wall_id"] == "orphan-wall" for o in report["orphan_endpoints"])
 
 
 # ─────────────────────────── Rooms ───────────────────────────────────────────
+
 
 class TestRooms:
     def _make(self):
@@ -259,53 +274,55 @@ class TestRooms:
 
     def test_room_returns_handle(self):
         d, g = self._make()
-        h = d.room(g, polygon=[(0,0),(500,0),(500,400),(0,400)], label="Living")
+        h = d.room(g, polygon=[(0, 0), (500, 0), (500, 400), (0, 400)], label="Living")
         assert isinstance(h, RoomHandle)
 
     def test_room_stored(self):
         d, g = self._make()
-        d.room(g, polygon=[(0,0),(500,0),(500,400),(0,400)], label="Kitchen")
+        d.room(g, polygon=[(0, 0), (500, 0), (500, 400), (0, 400)], label="Kitchen")
         assert len(g.rooms) == 1
         assert g.rooms[0]["label"] == "Kitchen"
 
     def test_room_area(self):
         d, g = self._make()
-        d.room(g, polygon=[(0,0),(500,0),(500,400),(0,400)], label="Living")
+        d.room(g, polygon=[(0, 0), (500, 0), (500, 400), (0, 400)], label="Living")
         r = g.rooms[0]
         # 500 × 400 = 200000 cm² = 20.0 m²
         assert abs(r["area_m2"] - 20.0) < 0.1
 
     def test_room_floor_color(self):
         d, g = self._make()
-        d.room(g, polygon=[(0,0),(100,0),(100,100),(0,100)],
-               label="Test", floor_color="#FF0000")
+        d.room(
+            g, polygon=[(0, 0), (100, 0), (100, 100), (0, 100)], label="Test", floor_color="#FF0000"
+        )
         assert g.rooms[0]["floor_color"] == "#FF0000"
 
     def test_room_too_few_points(self):
         d, g = self._make()
         with pytest.raises(ValueError, match="at least 3"):
-            d.room(g, polygon=[(0,0),(100,0)], label="Bad")
+            d.room(g, polygon=[(0, 0), (100, 0)], label="Bad")
 
     def test_multiple_rooms(self):
         d, g = self._make()
-        d.room(g, polygon=[(0,0),(500,0),(500,400),(0,400)], label="A")
-        d.room(g, polygon=[(500,0),(1000,0),(1000,400),(500,400)], label="B")
+        d.room(g, polygon=[(0, 0), (500, 0), (500, 400), (0, 400)], label="A")
+        d.room(g, polygon=[(500, 0), (1000, 0), (1000, 400), (500, 400)], label="B")
         assert len(g.rooms) == 2
 
     def test_validate_unnamed_room(self):
         d, g = self._make()
-        d.room(g, polygon=[(0,0),(100,0),(100,100),(0,100)])
+        d.room(g, polygon=[(0, 0), (100, 0), (100, 100), (0, 100)])
         report = d.validate()
         assert len(report["rooms_unnamed"]) == 1
 
     def test_validate_named_room_ok(self):
         d, g = self._make()
-        d.room(g, polygon=[(0,0),(100,0),(100,100),(0,100)], label="Named")
+        d.room(g, polygon=[(0, 0), (100, 0), (100, 100), (0, 100)], label="Named")
         report = d.validate()
         assert report["rooms_unnamed"] == []
 
 
 # ─────────────────────────── Openings ────────────────────────────────────────
+
 
 class TestOpenings:
     def _make(self):
@@ -350,7 +367,7 @@ class TestOpenings:
     def test_add_window(self):
         d, g = self._make()
         south = d.wall_facing("south", level=g)
-        oid = d.add_window(g, wall=south, position_along=0.5)
+        d.add_window(g, wall=south, position_along=0.5)
         o = g.openings[0]
         assert o["kind"] == "window"
         assert o["sill_height"] == 90.0
@@ -359,7 +376,7 @@ class TestOpenings:
         d, g = self._make()
         d.partition(g, (500, 0), (500, 800))
         part = next(w for w in g.walls if not w["is_envelope"])
-        oid = d.add_internal_door(g, wall=part["id"], position_along=0.5)
+        d.add_internal_door(g, wall=part["id"], position_along=0.5)
         assert g.openings[0]["kind"] == "door"
 
     def test_list_openings(self):
@@ -376,13 +393,14 @@ class TestOpenings:
 
 # ─────────────────────────── Spatial selectors ───────────────────────────────
 
+
 class TestSpatialSelectors:
     def _make(self):
         d = Designer()
         g = d.add_level("Ground")
         d.envelope(g, width=1000, depth=800)
-        d.room(g, polygon=[(0,0),(500,0),(500,400),(0,400)], label="Living Room")
-        d.room(g, polygon=[(500,0),(1000,0),(1000,400),(500,400)], label="Kitchen")
+        d.room(g, polygon=[(0, 0), (500, 0), (500, 400), (0, 400)], label="Living Room")
+        d.room(g, polygon=[(500, 0), (1000, 0), (1000, 400), (500, 400)], label="Kitchen")
         return d, g
 
     def test_wall_facing_north(self):
@@ -460,6 +478,7 @@ class TestSpatialSelectors:
 
 # ─────────────────────────── Furniture ───────────────────────────────────────
 
+
 class TestFurniture:
     def _make(self):
         d = Designer()
@@ -469,7 +488,7 @@ class TestFurniture:
 
     def test_place_furniture(self):
         d, g = self._make()
-        fid = d.place_furniture(g, catalog_id="SOFA_3_SEATS", x=100, y=200)
+        d.place_furniture(g, catalog_id="SOFA_3_SEATS", x=100, y=200)
         assert len(g.furniture) == 1
         assert g.furniture[0]["catalog_id"] == "SOFA_3_SEATS"
 
@@ -519,12 +538,13 @@ class TestFurniture:
 
 # ─────────────────────────── Introspection ───────────────────────────────────
 
+
 class TestIntrospection:
     def _make_complete(self):
         d = Designer(name="Test House")
         g = d.add_level("Ground")
         d.envelope(g, width=1000, depth=800)
-        d.room(g, polygon=[(0,0),(1000,0),(1000,800),(0,800)], label="Open Plan")
+        d.room(g, polygon=[(0, 0), (1000, 0), (1000, 800), (0, 800)], label="Open Plan")
         d.place_furniture(g, catalog_id="SOFA_3_SEATS", x=100, y=100)
         return d, g
 
@@ -582,6 +602,7 @@ class TestIntrospection:
 
 # ─────────────────────────── Validate ────────────────────────────────────────
 
+
 class TestValidate:
     def test_validate_empty_designer(self):
         d = Designer()
@@ -602,8 +623,8 @@ class TestValidate:
         g = d.add_level("Ground")
         d.envelope(g, width=1000, depth=800)
         d.partition(g, (500, 0), (500, 800))
-        d.room(g, polygon=[(0,0),(500,0),(500,800),(0,800)], label="Left")
-        d.room(g, polygon=[(500,0),(1000,0),(1000,800),(500,800)], label="Right")
+        d.room(g, polygon=[(0, 0), (500, 0), (500, 800), (0, 800)], label="Left")
+        d.room(g, polygon=[(500, 0), (1000, 0), (1000, 800), (500, 800)], label="Right")
 
         report = d.validate()
         assert report["envelope_closed"] == [True]
@@ -632,7 +653,7 @@ class TestValidate:
         d = Designer()
         g = d.add_level("Ground")
         d.envelope(g, width=1000, depth=800)
-        d.room(g, polygon=[(0,0),(1000,0),(1000,800),(0,800)], label="Hall")
+        d.room(g, polygon=[(0, 0), (1000, 0), (1000, 800), (0, 800)], label="Hall")
         report = d.validate()
         assert any("no furniture" in w.lower() for w in report["warnings"])
 
@@ -647,15 +668,20 @@ class TestValidate:
 
 # ─────────────────────────── to_spec / from_spec ─────────────────────────────
 
+
 class TestSpecRoundTrip:
     def _make_rich(self):
         d = Designer(name="Spec Test")
         g = d.add_level("Ground", floor_height=0, ceiling_height=250)
         d.envelope(g, width=1000, depth=800)
         d.partition(g, (500, 0), (500, 800))
-        d.room(g, polygon=[(0,0),(500,0),(500,800),(0,800)], label="Left Room",
-               floor_color="#CCBBAA")
-        d.room(g, polygon=[(500,0),(1000,0),(1000,800),(500,800)], label="Right Room")
+        d.room(
+            g,
+            polygon=[(0, 0), (500, 0), (500, 800), (0, 800)],
+            label="Left Room",
+            floor_color="#CCBBAA",
+        )
+        d.room(g, polygon=[(500, 0), (1000, 0), (1000, 800), (500, 800)], label="Right Room")
         north = d.wall_facing("north", level=g)
         d.add_external_door(g, wall=north, position_along=0.3, label="Front")
         d.add_window(g, wall=d.wall_facing("south", g), position_along=0.5)
@@ -750,8 +776,9 @@ class TestSpecRoundTrip:
 
     def test_round_trip_via_temp_file(self):
         d, _ = self._make_rich()
-        with tempfile.NamedTemporaryFile(suffix=".json", mode="w",
-                                         delete=False, encoding="utf-8") as fh:
+        with tempfile.NamedTemporaryFile(
+            suffix=".json", mode="w", delete=False, encoding="utf-8"
+        ) as fh:
             json.dump(d.to_spec(), fh)
             tmp_path = fh.name
         try:
@@ -765,12 +792,13 @@ class TestSpecRoundTrip:
 
 # ─────────────────────────── SH3D export ─────────────────────────────────────
 
+
 class TestSH3DExport:
     def _make_simple(self):
         d = Designer(name="Export Test")
         g = d.add_level("Ground")
         d.envelope(g, width=800, depth=600)
-        d.room(g, polygon=[(0,0),(800,0),(800,600),(0,600)], label="Hall")
+        d.room(g, polygon=[(0, 0), (800, 0), (800, 600), (0, 600)], label="Hall")
         north = d.wall_facing("north", level=g)
         d.add_external_door(g, wall=north, position_along=0.5)
         d.place_furniture(g, catalog_id="SOFA_3_SEATS", x=200, y=300)
@@ -842,7 +870,7 @@ class TestSH3DExport:
         d = self._make_simple()
         with tempfile.TemporaryDirectory() as tmp:
             out_sh3d = Path(tmp) / "Home.sh3d"
-            out_png  = Path(tmp) / "Home.png"
+            out_png = Path(tmp) / "Home.png"
             d.save(out_sh3d, render_png=out_png)
             assert out_png.exists()
             # Check it's a valid PNG (starts with PNG signature)
@@ -852,11 +880,11 @@ class TestSH3DExport:
     def test_save_multilevel(self):
         d = Designer(name="Two Storey")
         g = d.add_level("Ground", floor_height=0)
-        f = d.add_level("First",  floor_height=250)
+        f = d.add_level("First", floor_height=250)
         d.envelope(g, width=800, depth=600)
         d.envelope(f, width=800, depth=600)
-        d.room(g, polygon=[(0,0),(800,0),(800,600),(0,600)], label="Ground Hall")
-        d.room(f, polygon=[(0,0),(800,0),(800,600),(0,600)], label="Landing")
+        d.room(g, polygon=[(0, 0), (800, 0), (800, 600), (0, 600)], label="Ground Hall")
+        d.room(f, polygon=[(0, 0), (800, 0), (800, 600), (0, 600)], label="Landing")
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "TwoStorey.sh3d"
             d.save(out)
@@ -869,12 +897,13 @@ class TestSH3DExport:
 
 # ─────────────────────────── CLI __main__ ────────────────────────────────────
 
+
 class TestCLIMain:
     def _make_spec(self) -> dict:
         d = Designer(name="CLI Test")
         g = d.add_level("Ground")
         d.envelope(g, width=800, depth=600)
-        d.room(g, polygon=[(0,0),(800,0),(800,600),(0,600)], label="Living")
+        d.room(g, polygon=[(0, 0), (800, 0), (800, 600), (0, 600)], label="Living")
         return d.to_spec()
 
     def test_cli_validate_exit_0_on_valid(self, tmp_path):
@@ -883,6 +912,7 @@ class TestCLIMain:
 
         from cli_anything.sweethome3d.core.__main__ import main
         import pytest
+
         with pytest.raises(SystemExit) as exc:
             main(["--spec", str(spec_path), "--validate"])
         assert exc.value.code == 0
@@ -893,6 +923,7 @@ class TestCLIMain:
 
         from cli_anything.sweethome3d.core.__main__ import main
         import pytest
+
         with pytest.raises(SystemExit) as exc:
             main(["--spec", str(spec_path), "--describe"])
         assert exc.value.code == 0
@@ -900,20 +931,23 @@ class TestCLIMain:
     def test_cli_out_creates_sh3d(self, tmp_path, capsys):
         spec_path = tmp_path / "spec.json"
         spec_path.write_text(json.dumps(self._make_spec()), encoding="utf-8")
-        out_path  = tmp_path / "Out.sh3d"
+        out_path = tmp_path / "Out.sh3d"
 
         from cli_anything.sweethome3d.core.__main__ import main
+
         main(["--spec", str(spec_path), "--out", str(out_path)])
         assert out_path.exists()
 
     def test_cli_missing_spec_exits(self):
         from cli_anything.sweethome3d.core.__main__ import main
+
         with pytest.raises(SystemExit) as exc:
             main(["--out", "Home.sh3d"])
         assert exc.value.code != 0
 
     def test_cli_nonexistent_spec_exits(self, tmp_path):
         from cli_anything.sweethome3d.core.__main__ import main
+
         with pytest.raises(SystemExit) as exc:
             main(["--spec", str(tmp_path / "ghost.json"), "--out", str(tmp_path / "out.sh3d")])
         assert exc.value.code != 0

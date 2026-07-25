@@ -10,7 +10,6 @@ and the Douglas-Peucker simplification helper.
 
 from __future__ import annotations
 
-import io
 import os
 import tempfile
 import xml.etree.ElementTree as ET
@@ -30,13 +29,10 @@ from cli_anything.sweethome3d.core.png_import import (
     _component_bboxes,
     _cyan_mask,
     _dp_simplify,
-    _label_components,
     _magenta_mask,
     _marker_green_mask,
-    _polygon_area_rc,
     _pure_green_mask,
     _red_mask,
-    _to_rgb,
     _yellow_mask,
     png_to_svg,
 )
@@ -45,6 +41,7 @@ from cli_anything.sweethome3d.core.png_import import (
 # ════════════════════════════════════════════════════════════════════════════
 # Helpers
 # ════════════════════════════════════════════════════════════════════════════
+
 
 def _make_png(pixels: np.ndarray) -> str:
     """Save an H×W×3 uint8 array as a temporary PNG file.  Returns the path."""
@@ -66,6 +63,7 @@ def _make_output_path() -> str:
 # Test (a): synthetic 100×100 PNG with one wall rect → ≥1 subpath
 # ════════════════════════════════════════════════════════════════════════════
 
+
 class TestWallSubpath:
     """Task requirement (a): a synthetic PNG with one black wall rect must
     produce at least one <path> subpath in the output SVG."""
@@ -75,10 +73,10 @@ class TestWallSubpath:
         pixels = np.ones((100, 100, 3), dtype=np.uint8) * 255  # white background
         # Draw a 10-px thick black border (hollow rectangle)
         pixels[10:90, 10:90] = 255  # interior stays white
-        pixels[10:12, 10:90] = 0    # top wall
-        pixels[88:90, 10:90] = 0    # bottom wall
-        pixels[10:90, 10:12] = 0    # left wall
-        pixels[10:90, 88:90] = 0    # right wall
+        pixels[10:12, 10:90] = 0  # top wall
+        pixels[88:90, 10:90] = 0  # bottom wall
+        pixels[10:90, 10:12] = 0  # left wall
+        pixels[10:90, 88:90] = 0  # right wall
 
         png_path = _make_png(pixels)
         svg_path = _make_output_path()
@@ -105,17 +103,14 @@ class TestWallSubpath:
 
             # The path must have fill-rule="evenodd" and fill="#000000"
             wall_paths = [
-                p for p in paths
-                if p.get("fill-rule") == "evenodd"
-                and p.get("fill") == "#000000"
+                p for p in paths if p.get("fill-rule") == "evenodd" and p.get("fill") == "#000000"
             ]
-            assert wall_paths, (
-                "Expected a <path fill-rule='evenodd' fill='#000000'> for walls"
-            )
+            assert wall_paths, "Expected a <path fill-rule='evenodd' fill='#000000'> for walls"
 
             # The path d attribute must contain at least one M…Z subpath
             d_attr = wall_paths[0].get("d", "")
             import re
+
             m_count = len(re.findall(r"\bM\b", d_attr))
             assert m_count >= 1, f"Expected ≥1 M command in wall path, got {m_count}"
 
@@ -129,6 +124,7 @@ class TestWallSubpath:
 # Test (b): PNG with red rect inside wall → <rect fill="#ff0000"/> in SVG
 # ════════════════════════════════════════════════════════════════════════════
 
+
 class TestRedRectOpening:
     """Task requirement (b): a PNG with a red rect inside the wall region
     must produce a <rect fill="#ff0000"/> in the output SVG."""
@@ -138,11 +134,11 @@ class TestRedRectOpening:
         pixels = np.ones((80, 80, 3), dtype=np.uint8) * 255
 
         # Black outer wall (10 px thick border)
-        pixels[5:75, 5:75] = 255   # interior white
-        pixels[5:8, 5:75] = 0      # top
-        pixels[72:75, 5:75] = 0    # bottom
-        pixels[5:75, 5:8] = 0      # left
-        pixels[5:75, 72:75] = 0    # right
+        pixels[5:75, 5:75] = 255  # interior white
+        pixels[5:8, 5:75] = 0  # top
+        pixels[72:75, 5:75] = 0  # bottom
+        pixels[5:75, 5:8] = 0  # left
+        pixels[5:75, 72:75] = 0  # right
 
         # Red rect in the top wall (external door)
         pixels[5:8, 25:45] = [247, 0, 0]  # red — mimics PNG anti-aliasing
@@ -165,12 +161,9 @@ class TestRedRectOpening:
 
             rects = root.findall(".//rect")
             red_rects = [
-                r for r in rects
-                if (r.get("fill") or "").lower() in ("#ff0000", "#ff0000")
+                r for r in rects if (r.get("fill") or "").lower() in ("#ff0000", "#ff0000")
             ]
-            assert red_rects, (
-                "Expected ≥1 <rect fill='#ff0000'> in output SVG for red door"
-            )
+            assert red_rects, "Expected ≥1 <rect fill='#ff0000'> in output SVG for red door"
 
         finally:
             os.unlink(png_path)
@@ -181,6 +174,7 @@ class TestRedRectOpening:
 # ════════════════════════════════════════════════════════════════════════════
 # Colour mask unit tests
 # ════════════════════════════════════════════════════════════════════════════
+
 
 class TestColourMasks:
     """Verify that each colour mask correctly identifies its target hue."""
@@ -242,6 +236,7 @@ class TestColourMasks:
 # Component labelling + bbox
 # ════════════════════════════════════════════════════════════════════════════
 
+
 class TestComponentBbox:
     """Verify _component_bboxes correctly labels and bounds connected regions."""
 
@@ -257,14 +252,14 @@ class TestComponentBbox:
 
     def test_two_components(self):
         mask = np.zeros((20, 20), dtype=bool)
-        mask[1:4, 1:4] = True   # top-left blob
+        mask[1:4, 1:4] = True  # top-left blob
         mask[15:18, 15:18] = True  # bottom-right blob
         bboxes = _component_bboxes(mask, min_area=1)
         assert len(bboxes) == 2
 
     def test_min_area_filter(self):
         mask = np.zeros((10, 10), dtype=bool)
-        mask[0, 0] = True   # single pixel — too small
+        mask[0, 0] = True  # single pixel — too small
         mask[2:5, 2:5] = True  # 9 pixels — large enough
         bboxes = _component_bboxes(mask, min_area=5)
         assert len(bboxes) == 1
@@ -274,6 +269,7 @@ class TestComponentBbox:
 # ════════════════════════════════════════════════════════════════════════════
 # Douglas-Peucker
 # ════════════════════════════════════════════════════════════════════════════
+
 
 class TestDPSimplify:
     """Basic smoke tests for the DP simplification."""
@@ -303,6 +299,7 @@ class TestDPSimplify:
 # End-to-end meta fields
 # ════════════════════════════════════════════════════════════════════════════
 
+
 class TestPngToSvgMeta:
     """Verify that png_to_svg returns a complete metadata dict."""
 
@@ -316,10 +313,18 @@ class TestPngToSvgMeta:
         try:
             meta = png_to_svg(png_path, svg_path, cm_per_pixel=1.0)
             expected_keys = {
-                "width_px", "height_px", "cm_per_pixel",
-                "walls_extracted", "openings", "lights", "markers",
-                "red_doors", "magenta_doors", "windows",
-                "patio_doors", "skylights",
+                "width_px",
+                "height_px",
+                "cm_per_pixel",
+                "walls_extracted",
+                "openings",
+                "lights",
+                "markers",
+                "red_doors",
+                "magenta_doors",
+                "windows",
+                "patio_doors",
+                "skylights",
             }
             assert expected_keys <= set(meta.keys()), (
                 f"Missing keys: {expected_keys - set(meta.keys())}"

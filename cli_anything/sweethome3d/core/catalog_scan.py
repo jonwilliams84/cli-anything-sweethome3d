@@ -41,10 +41,11 @@ class ScanEntry:
     icon: Optional[str] = None
     creator: Optional[str] = None
     tags: list[str] = field(default_factory=list)
-    source: Optional[str] = None     # which .jar / .sh3f / project the entry came from
+    source: Optional[str] = None  # which .jar / .sh3f / project the entry came from
 
 
 # ─────────────────────── properties parsing
+
 
 def parse_catalog_properties(text: str) -> list[ScanEntry]:
     """Parse a Java `*.properties` catalog file (DefaultFurnitureCatalog
@@ -103,19 +104,21 @@ def parse_catalog_properties(text: str) -> list[ScanEntry]:
             except ValueError:
                 return None
 
-        out.append(ScanEntry(
-            catalogId=props["id"],
-            name=props.get("name"),
-            category=props.get("category"),
-            kind=kind,
-            width=_float("width"),
-            depth=_float("depth"),
-            height=_float("height"),
-            model=props.get("model"),
-            icon=props.get("icon"),
-            creator=props.get("creator"),
-            tags=[t.strip() for t in props.get("tags", "").split(",") if t.strip()],
-        ))
+        out.append(
+            ScanEntry(
+                catalogId=props["id"],
+                name=props.get("name"),
+                category=props.get("category"),
+                kind=kind,
+                width=_float("width"),
+                depth=_float("depth"),
+                height=_float("height"),
+                model=props.get("model"),
+                icon=props.get("icon"),
+                creator=props.get("creator"),
+                tags=[t.strip() for t in props.get("tags", "").split(",") if t.strip()],
+            )
+        )
     return out
 
 
@@ -154,6 +157,7 @@ def scan_catalog_archive(path: str) -> list[ScanEntry]:
 
 # ─────────────────────── library directory discovery
 
+
 def find_sh3f_directories() -> list[str]:
     """Return existing directories where SH3D stores user-installed
     `.sh3f` plugin libraries. Mirrors SH3D's PluginManager search path.
@@ -163,13 +167,10 @@ def find_sh3f_directories() -> list[str]:
         os.path.expanduser("~/.eteks/sweethome3d/furniture"),
         os.path.expanduser("~/.eteks/sweethome3d/plugins"),
         # macOS
-        os.path.expanduser(
-            "~/Library/Application Support/eTeks/Sweet Home 3D/furniture"),
-        os.path.expanduser(
-            "~/Library/Application Support/eTeks/Sweet Home 3D/plugins"),
+        os.path.expanduser("~/Library/Application Support/eTeks/Sweet Home 3D/furniture"),
+        os.path.expanduser("~/Library/Application Support/eTeks/Sweet Home 3D/plugins"),
         # Windows (when run under WSL)
-        os.path.expanduser(
-            "~/AppData/Roaming/eTeks/Sweet Home 3D/furniture"),
+        os.path.expanduser("~/AppData/Roaming/eTeks/Sweet Home 3D/furniture"),
     ]
     return [c for c in candidates if os.path.isdir(c)]
 
@@ -178,6 +179,7 @@ def find_installed_catalog_archives() -> list[str]:
     """All catalog-bearing archives on disk: bundled Furniture.jar plus
     every `.sh3f` in the user's plugin directories."""
     from cli_anything.sweethome3d.core._sh3d_catalog_metadata import find_furniture_jar
+
     archives = []
     jar = find_furniture_jar()
     if jar:
@@ -204,6 +206,7 @@ def scan_all() -> list[ScanEntry]:
 
 
 # ─────────────────────── from-project enumeration
+
 
 def from_project(home: Home) -> list[ScanEntry]:
     """Enumerate every unique catalogId actually used by pieces in `home`.
@@ -252,5 +255,6 @@ def from_project(home: Home) -> list[ScanEntry]:
                         creator=member.creator,
                         source="project",
                     )
+
     _walk(home.furnitureGroups)
     return list(out.values())

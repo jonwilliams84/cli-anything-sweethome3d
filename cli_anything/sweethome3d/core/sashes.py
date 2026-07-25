@@ -12,7 +12,6 @@ that so callers can't quietly attach a sash to a sofa.
 from __future__ import annotations
 
 import math
-from typing import Optional
 
 from cli_anything.sweethome3d.core.model import Home, PieceOfFurniture, Sash
 
@@ -23,8 +22,7 @@ def _resolve_door(home: Home, ident: str) -> PieceOfFurniture:
         raise KeyError(f"furniture not found: {ident}")
     if piece.kind != "doorOrWindow":
         raise ValueError(
-            f"sashes apply to doorOrWindow pieces only; {piece.name!r} is "
-            f"kind={piece.kind!r}"
+            f"sashes apply to doorOrWindow pieces only; {piece.name!r} is kind={piece.kind!r}"
         )
     return piece
 
@@ -41,10 +39,16 @@ def list_sashes(home: Home, piece_ident: str) -> list[Sash]:
     return list(_resolve_door(home, piece_ident).sashes)
 
 
-def add_sash(home: Home, piece_ident: str, *,
-              xAxis: float, yAxis: float,
-              width: float,
-              startAngle: float, endAngle: float) -> Sash:
+def add_sash(
+    home: Home,
+    piece_ident: str,
+    *,
+    xAxis: float,
+    yAxis: float,
+    width: float,
+    startAngle: float,
+    endAngle: float,
+) -> Sash:
     """Append a new sash to a door/window. Returns the created Sash."""
     piece = _resolve_door(home, piece_ident)
     _validate_fraction(xAxis, "xAxis")
@@ -55,8 +59,7 @@ def add_sash(home: Home, piece_ident: str, *,
         raise ValueError("startAngle must be in [-2π, 2π]")
     if not -2 * math.pi <= endAngle <= 2 * math.pi:
         raise ValueError("endAngle must be in [-2π, 2π]")
-    sash = Sash(xAxis=xAxis, yAxis=yAxis, width=width,
-                startAngle=startAngle, endAngle=endAngle)
+    sash = Sash(xAxis=xAxis, yAxis=yAxis, width=width, startAngle=startAngle, endAngle=endAngle)
     piece.sashes.append(sash)
     return sash
 
@@ -66,9 +69,7 @@ def delete_sash(home: Home, piece_ident: str, index: int) -> Sash:
     sash so callers can echo it."""
     piece = _resolve_door(home, piece_ident)
     if index < 0 or index >= len(piece.sashes):
-        raise IndexError(
-            f"sash index {index} out of range (piece has {len(piece.sashes)} sashes)"
-        )
+        raise IndexError(f"sash index {index} out of range (piece has {len(piece.sashes)} sashes)")
     return piece.sashes.pop(index)
 
 

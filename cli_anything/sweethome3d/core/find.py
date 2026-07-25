@@ -32,6 +32,7 @@ from cli_anything.sweethome3d.core.svg.geometry import (
 
 # ───────────────────────────────────────────────────────── levels
 
+
 def find_level(home: Home, *, name: Optional[str] = None) -> Optional[Level]:
     """Return the level whose name matches ``name`` (case-insensitive,
     substring match). When ``name`` is None and there's a single level,
@@ -56,11 +57,12 @@ def _level_id_filter(home, level):
         L = find_level(home, name=level)
         if L is not None:
             return L.id
-        return level   # assume it's already an id
+        return level  # assume it's already an id
     raise TypeError(f"level must be None | str | Level, got {type(level).__name__}")
 
 
 # ───────────────────────────────────────────────────────── rooms
+
 
 def _room_centroid(r: Room) -> tuple[float, float]:
     pts = r.points
@@ -69,9 +71,7 @@ def _room_centroid(r: Room) -> tuple[float, float]:
     return cx, cy
 
 
-def find_rooms(home: Home, *,
-                name: Optional[str] = None,
-                level=None) -> list[Room]:
+def find_rooms(home: Home, *, name: Optional[str] = None, level=None) -> list[Room]:
     """List rooms matching the (case-insensitive) name substring and/or
     level filter. Both filters are AND'd."""
     lvl_id = _level_id_filter(home, level)
@@ -84,11 +84,13 @@ def find_rooms(home: Home, *,
     return rooms
 
 
-def find_room(home: Home, *,
-               name: Optional[str] = None,
-               level=None,
-               contains_point: Optional[tuple[float, float]] = None
-               ) -> Optional[Room]:
+def find_room(
+    home: Home,
+    *,
+    name: Optional[str] = None,
+    level=None,
+    contains_point: Optional[tuple[float, float]] = None,
+) -> Optional[Room]:
     """Return the single room matching the filters, else ``None``.
 
     Prefers an exact case-insensitive name match when ``name`` is given;
@@ -99,8 +101,7 @@ def find_room(home: Home, *,
     if contains_point is not None:
         px, py = contains_point
         candidates = [
-            r for r in candidates
-            if point_in_polygon(px, py, [(p.x, p.y) for p in r.points])
+            r for r in candidates if point_in_polygon(px, py, [(p.x, p.y) for p in r.points])
         ]
     if not candidates:
         return None
@@ -114,12 +115,16 @@ def find_room(home: Home, *,
 
 # ───────────────────────────────────────────────────────── walls
 
-def find_walls(home: Home, *,
-                level=None,
-                thickness: Optional[float] = None,
-                horizontal: Optional[bool] = None,
-                vertical: Optional[bool] = None,
-                unlinked: Optional[bool] = None) -> list[Wall]:
+
+def find_walls(
+    home: Home,
+    *,
+    level=None,
+    thickness: Optional[float] = None,
+    horizontal: Optional[bool] = None,
+    vertical: Optional[bool] = None,
+    unlinked: Optional[bool] = None,
+) -> list[Wall]:
     """List walls passing all supplied filters. ``horizontal=True``
     keeps walls whose endpoints share the same y (within 1 cm); same
     for ``vertical=True`` with x. ``unlinked=True`` keeps only walls
@@ -148,18 +153,22 @@ def find_walls(home: Home, *,
     return out
 
 
-def find_wall(home: Home, *,
-               near_point: Optional[tuple[float, float]] = None,
-               level=None,
-               horizontal: Optional[bool] = None,
-               vertical: Optional[bool] = None,
-               thickness: Optional[float] = None,
-               max_distance_cm: float = 25.0) -> Optional[Wall]:
+def find_wall(
+    home: Home,
+    *,
+    near_point: Optional[tuple[float, float]] = None,
+    level=None,
+    horizontal: Optional[bool] = None,
+    vertical: Optional[bool] = None,
+    thickness: Optional[float] = None,
+    max_distance_cm: float = 25.0,
+) -> Optional[Wall]:
     """Return the single closest wall to ``near_point`` matching the
     other filters, or ``None`` if nothing is within
     ``max_distance_cm`` of the point."""
-    candidates = find_walls(home, level=level, thickness=thickness,
-                              horizontal=horizontal, vertical=vertical)
+    candidates = find_walls(
+        home, level=level, thickness=thickness, horizontal=horizontal, vertical=vertical
+    )
     if near_point is None:
         return candidates[0] if len(candidates) == 1 else None
     px, py = near_point
@@ -171,9 +180,9 @@ def find_wall(home: Home, *,
     return best[1] if best else None
 
 
-def find_room_walls(home: Home, room: Room, *,
-                     side: Optional[str] = None,
-                     tol: float = 25.0) -> list[Wall]:
+def find_room_walls(
+    home: Home, room: Room, *, side: Optional[str] = None, tol: float = 25.0
+) -> list[Wall]:
     """Walls bounding ``room``. Optional ``side`` filter is one of
     ``"north"``, ``"south"``, ``"east"``, ``"west"`` and returns only
     walls along the room's bounding-box edge for that side.
@@ -195,13 +204,16 @@ def find_room_walls(home: Home, room: Room, *,
         on_perim = False
         n = len(poly)
         for i in range(n):
-            x1, y1 = poly[i]; x2, y2 = poly[(i + 1) % n]
+            x1, y1 = poly[i]
+            x2, y2 = poly[(i + 1) % n]
             if point_to_segment_dist(mx, my, x1, y1, x2, y2) <= tol:
-                on_perim = True; break
+                on_perim = True
+                break
         if not on_perim:
             continue
         if side is None:
-            out.append(w); continue
+            out.append(w)
+            continue
         s = side.lower()
         if s == "north" and abs(my - ymin) <= tol:
             out.append(w)
@@ -216,14 +228,18 @@ def find_room_walls(home: Home, room: Room, *,
 
 # ───────────────────────────────────────────────────────── furniture / doors / windows / lights
 
-def find_pieces(home: Home, *,
-                  kind: Optional[str] = None,
-                  name: Optional[str] = None,
-                  catalog: Optional[str] = None,
-                  level=None,
-                  in_room: Optional[Room] = None,
-                  near_point: Optional[tuple[float, float]] = None,
-                  max_distance_cm: float = 200.0) -> list[PieceOfFurniture]:
+
+def find_pieces(
+    home: Home,
+    *,
+    kind: Optional[str] = None,
+    name: Optional[str] = None,
+    catalog: Optional[str] = None,
+    level=None,
+    in_room: Optional[Room] = None,
+    near_point: Optional[tuple[float, float]] = None,
+    max_distance_cm: float = 200.0,
+) -> list[PieceOfFurniture]:
     """List furniture matching all supplied filters.
 
     ``kind`` is ``"pieceOfFurniture"`` | ``"doorOrWindow"`` | ``"light"``.
@@ -248,8 +264,7 @@ def find_pieces(home: Home, *,
         items = [f for f in items if point_in_polygon(f.x, f.y, poly)]
     if near_point is not None:
         px, py = near_point
-        items = [f for f in items
-                  if math.hypot(f.x - px, f.y - py) <= max_distance_cm]
+        items = [f for f in items if math.hypot(f.x - px, f.y - py) <= max_distance_cm]
         items.sort(key=lambda f: math.hypot(f.x - px, f.y - py))
     return items
 

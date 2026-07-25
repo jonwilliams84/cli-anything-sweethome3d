@@ -19,6 +19,7 @@ Categories & metrics:
 The overall score weights walls 0.4, openings 0.4, rooms 0.2; each category's
 sub-score blends F1 with a position-accuracy term (1 - err/tolerance).
 """
+
 from __future__ import annotations
 import math
 from dataclasses import dataclass
@@ -106,7 +107,9 @@ def _greedy_match(truth, pred, dist_fn, tol):
     for d, i, j in pairs:
         if i in used_t or j in used_p:
             continue
-        used_t.add(i); used_p.add(j); matches.append((i, j, d))
+        used_t.add(i)
+        used_p.add(j)
+        matches.append((i, j, d))
     return matches, len(truth), len(pred)
 
 
@@ -162,15 +165,25 @@ def score_homes(truth, pred) -> dict:
     overall = 10.0 * (0.4 * walls.subscore + 0.4 * op_sub + 0.2 * rooms.subscore)
 
     def d(c):
-        return {"recall": round(c.recall, 3), "precision": round(c.precision, 3),
-                "f1": round(c.f1, 3), "mean_err_cm": round(c.mean_err_cm, 1),
-                "matched": c.matched, "n_truth": c.n_truth, "n_pred": c.n_pred,
-                "subscore": round(c.subscore, 3)}
+        return {
+            "recall": round(c.recall, 3),
+            "precision": round(c.precision, 3),
+            "f1": round(c.f1, 3),
+            "mean_err_cm": round(c.mean_err_cm, 1),
+            "matched": c.matched,
+            "n_truth": c.n_truth,
+            "n_pred": c.n_pred,
+            "subscore": round(c.subscore, 3),
+        }
+
     return {
         "score": round(overall, 2),
         "walls": d(walls),
-        "openings": {"door": d(op_cats["door"]), "window": d(op_cats["window"]),
-                     "subscore": round(op_sub, 3)},
+        "openings": {
+            "door": d(op_cats["door"]),
+            "window": d(op_cats["window"]),
+            "subscore": round(op_sub, 3),
+        },
         "rooms": d(rooms),
     }
 
@@ -178,12 +191,18 @@ def score_homes(truth, pred) -> dict:
 def score_sh3d(truth_path: str, pred_path: str) -> dict:
     """Load two .sh3d files and score pred against truth."""
     from cli_anything.sweethome3d.core.project import open_home
+
     return score_homes(open_home(truth_path), open_home(pred_path))
 
 
 if __name__ == "__main__":
-    import json, sys
+    import json
+    import sys
+
     if len(sys.argv) != 3:
-        print("usage: python -m cli_anything.sweethome3d.core.floorplan_eval TRUTH.sh3d PRED.sh3d", file=sys.stderr)
+        print(
+            "usage: python -m cli_anything.sweethome3d.core.floorplan_eval TRUTH.sh3d PRED.sh3d",
+            file=sys.stderr,
+        )
         sys.exit(2)
     print(json.dumps(score_sh3d(sys.argv[1], sys.argv[2]), indent=2))

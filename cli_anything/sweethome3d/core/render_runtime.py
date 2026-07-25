@@ -11,6 +11,7 @@ Engines
   cpu_photo  : SH3D Render (Sunflow) — slow, real GI.
   gpu_photo  : SH3D OBJ export → Blender Cycles+OptiX — GPU GI, photoreal.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -35,6 +36,7 @@ _classes_dir: Optional[Path] = None
 # ---------------------------------------------------------------------------
 # Subprocess input validation
 # ---------------------------------------------------------------------------
+
 
 def _validate_executable(path: Path) -> str:
     """Validate that *path* is an absolute, existing executable file.
@@ -65,10 +67,10 @@ def _validate_file_arg(path: str) -> str:
     return str(p.resolve())
 
 
-
 # ---------------------------------------------------------------------------
 # Level-visibility filter (per-render)
 # ---------------------------------------------------------------------------
+
 
 def _resolve_level_specs(home, specs: Iterable[str]) -> set[str]:
     """Resolve a list of level identifiers (ids or names) to a set of level
@@ -94,9 +96,7 @@ def _resolve_level_specs(home, specs: Iterable[str]) -> set[str]:
             missing.append(s)
     if missing:
         known = sorted(set(by_id) | set(by_name.keys()))
-        raise ValueError(
-            f"unknown level(s): {missing!r}. Known ids/names: {known!r}"
-        )
+        raise ValueError(f"unknown level(s): {missing!r}. Known ids/names: {known!r}")
     return resolved
 
 
@@ -127,7 +127,8 @@ def filtered_levels(
         raise ValueError("filtered_levels: pass include OR exclude, not both")
 
     from cli_anything.sweethome3d.core.project import (  # noqa: PLC0415
-        open_home, save_home,
+        open_home,
+        save_home,
     )
 
     home = open_home(home_path)
@@ -155,7 +156,9 @@ def filtered_levels(
                 r.ceilingVisible = False
 
     tmp = tempfile.NamedTemporaryFile(
-        suffix=".sh3d", prefix="sh3d-render-", delete=False,
+        suffix=".sh3d",
+        prefix="sh3d-render-",
+        delete=False,
     )
     tmp.close()
     try:
@@ -175,6 +178,7 @@ BLENDER_SCRIPT = str(Path(__file__).parent.parent / "render" / "blender_render.p
 # Path discovery helpers
 # ---------------------------------------------------------------------------
 
+
 def _find_sh3d_home() -> Path:
     """Return the SweetHome3D installation directory."""
     env = os.environ.get("SWEETHOME3D_HOME")
@@ -182,9 +186,7 @@ def _find_sh3d_home() -> Path:
         p = Path(env)
         if p.is_dir():
             return p
-        raise RuntimeError(
-            f"SWEETHOME3D_HOME is set to '{env}' but that directory does not exist."
-        )
+        raise RuntimeError(f"SWEETHOME3D_HOME is set to '{env}' but that directory does not exist.")
     default = Path("/home/jonwi/sh3d/SweetHome3D-7.5")
     if default.is_dir():
         return default
@@ -246,15 +248,15 @@ def _classpath(sh3d_home: Path, classes_dir: Path) -> str:
     jars = sorted(glob.glob(str(sh3d_home / "lib" / "*.jar")))
     if not jars:
         raise RuntimeError(
-            f"No .jar files found under {sh3d_home / 'lib'}. "
-            "Check your SWEETHOME3D_HOME path."
+            f"No .jar files found under {sh3d_home / 'lib'}. Check your SWEETHOME3D_HOME path."
         )
-    return ":".join(jars + [str(classes_dir)])
+    return ":".join([*jars, str(classes_dir)])
 
 
 # ---------------------------------------------------------------------------
 # Compilation
 # ---------------------------------------------------------------------------
+
 
 def _needs_compile(src: Path, cls: Path) -> bool:
     """Return True if src is newer than cls (or cls doesn't exist)."""
@@ -278,8 +280,7 @@ def _compile(sh3d_home: Path, classes_dir: Path) -> None:
                 # raise a clear RuntimeError at call time.
                 continue
             raise RuntimeError(
-                f"Java source not found: {src}. "
-                "Ensure the render/ package was installed correctly."
+                f"Java source not found: {src}. Ensure the render/ package was installed correctly."
             )
         if _needs_compile(src, cls):
             to_compile.append(str(src))
@@ -296,10 +297,16 @@ def _compile(sh3d_home: Path, classes_dir: Path) -> None:
     cp = ":".join(jars)
     cmd = [
         javac_bin,
-        "-source", "8", "-target", "8",
-        "-cp", cp,
-        "-d", str(classes_dir),
-    ] + to_compile
+        "-source",
+        "8",
+        "-target",
+        "8",
+        "-cp",
+        cp,
+        "-d",
+        str(classes_dir),
+        *to_compile,
+    ]
 
     # javac_bin is validated as an absolute existing file via
     # _validate_executable; to_compile entries are package-internal .java
@@ -318,6 +325,7 @@ def _compile(sh3d_home: Path, classes_dir: Path) -> None:
 # ---------------------------------------------------------------------------
 # Blender discovery + auto-install
 # ---------------------------------------------------------------------------
+
 
 def _find_blender() -> str:
     """Locate a Blender binary.
@@ -383,6 +391,7 @@ def _find_blender() -> str:
 # gpu_photo helpers
 # ---------------------------------------------------------------------------
 
+
 def _strip_obj_commas(obj_path: Path) -> None:
     """BUG 1 safety net: strip thousands-separator commas from v/vn/vt lines.
 
@@ -443,7 +452,7 @@ def _needs_export_preprocessing(home_path: str) -> bool:
     except (zipfile.BadZipFile, OSError):
         return False
     # Non-zero wallsAlpha on environment
-    env_match = re.search(r'<environment\b[^>]*>', xml)
+    env_match = re.search(r"<environment\b[^>]*>", xml)
     if env_match:
         alpha_match = re.search(r'wallsAlpha="([^"]+)"', env_match.group(0))
         if alpha_match:
@@ -470,8 +479,9 @@ def _copy_with_walls_alpha_zeroed(src_path: str, dst_path: str) -> None:
     sess.save(dst_path)
 
 
-def _run_java_export_obj(sh3d_home: Path, classes_dir: Path,
-                         home_path: str, obj_path: Path) -> None:
+def _run_java_export_obj(
+    sh3d_home: Path, classes_dir: Path, home_path: str, obj_path: Path
+) -> None:
     """Run ExportObj to produce .obj, .mtl, .camera.json and textures dir."""
     export_obj_src = _java_sources_dir() / "ExportObj.java"
     if not export_obj_src.exists():
@@ -503,7 +513,8 @@ def _run_java_export_obj(sh3d_home: Path, classes_dir: Path,
     cmd = [
         java_bin_validated,
         f"-Djava.library.path={lib_path}",
-        "-cp", cp,
+        "-cp",
+        cp,
         "ExportObj",
         home_path_validated,
         str(obj_path),
@@ -595,13 +606,21 @@ def _render_gpu_photo(
 
     cam_json = work / "scene.camera.json"
     cmd = [
-        blender, "--background", "--python", str(blender_script),
+        blender,
+        "--background",
+        "--python",
+        str(blender_script),
         "--",
-        str(obj_path), output_path,
-        "--samples", str(samples),
-        "--width", str(width),
-        "--height", str(height),
-        "--camera-json", str(cam_json),
+        str(obj_path),
+        output_path,
+        "--samples",
+        str(samples),
+        "--width",
+        str(width),
+        "--height",
+        str(height),
+        "--camera-json",
+        str(cam_json),
     ]
     if view != "camera":
         cmd += ["--view", view]
@@ -619,9 +638,7 @@ def _render_gpu_photo(
 
     out_file = Path(output_path)
     if not out_file.exists():
-        raise RuntimeError(
-            f"Blender claimed success but output file not found: {output_path}"
-        )
+        raise RuntimeError(f"Blender claimed success but output file not found: {output_path}")
 
     return {
         "engine": "BlenderCycles-OptiX",
@@ -641,21 +658,22 @@ def _render_gpu_photo(
 # Public API
 # ---------------------------------------------------------------------------
 
+
 def render(
     home_path: str,
     output_path: str,
     *,
     engine: str = "gpu_draft",
-    gpu: Optional[bool] = None,        # deprecated — kept for back-compat
+    gpu: Optional[bool] = None,  # deprecated — kept for back-compat
     quality: str = "LOW",
     width: int = 1400,
     height: int = 900,
-    samples: int = 256,                # gpu_photo only
+    samples: int = 256,  # gpu_photo only
     timeout_s: int = 600,
-    view: str = "camera",              # gpu_photo only
-    exclude_levels: Optional[list[str]] = None,   # gpu_photo only
-    include_levels: Optional[list[str]] = None,   # gpu_photo only
-    hide_ceilings: bool = False,                   # gpu_photo only
+    view: str = "camera",  # gpu_photo only
+    exclude_levels: Optional[list[str]] = None,  # gpu_photo only
+    include_levels: Optional[list[str]] = None,  # gpu_photo only
+    hide_ceilings: bool = False,  # gpu_photo only
 ) -> dict:
     """Run a SweetHome3D render.
 
@@ -707,8 +725,12 @@ def render(
     # --- gpu_photo path -------------------------------------------------------
     if engine == "gpu_photo":
         return _render_gpu_photo(
-            home_path, output_path,
-            samples=samples, width=width, height=height, timeout_s=timeout_s,
+            home_path,
+            output_path,
+            samples=samples,
+            width=width,
+            height=height,
+            timeout_s=timeout_s,
             view=view,
             exclude_levels=exclude_levels,
             include_levels=include_levels,
@@ -746,7 +768,8 @@ def render(
     cmd = [
         str(java_bin),
         f"-Djava.library.path={lib_path}",
-        "-cp", cp,
+        "-cp",
+        cp,
         java_engine,
         home_path,
         output_path,

@@ -8,6 +8,7 @@ These tests verify that:
 
 No model, GPU, or PDF is required.
 """
+
 from __future__ import annotations
 
 import math
@@ -31,8 +32,7 @@ def _assert_no_floating_stubs(walls, tol_cm: float = 1.5):
     stubs = []
     for i, p_i in enumerate(endpoints):
         if not any(
-            j != i and _endpoint_distance(p_i, p_j) <= tol_cm
-            for j, p_j in enumerate(endpoints)
+            j != i and _endpoint_distance(p_i, p_j) <= tol_cm for j, p_j in enumerate(endpoints)
         ):
             stubs.append(p_i)
     assert not stubs, f"Floating stub endpoints: {stubs[:5]}\nwalls={walls}"
@@ -42,12 +42,12 @@ def _synthetic_clean_walls():
     """Stub-free 2-room box: outer perimeter split at the shared divider."""
     return [
         # outer box, top and bottom split at x=100 so every endpoint meets another
-        (0.0, 0.0, 100.0, 0.0, 15.0),    # top-left
+        (0.0, 0.0, 100.0, 0.0, 15.0),  # top-left
         (100.0, 0.0, 200.0, 0.0, 15.0),  # top-right
         (200.0, 0.0, 200.0, 100.0, 15.0),  # right
         (200.0, 100.0, 100.0, 100.0, 15.0),  # bottom-right
-        (100.0, 100.0, 0.0, 100.0, 15.0),    # bottom-left
-        (0.0, 100.0, 0.0, 0.0, 15.0),    # left
+        (100.0, 100.0, 0.0, 100.0, 15.0),  # bottom-left
+        (0.0, 100.0, 0.0, 0.0, 15.0),  # left
         # internal shared divider
         (100.0, 0.0, 100.0, 100.0, 15.0),
     ]
@@ -74,7 +74,10 @@ def test_polygons_to_home_override_walls_stub_free_and_openings_bound():
     override_walls = _synthetic_clean_walls()
     pred = _synthetic_pred_openings_only()
     home = pi.polygons_to_home(
-        pred, cm_per_px=1.0, min_wall_cm=10, weld_cm=8,
+        pred,
+        cm_per_px=1.0,
+        min_wall_cm=10,
+        weld_cm=8,
         override_walls=override_walls,
     )
 
@@ -116,8 +119,10 @@ def test_polygons_to_home_override_walls_ignores_pred_walls():
     }
     home = pi.polygons_to_home(pred, cm_per_px=1.0, override_walls=override_walls)
     assert len(home.walls) == len(override_walls)
-    segs = [(round(w.xStart, 1), round(w.yStart, 1),
-             round(w.xEnd, 1), round(w.yEnd, 1)) for w in home.walls]
+    segs = [
+        (round(w.xStart, 1), round(w.yStart, 1), round(w.xEnd, 1), round(w.yEnd, 1))
+        for w in home.walls
+    ]
     # close_corners may shift endpoints by half-thickness when not snapped;
     # just assert the horizontal wall is present and the bogus 200cm wall is gone.
     assert any(s[1] == 0.0 and s[3] == 0.0 for s in segs)
@@ -127,6 +132,7 @@ def test_polygons_to_home_override_walls_ignores_pred_walls():
 def test_pdf_to_home_default_wall_source_is_model():
     """pdf_to_home signature default keeps wall_source='model' for back-compat."""
     import inspect
+
     sig = inspect.signature(pi.pdf_to_home)
     assert sig.parameters["wall_source"].default == "model", (
         "wall_source default must remain 'model'"

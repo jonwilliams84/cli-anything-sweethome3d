@@ -68,6 +68,7 @@ skip_slow = pytest.mark.skipif(
 # Tests
 # ---------------------------------------------------------------------------
 
+
 @skip_no_sh3d
 @skip_no_home
 def test_gpu_render(tmp_path):
@@ -120,10 +121,7 @@ skip_no_blender = pytest.mark.skipif(
 
 skip_no_sh3d_v19 = pytest.mark.skipif(
     not (SH3D_AVAILABLE and BUNGALOW_V19_AVAILABLE),
-    reason=(
-        "gpu_photo test requires SweetHome3D + "
-        f"{_BUNGALOW_V19} (v19 bungalow file)"
-    ),
+    reason=(f"gpu_photo test requires SweetHome3D + {_BUNGALOW_V19} (v19 bungalow file)"),
 )
 
 
@@ -131,8 +129,7 @@ skip_no_sh3d_v19 = pytest.mark.skipif(
 # user-specific Windows-mount paths above because it works on any machine
 # that has the harness installed.
 _EXAMPLE_SH3D = (
-    Path(__file__).resolve().parent.parent.parent.parent
-    / "examples" / "Home-Clean-Base-RAL.sh3d"
+    Path(__file__).resolve().parent.parent.parent.parent / "examples" / "Home-Clean-Base-RAL.sh3d"
 )
 EXAMPLE_AVAILABLE = _EXAMPLE_SH3D.is_file()
 skip_no_example = pytest.mark.skipif(
@@ -159,7 +156,7 @@ def test_gpu_photo_renders_bundled_example(tmp_path):
         str(_EXAMPLE_SH3D),
         str(out),
         engine="gpu_photo",
-        samples=8,        # quick smoke render
+        samples=8,  # quick smoke render
         width=320,
         height=200,
         timeout_s=300,
@@ -171,9 +168,7 @@ def test_gpu_photo_renders_bundled_example(tmp_path):
     )
     # PNG magic bytes
     with open(out, "rb") as f:
-        assert f.read(8) == b"\x89PNG\r\n\x1a\n", (
-            "Output is not a valid PNG file"
-        )
+        assert f.read(8) == b"\x89PNG\r\n\x1a\n", "Output is not a valid PNG file"
     assert r["engine"] == "BlenderCycles-OptiX"
     assert r["elapsed_s"] > 0
     assert r["width"] == 320
@@ -194,8 +189,7 @@ def test_gpu_photo_renders(tmp_path):
 
     # Use the bundled furnished-kitchen example for reproducible CI / any checkout.
     _FURNITURED_KITCHEN = (
-        Path(__file__).resolve().parent.parent.parent.parent
-        / "examples" / "furnished_kitchen.sh3d"
+        Path(__file__).resolve().parent.parent.parent.parent / "examples" / "furnished_kitchen.sh3d"
     )
 
     out = tmp_path / "gpu_photo_furnished_kitchen.png"
@@ -264,6 +258,7 @@ def test_gpu_photo_renders(tmp_path):
 # Blender camera fitting regression tests
 # ---------------------------------------------------------------------------
 
+
 def _blender_bin() -> str:
     """Return the Blender binary path, or skip the test."""
     env_bin = os.environ.get("BLENDER_BIN")
@@ -316,12 +311,29 @@ def test_top_down_ortho_scale_respects_aspect_ratio(tmp_path):
     blender = _blender_bin()
     script = (
         Path(__file__).resolve().parents[3]
-        / "cli_anything" / "sweethome3d" / "render" / "blender_render.py"
+        / "cli_anything"
+        / "sweethome3d"
+        / "render"
+        / "blender_render.py"
     )
     cmd = [
-        "xvfb-run", "-a", blender, "--background", "--python", str(script),
-        "--", str(work / "scene.obj"), str(out),
-        "--samples", "4", "--width", "400", "--height", "200", "--view", "top",
+        "xvfb-run",
+        "-a",
+        blender,
+        "--background",
+        "--python",
+        str(script),
+        "--",
+        str(work / "scene.obj"),
+        str(out),
+        "--samples",
+        "4",
+        "--width",
+        "400",
+        "--height",
+        "200",
+        "--view",
+        "top",
     ]
     proc = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
     print(proc.stdout)
@@ -356,14 +368,14 @@ def test_top_down_ortho_scale_respects_aspect_ratio(tmp_path):
     # full render height (it is the limiting axis).  With the buggy narrow
     # scale it is clipped and y_max - y_min is much smaller than the image.
     assert (y_max - y_min) / img.height >= 0.85, (
-        f"Red square clipped vertically: covers only rows {y_min}-{y_max} "
-        f"of {img.height}"
+        f"Red square clipped vertically: covers only rows {y_min}-{y_max} of {img.height}"
     )
 
 
 # ---------------------------------------------------------------------------
 # Regression tests for subprocess input validation (B404/B603 fixes)
 # ---------------------------------------------------------------------------
+
 
 def test_validate_executable_rejects_nonexistent(tmp_path):
     """_validate_executable must reject a path that does not exist on disk."""

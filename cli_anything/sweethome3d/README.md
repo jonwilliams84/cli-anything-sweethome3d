@@ -74,6 +74,7 @@ run a one-liner:
 
 ```python
 from cli_anything.sweethome3d.core.svg_import import svg_to_home_multi
+
 svg_to_home_multi(spec="bungalow-spec.yaml")
 ```
 

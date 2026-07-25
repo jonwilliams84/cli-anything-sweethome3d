@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
 
 from cli_anything.sweethome3d.core.model import Environment, Home
 
@@ -29,11 +28,15 @@ def set_photo_size(home: Home, width: int, height: int) -> Environment:
     return home.environment
 
 
-def set_video_size(home: Home, width: int, *,
-                     aspectRatio: str = "RATIO_4_3",
-                     frameRate: int = 25,
-                     quality: int = 0,
-                     speed: float = 240) -> Environment:
+def set_video_size(
+    home: Home,
+    width: int,
+    *,
+    aspectRatio: str = "RATIO_4_3",
+    frameRate: int = 25,
+    quality: int = 0,
+    speed: float = 240,
+) -> Environment:
     if width <= 0:
         raise ValueError("width must be positive")
     home.environment.videoWidth = width

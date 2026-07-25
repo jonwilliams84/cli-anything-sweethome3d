@@ -36,7 +36,6 @@ from dataclasses import dataclass
 
 from cli_anything.sweethome3d.core.model import Home
 from cli_anything.sweethome3d.core.svg.geometry import (
-    point_to_segment_dist,
     polygon_area,
 )
 from cli_anything.sweethome3d.core.svg.parse import (
@@ -76,9 +75,9 @@ def project_segment(x1, y1, x2, y2, angle_deg):
     return (p1 + p2) / 2, min(t1, t2), max(t1, t2)
 
 
-def axis_aligned_oriented(segs, angle_deg: float,
-                            angle_tol_deg: float, perp_tol_cm: float,
-                            min_len: float):
+def axis_aligned_oriented(
+    segs, angle_deg: float, angle_tol_deg: float, perp_tol_cm: float, min_len: float
+):
     """Like ``axis_aligned`` but for an arbitrary line direction.
 
     Returns clusters of ``(perp, t_lo, t_hi)`` where perp is the line's
@@ -112,15 +111,19 @@ def axis_aligned_oriented(segs, angle_deg: float,
     merged: list[tuple[float, float, float]] = []
     for cluster in clusters:
         cluster.sort(key=lambda s: s[1])
-        cur_p_sum = cluster[0][0]; cur_p_n = 1
+        cur_p_sum = cluster[0][0]
+        cur_p_n = 1
         cur_lo, cur_hi = cluster[0][1], cluster[0][2]
         for perp, lo, hi in cluster[1:]:
             if lo <= cur_hi + perp_tol_cm:
-                cur_p_sum += perp; cur_p_n += 1
-                cur_hi = max(cur_hi, hi); cur_lo = min(cur_lo, lo)
+                cur_p_sum += perp
+                cur_p_n += 1
+                cur_hi = max(cur_hi, hi)
+                cur_lo = min(cur_lo, lo)
             else:
                 merged.append((cur_p_sum / cur_p_n, cur_lo, cur_hi))
-                cur_p_sum = perp; cur_p_n = 1
+                cur_p_sum = perp
+                cur_p_n = 1
                 cur_lo, cur_hi = lo, hi
         merged.append((cur_p_sum / cur_p_n, cur_lo, cur_hi))
     return merged
@@ -183,7 +186,8 @@ def axis_aligned(segs, axis: str, axis_tol: float, min_len: float):
                 cur_lo = min(cur_lo, lo)
             else:
                 merged.append((cur_perp_sum / cur_perp_n, cur_lo, cur_hi))
-                cur_perp_sum = perp; cur_perp_n = 1
+                cur_perp_sum = perp
+                cur_perp_n = 1
                 cur_lo, cur_hi = lo, hi
         merged.append((cur_perp_sum / cur_perp_n, cur_lo, cur_hi))
     return merged
@@ -193,8 +197,9 @@ def overlap(a1, a2, b1, b2) -> float:
     return max(0.0, min(a2, b2) - max(a1, b1))
 
 
-def pair_edges(edges, thick_lo: float, thick_hi: float, min_overlap: float,
-                *, axis_tol: float = 5.0):
+def pair_edges(
+    edges, thick_lo: float, thick_hi: float, min_overlap: float, *, axis_tol: float = 5.0
+):
     """Enumerate every ``(edge_a, edge_b)`` pair within the wall-thickness
     range and emit one wall per overlap region. A long edge with
     multiple short partners therefore yields multiple wall sections —
@@ -281,34 +286,47 @@ def collect_wall_subpaths(svg_root: ET.Element) -> list[list[tuple[float, float]
                 if cmd == "M":
                     if current:
                         subpaths.append([apply(my_xform, *p) for p in current])
-                    x, y = args; sx, sy = x, y
+                    x, y = args
+                    sx, sy = x, y
                     current = [(x, y)]
                 elif cmd == "m":
                     if current:
                         subpaths.append([apply(my_xform, *p) for p in current])
-                    x += args[0]; y += args[1]; sx, sy = x, y
+                    x += args[0]
+                    y += args[1]
+                    sx, sy = x, y
                     current = [(x, y)]
                 elif cmd == "L":
-                    x, y = args[0], args[1]; current.append((x, y))
+                    x, y = args[0], args[1]
+                    current.append((x, y))
                 elif cmd == "l":
-                    x += args[0]; y += args[1]; current.append((x, y))
+                    x += args[0]
+                    y += args[1]
+                    current.append((x, y))
                 elif cmd == "H":
-                    x = args[0]; current.append((x, y))
+                    x = args[0]
+                    current.append((x, y))
                 elif cmd == "h":
-                    x += args[0]; current.append((x, y))
+                    x += args[0]
+                    current.append((x, y))
                 elif cmd == "V":
-                    y = args[0]; current.append((x, y))
+                    y = args[0]
+                    current.append((x, y))
                 elif cmd == "v":
-                    y += args[0]; current.append((x, y))
+                    y += args[0]
+                    current.append((x, y))
                 elif cmd in ("Z", "z"):
                     x, y = sx, sy
                     if current:
                         subpaths.append([apply(my_xform, *p) for p in current])
                         current = []
                 elif cmd in ("C", "S", "Q"):
-                    x, y = args[-2], args[-1]; current.append((x, y))
+                    x, y = args[-2], args[-1]
+                    current.append((x, y))
                 elif cmd in ("c", "s", "q"):
-                    x += args[-2]; y += args[-1]; current.append((x, y))
+                    x += args[-2]
+                    y += args[-1]
+                    current.append((x, y))
             if current:
                 subpaths.append([apply(my_xform, *p) for p in current])
         for child in el:
@@ -334,15 +352,19 @@ def close_corners(walls, *, snap_distance: float):
         best_xe = xe
         best_xe_dist = float("inf")
         snapped_start = snapped_end = False
-        for _, (vx, vys, vxe, vye, _vt) in v_walls:
+        for _, (vx, vys, _vxe, vye, _vt) in v_walls:
             if not (min(vys, vye) - snap_distance <= ys <= max(vys, vye) + snap_distance):
                 continue
             d_start = abs(vx - xs)
             if d_start <= snap_distance and d_start < best_xs_dist:
-                best_xs = vx; best_xs_dist = d_start; snapped_start = True
+                best_xs = vx
+                best_xs_dist = d_start
+                snapped_start = True
             d_end = abs(vx - xe)
             if d_end <= snap_distance and d_end < best_xe_dist:
-                best_xe = vx; best_xe_dist = d_end; snapped_end = True
+                best_xe = vx
+                best_xe_dist = d_end
+                snapped_end = True
         if not snapped_start:
             best_xs -= thick / 2
         if not snapped_end:
@@ -360,10 +382,14 @@ def close_corners(walls, *, snap_distance: float):
                 continue
             d_start = abs(hy - ys)
             if d_start <= snap_distance and d_start < best_ys_dist:
-                best_ys = hy; best_ys_dist = d_start; snapped_start = True
+                best_ys = hy
+                best_ys_dist = d_start
+                snapped_start = True
             d_end = abs(hy - ye)
             if d_end <= snap_distance and d_end < best_ye_dist:
-                best_ye = hy; best_ye_dist = d_end; snapped_end = True
+                best_ye = hy
+                best_ye_dist = d_end
+                snapped_end = True
         if not snapped_start:
             best_ys -= thick / 2
         if not snapped_end:
@@ -461,8 +487,7 @@ def grid_snap(walls, *, row_tol: float = 18.0, col_tol: float = 18.0):
     return out
 
 
-def join_walls(walls, *, join_tolerance: float = 35.0,
-                external_threshold: float = 20.0):
+def join_walls(walls, *, join_tolerance: float = 35.0, external_threshold: float = 20.0):
     """Cluster nearby wall endpoints and snap each cluster to one point.
 
     Mirrors SH3D's "Join walls" command. When a cluster contains
@@ -513,8 +538,7 @@ def join_walls(walls, *, join_tolerance: float = 35.0,
     for root, members in clusters.items():
         member_walls_idx = {endpoints[m][0] for m in members}
         all_member_walls = [walls[w] for w in member_walls_idx]
-        ext_member_walls = [w for w in all_member_walls
-                              if w[4] >= external_threshold]
+        ext_member_walls = [w for w in all_member_walls if w[4] >= external_threshold]
         anchor_walls = ext_member_walls or all_member_walls
         h_anchors = [w for w in anchor_walls if is_horiz(w)]
         v_anchors = [w for w in anchor_walls if is_vert(w)]
@@ -539,9 +563,11 @@ def join_walls(walls, *, join_tolerance: float = 35.0,
     for idx, (wi, ei, _, _) in enumerate(endpoints):
         tx, ty = targets[find(idx)]
         if ei == 0:
-            out[wi][0] = tx; out[wi][1] = ty
+            out[wi][0] = tx
+            out[wi][1] = ty
         else:
-            out[wi][2] = tx; out[wi][3] = ty
+            out[wi][2] = tx
+            out[wi][3] = ty
 
     cleaned = []
     for xs, ys, xe, ye, t in out:
@@ -550,10 +576,14 @@ def join_walls(walls, *, join_tolerance: float = 35.0,
     return cleaned
 
 
-def classify_walls_by_envelope(walls, outer_polygon, *,
-                                 tol: float = 25.0,
-                                 external_thickness: float = 35.0,
-                                 internal_thickness: float = 14.0):
+def classify_walls_by_envelope(
+    walls,
+    outer_polygon,
+    *,
+    tol: float = 25.0,
+    external_thickness: float = 35.0,
+    internal_thickness: float = 14.0,
+):
     """Classify each wall as external (one side faces outside) or
     internal (both sides face other rooms) by testing the outer-envelope
     polygon.
@@ -586,17 +616,18 @@ def classify_walls_by_envelope(walls, outer_polygon, *,
         L = math.hypot(dx, dy) or 1.0
         # SH3D Y-down left normal: (dy, -dx) / |dir|
         lnx, lny = dy / L, -dx / L
-        left_pt  = (mx + lnx * nudge, my + lny * nudge)
+        left_pt = (mx + lnx * nudge, my + lny * nudge)
         right_pt = (mx - lnx * nudge, my - lny * nudge)
         from cli_anything.sweethome3d.core.svg.geometry import point_in_polygon
-        left_in  = point_in_polygon(left_pt[0],  left_pt[1],  outer_polygon)
+
+        left_in = point_in_polygon(left_pt[0], left_pt[1], outer_polygon)
         right_in = point_in_polygon(right_pt[0], right_pt[1], outer_polygon)
         external = left_in != right_in
         new_t = external_thickness if external else internal_thickness
         # Dedup: after reclassification two walls may collapse to identical
         # (coords, thickness) tuples — drop the second occurrence.
-        key = (round(xs), round(ys), round(xe), round(ye), int(round(new_t)))
-        key_rev = (round(xe), round(ye), round(xs), round(ys), int(round(new_t)))
+        key = (round(xs), round(ys), round(xe), round(ye), round(new_t))
+        key_rev = (round(xe), round(ye), round(xs), round(ys), round(new_t))
         canon = min(key, key_rev)
         if canon in seen_keys:
             continue
@@ -605,15 +636,18 @@ def classify_walls_by_envelope(walls, outer_polygon, *,
     return out
 
 
-def extract_walls(svg_root: ET.Element,
-                    *, wall_thickness_range=(6.0, 80.0),
-                    min_wall_length: float = 8.0,
-                    axis_tol: float = 6.0,
-                    close_corners_enabled: bool = True,
-                    join_walls_enabled: bool = True,
-                    external_threshold: float = 18.0,
-                    external_thickness: float = 35.0,
-                    internal_thickness: float = 14.0):
+def extract_walls(
+    svg_root: ET.Element,
+    *,
+    wall_thickness_range=(6.0, 80.0),
+    min_wall_length: float = 8.0,
+    axis_tol: float = 6.0,
+    close_corners_enabled: bool = True,
+    join_walls_enabled: bool = True,
+    external_threshold: float = 18.0,
+    external_thickness: float = 35.0,
+    internal_thickness: float = 14.0,
+):
     """Full wall-extraction pipeline. See module docstring for stages.
 
     All extracted walls receive ``internal_thickness`` regardless of their
@@ -626,24 +660,21 @@ def extract_walls(svg_root: ET.Element,
     lo, hi = wall_thickness_range
     lo = min(lo, 6.0)
     walls = []
-    for centre, x_lo, x_hi, thick in pair_edges(horiz, lo, hi,
-                                                   min_wall_length,
-                                                   axis_tol=axis_tol):
+    for centre, x_lo, x_hi, thick in pair_edges(horiz, lo, hi, min_wall_length, axis_tol=axis_tol):
         walls.append((x_lo, centre, x_hi, centre, thick))
-    for centre, y_lo, y_hi, thick in pair_edges(vert, lo, hi,
-                                                   min_wall_length,
-                                                   axis_tol=axis_tol):
+    for centre, y_lo, y_hi, thick in pair_edges(vert, lo, hi, min_wall_length, axis_tol=axis_tol):
         walls.append((centre, y_lo, centre, y_hi, thick))
 
     diagonals: list[tuple[float, float, float, float, float]] = []
     for diag_angle in (45.0, 135.0):
         diag_lines = axis_aligned_oriented(
-            all_segs, diag_angle,
-            angle_tol_deg=15.0, perp_tol_cm=axis_tol,
+            all_segs,
+            diag_angle,
+            angle_tol_deg=15.0,
+            perp_tol_cm=axis_tol,
             min_len=min_wall_length,
         )
-        diag_pairs = pair_edges(diag_lines, lo, hi, min_wall_length,
-                                  axis_tol=axis_tol)
+        diag_pairs = pair_edges(diag_lines, lo, hi, min_wall_length, axis_tol=axis_tol)
         diagonals.extend(walls_from_pairs_at_angle(diag_pairs, diag_angle))
 
     if close_corners_enabled and walls:
@@ -652,9 +683,11 @@ def extract_walls(svg_root: ET.Element,
     if join_walls_enabled and walls:
         sorted_t = sorted(w[4] for w in walls)
         median_t = sorted_t[len(sorted_t) // 2]
-        walls = join_walls(walls,
-                            join_tolerance=max(min(median_t * 2, 40.0), 35.0),
-                            external_threshold=external_threshold)
+        walls = join_walls(
+            walls,
+            join_tolerance=max(min(median_t * 2, 40.0), 35.0),
+            external_threshold=external_threshold,
+        )
         walls = grid_snap(walls)
 
     if diagonals:
@@ -665,14 +698,15 @@ def extract_walls(svg_root: ET.Element,
         snap_tol = 40.0
         snapped_diag = []
         for xs, ys, xe, ye, t in diagonals:
+
             def nearest(px, py):
                 if not all_axis_endpoints:
                     return px, py
-                best = min(all_axis_endpoints,
-                            key=lambda p: (p[0] - px) ** 2 + (p[1] - py) ** 2)
+                best = min(all_axis_endpoints, key=lambda p: (p[0] - px) ** 2 + (p[1] - py) ** 2)
                 if math.hypot(best[0] - px, best[1] - py) <= snap_tol:
                     return best
                 return px, py
+
             xs, ys = nearest(xs, ys)
             xe, ye = nearest(xe, ye)
             snapped_diag.append((xs, ys, xe, ye, t))
@@ -680,10 +714,7 @@ def extract_walls(svg_root: ET.Element,
 
     # Assign internal thickness to all extracted walls.  External walls
     # are no longer produced here — they come from extract_envelope_walls().
-    walls = [
-        (xs, ys, xe, ye, internal_thickness)
-        for xs, ys, xe, ye, t in walls
-    ]
+    walls = [(xs, ys, xe, ye, internal_thickness) for xs, ys, xe, ye, t in walls]
 
     # Deduplication: drop walls whose endpoints (rounded to 1 cm) and
     # thickness are identical to a previously-seen wall.  Duplicate walls
@@ -692,9 +723,9 @@ def extract_walls(svg_root: ET.Element,
     seen_keys: set[tuple[float, float, float, float, int]] = set()
     deduped_walls = []
     for xs, ys, xe, ye, t in walls:
-        key = (round(xs), round(ys), round(xe), round(ye), int(round(t)))
+        key = (round(xs), round(ys), round(xe), round(ye), round(t))
         # Normalise direction so (A→B) and (B→A) map to the same key.
-        key_rev = (round(xe), round(ye), round(xs), round(ys), int(round(t)))
+        key_rev = (round(xe), round(ye), round(xs), round(ys), round(t))
         canon = min(key, key_rev)
         if canon not in seen_keys:
             seen_keys.add(canon)
@@ -765,7 +796,7 @@ def weld_wall_endpoints(walls, *, tolerance: float = 2.0):
     # --- 4. Compute centroid, skipping clusters that span both ends of the
     #         same wall (would zero-length it).
     target: dict[int, tuple[float, float]] = {}
-    for root, members in clusters.items():
+    for _root, members in clusters.items():
         # Check: does this cluster contain both endpoints of any single wall?
         wall_ends: dict[int, set[int]] = {}
         for m in members:
@@ -793,10 +824,7 @@ def weld_wall_endpoints(walls, *, tolerance: float = 2.0):
             out_walls[wi][2] = tx
             out_walls[wi][3] = ty
 
-    welded = [
-        tuple(w) for w in out_walls
-        if math.hypot(w[2] - w[0], w[3] - w[1]) > 1.0
-    ]
+    welded = [tuple(w) for w in out_walls if math.hypot(w[2] - w[0], w[3] - w[1]) > 1.0]
 
     # --- 6. T-junction snapping: snap isolated endpoints onto wall edges ----
     # After endpoint-to-endpoint welding some internal wall endpoints may still
@@ -851,12 +879,9 @@ def weld_wall_endpoints(walls, *, tolerance: float = 2.0):
                     best_dist = d
                     best_proj = (qx2, qy2)
             if best_proj is not None:
-                welded_mut[wi][ei * 2]     = best_proj[0]
+                welded_mut[wi][ei * 2] = best_proj[0]
                 welded_mut[wi][ei * 2 + 1] = best_proj[1]
-        welded = [
-            tuple(w) for w in welded_mut
-            if math.hypot(w[2] - w[0], w[3] - w[1]) > 1.0
-        ]
+        welded = [tuple(w) for w in welded_mut if math.hypot(w[2] - w[0], w[3] - w[1]) > 1.0]
 
     return welded
 
@@ -922,16 +947,16 @@ def extract_envelope_walls(
     simplified = [pts[0]]
     for i in range(1, len(pts) - 1):
         prev = simplified[-1]
-        cur  = pts[i]
-        nxt  = pts[i + 1]
+        cur = pts[i]
+        nxt = pts[i + 1]
         # Skip degenerate zero-length sub-edges before computing angle
         if math.hypot(cur[0] - prev[0], cur[1] - prev[1]) < 1e-6:
             continue
         if math.hypot(nxt[0] - cur[0], nxt[1] - cur[1]) < 1e-6:
             simplified.append(cur)
             continue
-        ang_in  = edge_angle(prev, cur)
-        ang_out = edge_angle(cur,  nxt)
+        ang_in = edge_angle(prev, cur)
+        ang_out = edge_angle(cur, nxt)
         diff_deg = math.degrees(abs(ang_out - ang_in)) % 360.0
         if diff_deg > 180.0:
             diff_deg = 360.0 - diff_deg
@@ -974,6 +999,7 @@ def extract_envelope_walls(
         lpt_y = my + lny * nudge
 
         from cli_anything.sweethome3d.core.svg.geometry import point_in_polygon
+
         left_inside = point_in_polygon(lpt_x, lpt_y, open_poly)
 
         # SH3D's leftSideColor paints the face on the opposite side of the
@@ -1000,37 +1026,45 @@ def link_wall_endpoints(home: Home, *, tol: float = 6.0) -> None:
         for j, b in enumerate(walls):
             if i == j or a.level != b.level:
                 continue
-            if (abs(a.xStart - b.xStart) <= tol
-                    and abs(a.yStart - b.yStart) <= tol
-                    and a.wallAtStart is None):
+            if (
+                abs(a.xStart - b.xStart) <= tol
+                and abs(a.yStart - b.yStart) <= tol
+                and a.wallAtStart is None
+            ):
                 a.wallAtStart = b.id
-            if (abs(a.xStart - b.xEnd) <= tol
-                    and abs(a.yStart - b.yEnd) <= tol
-                    and a.wallAtStart is None):
+            if (
+                abs(a.xStart - b.xEnd) <= tol
+                and abs(a.yStart - b.yEnd) <= tol
+                and a.wallAtStart is None
+            ):
                 a.wallAtStart = b.id
-            if (abs(a.xEnd - b.xStart) <= tol
-                    and abs(a.yEnd - b.yStart) <= tol
-                    and a.wallAtEnd is None):
+            if (
+                abs(a.xEnd - b.xStart) <= tol
+                and abs(a.yEnd - b.yStart) <= tol
+                and a.wallAtEnd is None
+            ):
                 a.wallAtEnd = b.id
-            if (abs(a.xEnd - b.xEnd) <= tol
-                    and abs(a.yEnd - b.yEnd) <= tol
-                    and a.wallAtEnd is None):
+            if abs(a.xEnd - b.xEnd) <= tol and abs(a.yEnd - b.yEnd) <= tol and a.wallAtEnd is None:
                 a.wallAtEnd = b.id
 
 
-def polygon_walls(polygons: list[list[tuple[float, float]]],
-                    *, external_thickness: float = 35.0,
-                    internal_thickness: float = 14.0,
-                    min_edge_length: float = 8.0,
-                    max_room_vertices: int = 20,
-                    min_room_area: float = 5000.0):
+def polygon_walls(
+    polygons: list[list[tuple[float, float]]],
+    *,
+    external_thickness: float = 35.0,
+    internal_thickness: float = 14.0,
+    min_edge_length: float = 8.0,
+    max_room_vertices: int = 20,
+    min_room_area: float = 5000.0,
+):
     """Legacy: generate walls by walking each wall-fill subpath's edges.
 
     Kept for back-compat with the original ``svg_to_home`` flow; the
     multi-floor entry point uses ``extract_walls`` instead.
     """
     good = [
-        p for p in polygons
+        p
+        for p in polygons
         if p and len(p) <= max_room_vertices and polygon_area(p) >= min_room_area
     ]
     deduped: list[list[tuple[float, float]]] = []
@@ -1043,9 +1077,13 @@ def polygon_walls(polygons: list[list[tuple[float, float]]],
             qcx = sum(x for x, _ in q) / len(q)
             qcy = sum(y for _, y in q) / len(q)
             qarea = polygon_area(q)
-            if (abs(cx - qcx) < 10 and abs(cy - qcy) < 10
-                and abs(area - qarea) / max(area, qarea) < 0.1):
-                dup = True; break
+            if (
+                abs(cx - qcx) < 10
+                and abs(cy - qcy) < 10
+                and abs(area - qarea) / max(area, qarea) < 0.1
+            ):
+                dup = True
+                break
         if not dup:
             deduped.append(p)
     if not deduped:

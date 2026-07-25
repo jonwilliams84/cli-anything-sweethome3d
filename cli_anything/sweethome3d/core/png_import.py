@@ -35,7 +35,6 @@ from __future__ import annotations
 import math
 import sys
 from collections import deque
-from typing import Optional
 
 # ── third-party (PIL + numpy only; no OpenCV, no scikit-image) ─────────────
 try:
@@ -48,6 +47,7 @@ except ImportError as exc:
 # ══════════════════════════════════════════════════════════════════════════════
 # Colour classification helpers
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 def _to_rgb(img: Image.Image) -> np.ndarray:
     """Return an H×W×3 uint8 array in RGB order."""
@@ -99,15 +99,18 @@ def _marker_green_mask(arr: np.ndarray) -> np.ndarray:
     """True where pixel is the specific #55d400 corner-marker hue."""
     # #55d400 = (85, 212, 0) — distinct from pure green (0,255,0)
     return (
-        (arr[:, :, 0] > 55) & (arr[:, :, 0] < 120) &
-        (arr[:, :, 1] > 170) & (arr[:, :, 1] < 240) &
-        (arr[:, :, 2] < 30)
+        (arr[:, :, 0] > 55)
+        & (arr[:, :, 0] < 120)
+        & (arr[:, :, 1] > 170)
+        & (arr[:, :, 1] < 240)
+        & (arr[:, :, 2] < 30)
     )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Connected-component labelling (pure numpy / BFS — no scipy)
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 def _label_components(mask: np.ndarray) -> tuple[np.ndarray, int]:
     """4-connected BFS labelling.
@@ -136,8 +139,7 @@ def _label_components(mask: np.ndarray) -> tuple[np.ndarray, int]:
     return labels, current_label
 
 
-def _component_bboxes(mask: np.ndarray,
-                      min_area: int = 10) -> list[dict]:
+def _component_bboxes(mask: np.ndarray, min_area: int = 10) -> list[dict]:
     """Return a list of {label, ymin, ymax, xmin, xmax, area} dicts.
 
     Components smaller than ``min_area`` pixels are dropped (noise).
@@ -150,18 +152,23 @@ def _component_bboxes(mask: np.ndarray,
         lys, lxs = np.where(labels == lbl)
         if len(lys) < min_area:
             continue
-        bboxes.append({
-            "label": lbl,
-            "ymin": int(lys.min()), "ymax": int(lys.max()),
-            "xmin": int(lxs.min()), "xmax": int(lxs.max()),
-            "area": int(len(lys)),
-        })
+        bboxes.append(
+            {
+                "label": lbl,
+                "ymin": int(lys.min()),
+                "ymax": int(lys.max()),
+                "xmin": int(lxs.min()),
+                "xmax": int(lxs.max()),
+                "area": len(lys),
+            }
+        )
     return bboxes
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Douglas-Peucker polyline simplification
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 def _dp_simplify(pts: list[tuple[int, int]], epsilon: float) -> list[tuple[int, int]]:
     """Iterative Douglas-Peucker simplification (avoids recursion depth issues)."""
@@ -210,8 +217,9 @@ def _dp_simplify(pts: list[tuple[int, int]], epsilon: float) -> list[tuple[int, 
 _DIRS8 = [(0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1), (-1, 0), (-1, 1)]
 
 
-def _trace_boundary(mask: np.ndarray, start_r: int, start_c: int,
-                    dir_start: int = 4) -> list[tuple[int, int]]:
+def _trace_boundary(
+    mask: np.ndarray, start_r: int, start_c: int, dir_start: int = 4
+) -> list[tuple[int, int]]:
     """Moore-neighbourhood contour tracing from a known boundary pixel.
 
     ``dir_start`` is the index into _DIRS8 for the direction from which
@@ -256,9 +264,9 @@ def _polygon_area_rc(poly: list[tuple[int, int]]) -> float:
     return abs(s) / 2.0
 
 
-def _flood_fill_nonblack(wall_mask: np.ndarray,
-                          start_r: int, start_c: int,
-                          visited: np.ndarray) -> tuple[np.ndarray | None, bool]:
+def _flood_fill_nonblack(
+    wall_mask: np.ndarray, start_r: int, start_c: int, visited: np.ndarray
+) -> tuple[np.ndarray | None, bool]:
     """BFS flood-fill from (start_r, start_c) in the non-black (white) region.
 
     Returns (region_mask, touches_border).
@@ -287,10 +295,11 @@ def _flood_fill_nonblack(wall_mask: np.ndarray,
     return region, touched_border
 
 
-def _extract_wall_subpaths(wall_mask: np.ndarray,
-                            dp_epsilon: float = 2.5,
-                            min_area_px: float = 400.0,
-                            ) -> list[list[tuple[int, int]]]:
+def _extract_wall_subpaths(
+    wall_mask: np.ndarray,
+    dp_epsilon: float = 2.5,
+    min_area_px: float = 400.0,
+) -> list[list[tuple[int, int]]]:
     """Extract wall-region boundaries as simplified polygons for evenodd fill.
 
     The goal is to replicate what collect_wall_subpaths reads from the SVG:
@@ -345,7 +354,7 @@ def _extract_wall_subpaths(wall_mask: np.ndarray,
 
     # Process each footprint component (usually just 1 large one)
     for lbl in range(1, fp_n + 1):
-        comp_mask = (fp_labels == lbl)
+        comp_mask = fp_labels == lbl
         comp_area = int(comp_mask.sum())
         if comp_area < min_area_px:
             continue
@@ -429,37 +438,34 @@ def _classify_green_component(bbox: dict, wall_mask: np.ndarray) -> str:
     ymax = min(wall_mask.shape[0] - 1, bbox["ymax"] + 5)
     xmin = max(0, bbox["xmin"] - 5)
     xmax = min(wall_mask.shape[1] - 1, bbox["xmax"] + 5)
-    region = wall_mask[ymin:ymax + 1, xmin:xmax + 1]
+    region = wall_mask[ymin : ymax + 1, xmin : xmax + 1]
     if region.any():
         return "patio_door"
     return "marker"
 
 
-def _components_to_rects(bboxes: list[dict], scale: float
-                         ) -> list[tuple[float, float, float, float]]:
+def _components_to_rects(
+    bboxes: list[dict], scale: float
+) -> list[tuple[float, float, float, float]]:
     """Convert component bboxes to (cx, cy, width, height) in scaled units."""
     out = []
     for b in bboxes:
         cx = (b["xmin"] + b["xmax"]) / 2.0 * scale
         cy = (b["ymin"] + b["ymax"]) / 2.0 * scale
-        w  = (b["xmax"] - b["xmin"] + 1) * scale
-        h  = (b["ymax"] - b["ymin"] + 1) * scale
+        w = (b["xmax"] - b["xmin"] + 1) * scale
+        h = (b["ymax"] - b["ymin"] + 1) * scale
         out.append((cx, cy, w, h))
     return out
 
 
-def _components_to_circles(bboxes: list[dict], scale: float
-                            ) -> list[tuple[float, float, float]]:
+def _components_to_circles(bboxes: list[dict], scale: float) -> list[tuple[float, float, float]]:
     """Convert component bboxes to (cx, cy, r) in scaled units."""
     out = []
     for b in bboxes:
         cx = (b["xmin"] + b["xmax"]) / 2.0 * scale
         cy = (b["ymin"] + b["ymax"]) / 2.0 * scale
         # Radius estimated from the bounding box diagonal / 2
-        r_from_bbox = math.hypot(
-            b["xmax"] - b["xmin"] + 1,
-            b["ymax"] - b["ymin"] + 1
-        ) / 4.0 * scale
+        r_from_bbox = math.hypot(b["xmax"] - b["xmin"] + 1, b["ymax"] - b["ymin"] + 1) / 4.0 * scale
         out.append((cx, cy, r_from_bbox))
     return out
 
@@ -468,8 +474,8 @@ def _components_to_circles(bboxes: list[dict], scale: float
 # SVG generation helpers
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _path_d_from_subpaths(subpaths: list[list[tuple[int, int]]],
-                           scale: float) -> str:
+
+def _path_d_from_subpaths(subpaths: list[list[tuple[int, int]]], scale: float) -> str:
     """Build the SVG ``d`` attribute from a list of pixel polygons.
 
     Each subpath is a closed polygon in (row, col) pixel order.
@@ -482,12 +488,9 @@ def _path_d_from_subpaths(subpaths: list[list[tuple[int, int]]],
         # (row, col) → (x=col*scale, y=row*scale)
         r0, c0 = poly[0]
         pts_str = (
-            f"M {c0 * scale:.2f} {r0 * scale:.2f} " +
-            " ".join(
-                f"L {c * scale:.2f} {r * scale:.2f}"
-                for r, c in poly[1:]
-            ) +
-            " Z"
+            f"M {c0 * scale:.2f} {r0 * scale:.2f} "
+            + " ".join(f"L {c * scale:.2f} {r * scale:.2f}" for r, c in poly[1:])
+            + " Z"
         )
         parts.append(pts_str)
     return " ".join(parts)
@@ -496,26 +499,19 @@ def _path_d_from_subpaths(subpaths: list[list[tuple[int, int]]],
 def _svg_rect(cx: float, cy: float, w: float, h: float, fill: str) -> str:
     x = cx - w / 2.0
     y = cy - h / 2.0
-    return (
-        f'<rect x="{x:.2f}" y="{y:.2f}" '
-        f'width="{w:.2f}" height="{h:.2f}" '
-        f'fill="{fill}"/>'
-    )
+    return f'<rect x="{x:.2f}" y="{y:.2f}" width="{w:.2f}" height="{h:.2f}" fill="{fill}"/>'
 
 
 def _svg_circle(cx: float, cy: float, r: float, fill: str) -> str:
-    return (
-        f'<circle cx="{cx:.2f}" cy="{cy:.2f}" '
-        f'r="{r:.2f}" fill="{fill}"/>'
-    )
+    return f'<circle cx="{cx:.2f}" cy="{cy:.2f}" r="{r:.2f}" fill="{fill}"/>'
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Public API
 # ══════════════════════════════════════════════════════════════════════════════
 
-def png_to_svg(png_path: str, out_svg_path: str, *,
-               cm_per_pixel: float | None = None) -> dict:
+
+def png_to_svg(png_path: str, out_svg_path: str, *, cm_per_pixel: float | None = None) -> dict:
     """Convert a coloured floor-plan PNG into a synthetic SVG that the
     existing svg_to_home pipeline can consume.
 
@@ -548,13 +544,13 @@ def png_to_svg(png_path: str, out_svg_path: str, *,
     scale = float(cm_per_pixel) if cm_per_pixel is not None else 1.0
 
     # ── Colour masks ───────────────────────────────────────────────────────
-    black    = _black_mask(arr)
-    red      = _red_mask(arr)
-    magenta  = _magenta_mask(arr)
-    blue     = _blue_mask(arr)
-    cyan     = _cyan_mask(arr)
-    yellow   = _yellow_mask(arr)
-    pg       = _pure_green_mask(arr)
+    black = _black_mask(arr)
+    red = _red_mask(arr)
+    magenta = _magenta_mask(arr)
+    blue = _blue_mask(arr)
+    cyan = _cyan_mask(arr)
+    yellow = _yellow_mask(arr)
+    pg = _pure_green_mask(arr)
     mk_green = _marker_green_mask(arr)
 
     # ── Wall mask for contour tracing: add opening pixels to close gaps ─
@@ -563,8 +559,7 @@ def png_to_svg(png_path: str, out_svg_path: str, *,
     # to "close" these gaps so rooms appear as fully enclosed white regions.
     # We treat all opening pixels (except lights, markers) as wall-equivalent.
     wall_closed = (
-        black | red | magenta | blue | cyan |
-        (_pure_green_mask(arr) & ~_marker_green_mask(arr))
+        black | red | magenta | blue | cyan | (_pure_green_mask(arr) & ~_marker_green_mask(arr))
     )
     # Note: we still use `black` for the actual wall rect/path output,
     # but use `wall_closed` for the contour-tracing step.
@@ -572,11 +567,11 @@ def png_to_svg(png_path: str, out_svg_path: str, *,
     # ── Connected components ───────────────────────────────────────────────
     # Minimum areas chosen to suppress anti-aliasing specks while keeping
     # the smallest real openings (narrow magenta door ≈ 5×60 px = 300 px²)
-    red_bboxes     = _component_bboxes(red,     min_area=50)
+    red_bboxes = _component_bboxes(red, min_area=50)
     magenta_bboxes = _component_bboxes(magenta, min_area=50)
-    blue_bboxes    = _component_bboxes(blue,    min_area=50)
-    cyan_bboxes    = _component_bboxes(cyan,    min_area=50)
-    yellow_bboxes  = _component_bboxes(yellow,  min_area=50)
+    blue_bboxes = _component_bboxes(blue, min_area=50)
+    cyan_bboxes = _component_bboxes(cyan, min_area=50)
+    yellow_bboxes = _component_bboxes(yellow, min_area=50)
 
     # Pure green: split into corner markers vs patio doors
     pg_bboxes = _component_bboxes(pg, min_area=20)
@@ -625,28 +620,28 @@ def png_to_svg(png_path: str, out_svg_path: str, *,
 
     # Opening rects
     for cx, cy, w, h in _components_to_rects(red_bboxes, scale):
-        lines.append(f'  {_svg_rect(cx, cy, w, h, "#ff0000")}')
+        lines.append(f"  {_svg_rect(cx, cy, w, h, '#ff0000')}")
 
     for cx, cy, w, h in _components_to_rects(magenta_bboxes, scale):
-        lines.append(f'  {_svg_rect(cx, cy, w, h, "#ff00ff")}')
+        lines.append(f"  {_svg_rect(cx, cy, w, h, '#ff00ff')}")
 
     for cx, cy, w, h in _components_to_rects(blue_bboxes, scale):
-        lines.append(f'  {_svg_rect(cx, cy, w, h, "#0000ff")}')
+        lines.append(f"  {_svg_rect(cx, cy, w, h, '#0000ff')}")
 
     for cx, cy, w, h in _components_to_rects(patio_bboxes, scale):
-        lines.append(f'  {_svg_rect(cx, cy, w, h, "#00ff00")}')
+        lines.append(f"  {_svg_rect(cx, cy, w, h, '#00ff00')}")
 
     for cx, cy, w, h in _components_to_rects(cyan_bboxes, scale):
-        lines.append(f'  {_svg_rect(cx, cy, w, h, "#00ffff")}')
+        lines.append(f"  {_svg_rect(cx, cy, w, h, '#00ffff')}")
 
     # Light circles
     for cx, cy, r in _components_to_circles(yellow_bboxes, scale):
-        lines.append(f'  {_svg_circle(cx, cy, r, "#ffff00")}')
+        lines.append(f"  {_svg_circle(cx, cy, r, '#ffff00')}")
 
     # Corner markers — emit as #55d400 rects so the pipeline's align.py
     # can pick them up via extract_corner_markers().
     for cx, cy, w, h in _components_to_rects(all_marker_bboxes, scale):
-        lines.append(f'  {_svg_rect(cx, cy, w, h, "#55d400")}')
+        lines.append(f"  {_svg_rect(cx, cy, w, h, '#55d400')}")
 
     lines.append("</svg>")
 
@@ -657,22 +652,25 @@ def png_to_svg(png_path: str, out_svg_path: str, *,
 
     # ── Metadata ───────────────────────────────────────────────────────────
     n_openings = (
-        len(red_bboxes) + len(magenta_bboxes) + len(blue_bboxes) +
-        len(patio_bboxes) + len(cyan_bboxes)
+        len(red_bboxes)
+        + len(magenta_bboxes)
+        + len(blue_bboxes)
+        + len(patio_bboxes)
+        + len(cyan_bboxes)
     )
     meta = {
-        "width_px":        W,
-        "height_px":       H,
-        "cm_per_pixel":    scale,
+        "width_px": W,
+        "height_px": H,
+        "cm_per_pixel": scale,
         "walls_extracted": len(wall_subpaths_px),
-        "openings":        n_openings,
-        "lights":          len(yellow_bboxes),
-        "markers":         len(all_marker_bboxes),
-        "red_doors":       len(red_bboxes),
-        "magenta_doors":   len(magenta_bboxes),
-        "windows":         len(blue_bboxes),
-        "patio_doors":     len(patio_bboxes),
-        "skylights":       len(cyan_bboxes),
+        "openings": n_openings,
+        "lights": len(yellow_bboxes),
+        "markers": len(all_marker_bboxes),
+        "red_doors": len(red_bboxes),
+        "magenta_doors": len(magenta_bboxes),
+        "windows": len(blue_bboxes),
+        "patio_doors": len(patio_bboxes),
+        "skylights": len(cyan_bboxes),
     }
 
     print(

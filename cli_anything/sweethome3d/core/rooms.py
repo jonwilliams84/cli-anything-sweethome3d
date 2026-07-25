@@ -15,14 +15,18 @@ def list_rooms(home: Home, *, level: Optional[str] = None) -> list[Room]:
     return list(rooms)
 
 
-def add_room(home: Home, points: list[tuple[float, float]],
-              *, name: Optional[str] = None,
-              level: Optional[str] = None,
-              floorColor: Optional[int] = None,
-              ceilingColor: Optional[int] = None,
-              floorTexture: Optional[Texture] = None,
-              ceilingTexture: Optional[Texture] = None,
-              areaVisible: bool = False) -> Room:
+def add_room(
+    home: Home,
+    points: list[tuple[float, float]],
+    *,
+    name: Optional[str] = None,
+    level: Optional[str] = None,
+    floorColor: Optional[int] = None,
+    ceilingColor: Optional[int] = None,
+    floorTexture: Optional[Texture] = None,
+    ceilingTexture: Optional[Texture] = None,
+    areaVisible: bool = False,
+) -> Room:
     """Add a room defined by a polygon of (x, y) corners.
 
     At least 3 points are required.
@@ -43,11 +47,17 @@ def add_room(home: Home, points: list[tuple[float, float]],
     return r
 
 
-def add_rectangle_room(home: Home, x: float, y: float,
-                        width: float, depth: float,
-                        *, name: Optional[str] = None,
-                        level: Optional[str] = None,
-                        **kwargs) -> Room:
+def add_rectangle_room(
+    home: Home,
+    x: float,
+    y: float,
+    width: float,
+    depth: float,
+    *,
+    name: Optional[str] = None,
+    level: Optional[str] = None,
+    **kwargs,
+) -> Room:
     """Convenience: add a rectangular room aligned to axes."""
     if width <= 0 or depth <= 0:
         raise ValueError("width and depth must be positive")
@@ -138,9 +148,7 @@ def recompute_room_points(home: Home, room_id: str, *, tol: float = 20.0) -> Roo
         deduped.pop()
 
     if len(deduped) < 3:
-        raise ValueError(
-            f"room {room_id!r} has fewer than 3 distinct points after snapping"
-        )
+        raise ValueError(f"room {room_id!r} has fewer than 3 distinct points after snapping")
 
     r.points = deduped
     return r

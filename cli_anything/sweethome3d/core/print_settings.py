@@ -50,9 +50,7 @@ def set_print(home: Home, **fields) -> Print:
         if not hasattr(pr, k):
             raise AttributeError(f"unknown print field: {k!r}")
         if k == "paperOrientation" and v not in _ORIENTATIONS:
-            raise ValueError(
-                f"paperOrientation must be one of {_ORIENTATIONS}, got {v!r}"
-            )
+            raise ValueError(f"paperOrientation must be one of {_ORIENTATIONS}, got {v!r}")
         if k in {"paperWidth", "paperHeight"} and v <= 0:
             raise ValueError(f"{k} must be positive")
         if k.startswith("paper") and k.endswith("Margin") and v < 0:
@@ -96,12 +94,9 @@ def remove_printed_level(home: Home, ident: str) -> Print:
     return home.printSettings
 
 
-def set_printed_levels(home: Home,
-                         idents: Iterable[str]) -> Print:
+def set_printed_levels(home: Home, idents: Iterable[str]) -> Print:
     """Replace the printed-levels list with the given idents (order preserved)."""
     if home.printSettings is None:
         home.printSettings = Print(**_DEFAULT_PRINT)
-    home.printSettings.printedLevels = [
-        _resolve_level_id(home, ident) for ident in idents
-    ]
+    home.printSettings.printedLevels = [_resolve_level_id(home, ident) for ident in idents]
     return home.printSettings

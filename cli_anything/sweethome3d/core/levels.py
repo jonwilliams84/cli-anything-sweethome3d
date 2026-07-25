@@ -6,13 +6,8 @@ from copy import deepcopy
 from typing import Optional
 
 from cli_anything.sweethome3d.core.model import (
-    DimensionLine,
     Home,
-    Label,
     Level,
-    PieceOfFurniture,
-    Polyline,
-    Room,
     Wall,
     _gen_id,
 )
@@ -22,19 +17,24 @@ def list_levels(home: Home) -> list[Level]:
     return list(home.levels)
 
 
-def add_level(home: Home, name: str, *, elevation: float = 0,
-               height: float = 250, floorThickness: float = 12) -> Level:
+def add_level(
+    home: Home, name: str, *, elevation: float = 0, height: float = 250, floorThickness: float = 12
+) -> Level:
     if any(l.name == name for l in home.levels):
         raise ValueError(f"level named {name!r} already exists")
     idx = max((l.elevationIndex for l in home.levels), default=-1) + 1
-    lvl = Level(name=name, elevation=elevation, height=height,
-                  floorThickness=floorThickness, elevationIndex=idx)
+    lvl = Level(
+        name=name,
+        elevation=elevation,
+        height=height,
+        floorThickness=floorThickness,
+        elevationIndex=idx,
+    )
     home.levels.append(lvl)
     return lvl
 
 
-def delete_level(home: Home, ident: str, *,
-                   detach: bool = True) -> bool:
+def delete_level(home: Home, ident: str, *, detach: bool = True) -> bool:
     """Delete a level. If `detach` is True (default), any objects on that
     level are detached (level=None); otherwise the call fails when objects
     are still attached.
@@ -53,7 +53,8 @@ def delete_level(home: Home, ident: str, *,
     if attached and not detach:
         raise ValueError(
             f"level {lvl.name!r} has {len(attached)} attached objects; "
-            "pass detach=True to clear them")
+            "pass detach=True to clear them"
+        )
     for obj in attached:
         obj.level = None
     home.levels.remove(lvl)
@@ -73,15 +74,19 @@ def set_level_properties(home: Home, ident: str, **fields) -> Level:
     return lvl
 
 
-def duplicate_level(home: Home, src_ident: str, *,
-                      new_name: str,
-                      elevation: Optional[float] = None,
-                      offset_x: float = 0,
-                      offset_y: float = 0,
-                      include_walls: bool = True,
-                      include_rooms: bool = True,
-                      include_furniture: bool = True,
-                      include_annotations: bool = True) -> Level:
+def duplicate_level(
+    home: Home,
+    src_ident: str,
+    *,
+    new_name: str,
+    elevation: Optional[float] = None,
+    offset_x: float = 0,
+    offset_y: float = 0,
+    include_walls: bool = True,
+    include_rooms: bool = True,
+    include_furniture: bool = True,
+    include_annotations: bool = True,
+) -> Level:
     """Deep-copy a level's geometry to a new level at a different elevation.
 
     Walls, rooms, dimension lines, labels, polylines, and furniture on
@@ -108,13 +113,15 @@ def duplicate_level(home: Home, src_ident: str, *,
     if elevation is None:
         elevation = src.elevation + src.height + src.floorThickness
     idx = max((L.elevationIndex for L in home.levels), default=-1) + 1
-    new_lvl = Level(name=new_name,
-                     elevation=elevation,
-                     height=src.height,
-                     floorThickness=src.floorThickness,
-                     elevationIndex=idx,
-                     visible=src.visible,
-                     viewable=src.viewable)
+    new_lvl = Level(
+        name=new_name,
+        elevation=elevation,
+        height=src.height,
+        floorThickness=src.floorThickness,
+        elevationIndex=idx,
+        visible=src.visible,
+        viewable=src.viewable,
+    )
     home.levels.append(new_lvl)
 
     # `level` attributes on existing objects may store the level *id*
@@ -134,8 +141,10 @@ def duplicate_level(home: Home, src_ident: str, *,
             nw = deepcopy(w)
             nw.id = _gen_id()
             nw.level = new_lvl.id
-            nw.xStart += offset_x; nw.xEnd += offset_x
-            nw.yStart += offset_y; nw.yEnd += offset_y
+            nw.xStart += offset_x
+            nw.xEnd += offset_x
+            nw.yStart += offset_y
+            nw.yEnd += offset_y
             wall_id_map[w.id] = nw.id
             new_walls.append(nw)
         # Second pass: rewire wallAtStart / wallAtEnd to the cloned ids
@@ -183,8 +192,10 @@ def duplicate_level(home: Home, src_ident: str, *,
             nd = deepcopy(d)
             nd.id = _gen_id()
             nd.level = new_lvl.id
-            nd.xStart += offset_x; nd.xEnd += offset_x
-            nd.yStart += offset_y; nd.yEnd += offset_y
+            nd.xStart += offset_x
+            nd.xEnd += offset_x
+            nd.yStart += offset_y
+            nd.yEnd += offset_y
             home.dimensionLines.append(nd)
         for lb in list(home.labels):
             if not _belongs(lb.level):

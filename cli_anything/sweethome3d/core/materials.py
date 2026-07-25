@@ -43,15 +43,20 @@ def find_material(piece: PieceOfFurniture, name: str) -> Optional[Material]:
     return None
 
 
-def set_material(home: Home, piece_ident: str, name: str, *,
-                   color: Optional[int] = None,
-                   shininess: Optional[float] = None,
-                   texture_id: Optional[str] = None,
-                   texture: Optional[Texture] = None,
-                   key: Optional[str] = None,
-                   clear_color: bool = False,
-                   clear_shininess: bool = False,
-                   clear_texture: bool = False) -> Material:
+def set_material(
+    home: Home,
+    piece_ident: str,
+    name: str,
+    *,
+    color: Optional[int] = None,
+    shininess: Optional[float] = None,
+    texture_id: Optional[str] = None,
+    texture: Optional[Texture] = None,
+    key: Optional[str] = None,
+    clear_color: bool = False,
+    clear_shininess: bool = False,
+    clear_texture: bool = False,
+) -> Material:
     """Set or replace a material override by name.
 
     Creates the entry if it doesn't exist. ``clear_*`` flags wipe an
