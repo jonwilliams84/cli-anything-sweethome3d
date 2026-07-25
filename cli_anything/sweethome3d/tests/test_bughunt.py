@@ -199,6 +199,16 @@ class TestFurnitureGroupCatalogContent:
     """Regression for catalog pieces inside furniture groups losing their model/icon."""
 
     def test_grouped_catalog_piece_keeps_model_and_icon(self):
+        # The model/icon BYTES for a catalog piece are copied out of the SH3D
+        # installation's Furniture.jar. Without it the writer deliberately omits
+        # model content (see _sh3d_catalog_metadata.find_furniture_jar), so the
+        # assertions below can only hold on a machine with SH3D installed - this
+        # test failed on every CI runner and on any contributor laptop without it.
+        from cli_anything.sweethome3d.core._sh3d_catalog_metadata import find_furniture_jar
+
+        if find_furniture_jar() is None:
+            pytest.skip("SH3D Furniture.jar not available - model content is omitted by design")
+
         h = Home()
         grp = FurnitureGroup(name="Doors")
         grp.furniture.append(
