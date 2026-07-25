@@ -19,7 +19,7 @@ import io
 import os
 import zipfile
 from typing import Optional
-from defusedxml import ElementTree as ET
+from xml.etree import ElementTree as ET
 from defusedxml import ElementTree as DefusedET
 
 from cli_anything.sweethome3d.core.model import (
