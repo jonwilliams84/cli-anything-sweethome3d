@@ -89,11 +89,14 @@ def version() -> Optional[str]:
     for token in argv:
         # match "SweetHome3D-7.5.jar" or similar
         if "SweetHome3D-" in token and token.endswith(".jar"):
-            try:
-                # SweetHome3D-7.5.jar → "7.5"
-                base = os.path.basename(token)
-                inner = base[len("SweetHome3D-"):-len(".jar")]
+            # Slicing a str that we already know starts with "SweetHome3D-" and
+            # ends with ".jar" cannot raise, so the old blanket
+            # try/except Exception: pass here (bandit B110) only served to hide
+            # genuine bugs. Guard the one real edge case explicitly instead: a
+            # bare "SweetHome3D-.jar" yields an empty version, which is not a
+            # usable answer, so keep looking at the remaining tokens.
+            base = os.path.basename(token)
+            inner = base[len("SweetHome3D-"):-len(".jar")]
+            if inner:
                 return inner
-            except Exception:
-                pass
     return None
