@@ -10,8 +10,13 @@ canonical floor's — independent of the SVG's stated units.
 from __future__ import annotations
 
 import re
-import xml.etree.ElementTree as ET
+from defusedxml import ElementTree as ET
 from typing import Optional
+
+# defusedxml.ElementTree does not re-export the Element class; derive it
+# from a minimal parsed document so type annotations resolve without
+# importing the vulnerable stdlib xml.etree.ElementTree module (B405).
+Element = type(ET.fromstring("<e/>"))
 
 from cli_anything.sweethome3d.core.svg.parse import (
     IDENT,
@@ -25,7 +30,7 @@ from cli_anything.sweethome3d.core.svg.parse import (
 CORNER_MARKER = "#55d400"  # bright green squares the user places at corner refs
 
 
-def extract_corner_markers(svg_root: ET.Element) -> list[tuple[float, float, float, float]]:
+def extract_corner_markers(svg_root: Element) -> list[tuple[float, float, float, float]]:
     """Return list of (xMin, yMin, xMax, yMax) for ``#55d400`` rects.
 
     These are explicit user-placed reference points indicating known
@@ -35,7 +40,7 @@ def extract_corner_markers(svg_root: ET.Element) -> list[tuple[float, float, flo
     """
     out: list[tuple[float, float, float, float]] = []
 
-    def visit(el: ET.Element, parent_xform):
+    def visit(el: Element, parent_xform):
         my_xform = mul(parent_xform, parse_transform(el.get("transform", "")))
         if classify_fill(el) == CORNER_MARKER:
             if el.tag == "rect":
@@ -116,7 +121,7 @@ def fit_uniform_affine(src: list[tuple[float, float]],
     return s, tx, ty
 
 
-def detect_svg_unit_scale(root: ET.Element) -> float:
+def detect_svg_unit_scale(root: Element) -> float:
     """Pick a user-unit → centimetre scale based on the SVG declaration.
 
     Two common shapes appear in practice:
@@ -135,7 +140,7 @@ def detect_svg_unit_scale(root: ET.Element) -> float:
     return 1.0
 
 
-def apply_unit_scale(root: ET.Element, scale: float) -> None:
+def apply_unit_scale(root: Element, scale: float) -> None:
     """Prepend a uniform scale to the SVG root's transform so all
     downstream coordinate extractors see scaled values.
 

@@ -172,3 +172,149 @@ def test_run_model_validates_input_file_exists(tmp_path):
 
     with pytest.raises(FileNotFoundError):
         run_model(str(png), str(out), model_cmd=["echo", "unused"])
+
+
+# ---------------------------------------------------------------------------
+# B405 — align.py must use defusedxml, not xml.etree.ElementTree
+# ---------------------------------------------------------------------------
+
+def test_align_uses_defusedxml_not_stdlib_et():
+    """align.py must import defusedxml.ElementTree, not xml.etree.ElementTree."""
+    import cli_anything.sweethome3d.core.svg.align as align
+
+    src = inspect.getsource(align)
+    # Must NOT import the vulnerable stdlib module
+    assert "import xml.etree.ElementTree" not in src
+    # Must use defusedxml
+    assert "defusedxml" in src
+
+
+def test_align_fromstring_rejects_entity_expansion():
+    """ET.fromstring in align.py (now defusedxml) must reject entity bombs."""
+    from cli_anything.sweethome3d.core.svg import align
+
+    bomb = (
+        '<?xml version="1.0"?>'
+        '<!DOCTYPE lolz ['
+        '<!ENTITY lol "lol">'
+        '<!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">'
+        '<!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;">'
+        ']>'
+        '<e>&lol3;</e>'
+    )
+    # defusedxml raises EntitiesForbidden / DTDForbidden
+    with pytest.raises(Exception):
+        align.ET.fromstring(bomb)
+
+
+def test_align_extract_corner_markers_works_with_safe_svg():
+    """extract_corner_markers must still parse safe SVG correctly after
+    switching to defusedxml."""
+    from cli_anything.sweethome3d.core.svg.align import extract_corner_markers
+
+    safe_svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg">'
+        '<rect x="10" y="20" width="5" height="5" fill="#55d400"/>'
+        '<rect x="100" y="200" width="5" height="5" fill="#55d400"/>'
+        '<rect x="50" y="50" width="5" height="5" fill="#ff0000"/>'
+        '</svg>'
+    )
+    from defusedxml import ElementTree as DefusedET
+    from cli_anything.sweethome3d.core.svg.parse import strip_ns
+    root = DefusedET.fromstring(safe_svg)
+    strip_ns(root)
+    markers = extract_corner_markers(root)
+    # Only the two green rects should be detected
+    assert len(markers) == 2
+    # First marker bbox around (10,20)
+    assert markers[0] == (10.0, 20.0, 15.0, 25.0)
+
+
+# ---------------------------------------------------------------------------
+# B603 — render_runtime.py subprocess calls must have validated nosec
+# ---------------------------------------------------------------------------
+
+def test_render_gpu_photo_has_nosec_b603():
+    """_render_gpu_photo subprocess.run must carry a nosec B603 suppression
+    with a concrete justification (cmd is a list, inputs whitelisted)."""
+    from cli_anything.sweethome3d.core import render_runtime
+
+    src = inspect.getsource(render_runtime._render_gpu_photo)
+    # The subprocess.run call must have a nosec B603 comment
+    assert "nosec B603" in src
+    # The justification must cite the concrete validation: view whitelist
+    assert "whitelisted" in src.lower() or "whitelist" in src.lower()
+
+
+def test_render_gpu_photo_validates_view():
+    """_render_gpu_photo must reject views outside the whitelist before
+    the subprocess call (this is the concrete reason the nosec is safe)."""
+    from cli_anything.sweethome3d.core import render_runtime
+
+    with pytest.raises(ValueError, match="view must be camera, top, or iso"):
+        render_runtime._render_gpu_photo(
+            "/nonexistent/home.sh3d",
+            "/nonexistent/out.png",
+            samples=1,
+            width=100,
+            height=100,
+            timeout_s=10,
+            view="evil; rm -rf /",
+        )
+
+
+def test_render_cpu_photo_has_nosec_b603():
+    """render() (cpu_photo engine) subprocess.run must carry a nosec B603
+    suppression with a concrete justification."""
+    from cli_anything.sweethome3d.core import render_runtime
+
+    src = inspect.getsource(render_runtime.render)
+    assert "nosec B603" in src
+    # Justification must cite the engine/quality whitelist
+    assert "whitelisted" in src.lower() or "whitelist" in src.lower()
+
+
+def test_render_rejects_unknown_engine(monkeypatch):
+    """render() must reject engines outside the whitelist before subprocess."""
+    from cli_anything.sweethome3d.core import render_runtime
+
+    # Bypass the SH3D home lookup / compilation so we reach the engine
+    # whitelist check (the concrete reason the nosec B603 is safe).
+    monkeypatch.setattr(render_runtime, "_find_sh3d_home", lambda: Path("/fake"))
+    monkeypatch.setattr(render_runtime, "_compile", lambda *a, **k: None)
+    monkeypatch.setattr(render_runtime, "_compiled", True)
+
+    with pytest.raises(ValueError, match="Unknown engine"):
+        render_runtime.render(
+            "/nonexistent/home.sh3d",
+            "/nonexistent/out.png",
+            engine="evil_engine",
+            width=100,
+            height=100,
+        )
+
+
+def test_render_rejects_bad_quality(monkeypatch, tmp_path):
+    """render() must reject quality values outside LOW/MEDIUM/HIGH."""
+    from cli_anything.sweethome3d.core import render_runtime
+
+    # Build a minimal fake SH3D home so the java_bin.exists() check
+    # passes and we reach the quality whitelist check.
+    (tmp_path / "runtime" / "bin").mkdir(parents=True)
+    (tmp_path / "runtime" / "bin" / "java").write_text("#!/bin/sh\n")
+    (tmp_path / "lib").mkdir()
+
+    monkeypatch.setattr(render_runtime, "_find_sh3d_home", lambda: tmp_path)
+    monkeypatch.setattr(render_runtime, "_compile", lambda *a, **k: None)
+    monkeypatch.setattr(render_runtime, "_compiled", True)
+    monkeypatch.setattr(render_runtime, "_classpath", lambda *a, **k: "fake")
+
+    with pytest.raises(ValueError, match="quality must be LOW, MEDIUM, or HIGH"):
+        render_runtime.render(
+            "/nonexistent/home.sh3d",
+            "/nonexistent/out.png",
+            engine="cpu_photo",
+            width=100,
+            height=100,
+            quality="evil; rm -rf /",
+        )
