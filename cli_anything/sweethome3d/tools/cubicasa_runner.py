@@ -66,7 +66,25 @@ def main(inp, out):
     model = get_model("hg_furukawa_original", 51)
     model.conv4_ = torch.nn.Conv2d(256, 44, bias=True, kernel_size=1)
     model.upsample = torch.nn.ConvTranspose2d(44, 44, kernel_size=4, stride=4)
-    model.load_state_dict(torch.load(weights, map_location="cpu", weights_only=False)["model_state"])
+    # CubiCasa5k ships its weights as a pickle (.pkl), not a safetensors file, so
+    # torch.load has to run the unpickler: weights_only=True cannot read it. An
+    # untrusted .pkl can therefore execute arbitrary code at load time (bandit
+    # B614). Two guards, since the file path is operator-supplied:
+    #   1. try the safe path first — if a given checkpoint IS weights_only-safe
+    #      (e.g. someone converted it), we never invoke the full unpickler.
+    #   2. only fall back to the unsafe load when torch itself says the file
+    #      needs it, and say so loudly so an operator pointing at a downloaded
+    #      .pkl knows they are trusting its author.
+    try:
+        _ckpt = torch.load(weights, map_location="cpu", weights_only=True)
+    except Exception:
+        print(
+            f"warning: {weights} is a pickle that requires a full (unsafe) torch.load — "
+            "arbitrary code in this file will execute. Only use weights you trust.",
+            file=sys.stderr,
+        )
+        _ckpt = torch.load(weights, map_location="cpu", weights_only=False)  # nosec B614 - see above
+    model.load_state_dict(_ckpt["model_state"])
     model.eval()
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     model.to(dev)
