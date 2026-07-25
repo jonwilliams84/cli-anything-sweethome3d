@@ -7,6 +7,7 @@ import os
 import tempfile
 import zipfile
 from xml.etree import ElementTree as ET
+from defusedxml import ElementTree as DefusedET
 
 import pytest
 
@@ -116,7 +117,7 @@ class TestProjectXML:
     def test_explicit_zero_float_attr_is_not_coerced_to_default(self):
         """Regression: _float_attr result must not be post-processed with `or default`."""
         xml = b'''<home version="6005"><room nameYOffset="0"><point x="0" y="0"/><point x="100" y="0"/><point x="100" y="100"/></room></home>'''
-        tree = ET.parse(io.BytesIO(xml))
+        tree = DefusedET.parse(io.BytesIO(xml))
         home = proj_core.xml_to_home(tree)
         assert len(home.rooms) == 1
         assert home.rooms[0].nameYOffset == 0
@@ -227,11 +228,40 @@ class TestProjectXML:
     <lightSource x="0" y="0" z="10" color="#000000"/>
   </light>
 </home>'''
-        tree = ET.parse(io.BytesIO(xml))
+        tree = DefusedET.parse(io.BytesIO(xml))
         home = proj_core.xml_to_home(tree)
         piece = home.furniture[0]
         assert len(piece.lightSources) == 1
         assert piece.lightSources[0].color == 0x000000
+
+
+    def test_parse_rejects_external_entity_xxe(self):
+        """Regression: XML parsing must use defusedxml so XXE is blocked.
+
+        Replaces the previous use of xml.etree.ElementTree.parse which is
+        vulnerable to XML external-entity (XXE) attacks.  defusedxml raises
+        on DTD/entity declarations that the stdlib parser would silently
+        resolve.
+        """
+        xxe = (b'<?xml version="1.0"?>'
+               b'<!DOCTYPE home [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>'
+               b'<home version="6005"><room name="&xxe;"/></home>')
+        with pytest.raises(Exception):
+            DefusedET.parse(io.BytesIO(xxe))
+
+    def test_parse_rejects_entity_expansion_bomb(self):
+        """Regression: XML parsing must use defusedxml so billion-laughs /
+        entity-expansion bombs are blocked instead of being expanded."""
+        bomb = (b'<?xml version="1.0"?>'
+                b'<!DOCTYPE home ['
+                b'<!ENTITY a "AAAA">'
+                b'<!ENTITY b "&a;&a;&a;&a;&a;&a;&a;&a;">'
+                b'<!ENTITY c "&b;&b;&b;&b;&b;&b;&b;&b;">'
+                b']>'
+                b'<home version="6005"><room name="&c;"/></home>')
+        with pytest.raises(Exception):
+            DefusedET.parse(io.BytesIO(bomb))
+
 
 
 # ─── walls ──────────────────────────────────────────────────────────────────

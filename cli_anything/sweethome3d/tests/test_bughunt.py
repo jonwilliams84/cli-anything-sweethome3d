@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import xml.etree.ElementTree as ET
+from defusedxml import ElementTree as DefusedET
 import zipfile
 import subprocess
 import tempfile
@@ -184,7 +185,7 @@ class TestFurnitureGroupCatalogContent:
 
             with zipfile.ZipFile(p) as z:
                 names = set(z.namelist())
-                root = ET.fromstring(z.read("Home.xml"))
+                root = DefusedET.fromstring(z.read("Home.xml"))
 
             piece_el = root.find(".//furnitureGroup/pieceOfFurniture")
             assert piece_el is not None
@@ -203,3 +204,17 @@ class TestFurnitureGroupCatalogContent:
 
             r = run_sh3d_validator(p)
         assert r.returncode == 0, r.stderr.strip()
+
+    def test_fromstring_rejects_external_entity_xxe(self):
+        """Regression: fromstring must use defusedxml so XXE is blocked.
+
+        Replaces the previous use of xml.etree.ElementTree.fromstring which
+        is vulnerable to XML external-entity (XXE) attacks.  defusedxml
+        raises on DTD/entity declarations that the stdlib parser would
+        silently resolve.
+        """
+        xxe = (b'<?xml version="1.0"?>'
+               b'<!DOCTYPE home [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>'
+               b'<home version="6005"><room name="&xxe;"/></home>')
+        with pytest.raises(Exception):
+            DefusedET.fromstring(xxe)
