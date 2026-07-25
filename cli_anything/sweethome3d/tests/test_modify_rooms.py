@@ -417,3 +417,51 @@ def test_modify_rooms_wall_sides_texture(tmp_path):
         f"No wall found with catalogId={catalog_id!r} on leftSideTexture or "
         f"rightSideTexture — texture was not written into the output .sh3d"
     )
+
+
+# ---------------------------------------------------------------------------
+# Regression tests for the B404/B603 security fix: _run_validated must reject
+# unsafe executables (non-absolute / non-existent) while still running valid
+# list-form commands. These do NOT require SweetHome3D to be installed.
+# ---------------------------------------------------------------------------
+
+class TestRunValidatedSecurity:
+    """Regression tests for bandit B404/B603 fix in modify_rooms.py.
+
+    The fix introduced ``_run_validated`` which validates the executable
+    (``cmd[0]``) is an absolute, existing path before delegating to
+    ``subprocess.run`` (list-form, no shell). These tests pin that behaviour.
+    """
+
+    def test_rejects_non_absolute_executable(self):
+        from cli_anything.sweethome3d.core import modify_rooms as mr
+        with pytest.raises(RuntimeError, match="non-absolute"):
+            mr._run_validated(["python3", "--version"])
+
+    def test_rejects_nonexistent_executable(self):
+        from cli_anything.sweethome3d.core import modify_rooms as mr
+        with pytest.raises(RuntimeError, match="not found"):
+            mr._run_validated(["/usr/bin/this-does-not-exist-12345"])
+
+    def test_runs_valid_absolute_executable(self):
+        """A valid absolute executable must run and return a CompletedProcess."""
+        import sys
+        from cli_anything.sweethome3d.core import modify_rooms as mr
+        result = mr._run_validated([sys.executable, "-c", "print('ok')"])
+        assert result.returncode == 0
+        assert "ok" in result.stdout
+
+    def test_run_validated_uses_list_form_no_shell(self):
+        """The helper must never use shell=True — verify by confirming a
+        command containing shell metacharacters is passed as literal args
+        (no shell interpretation)."""
+        import sys
+        from cli_anything.sweethome3d.core import modify_rooms as mr
+        # If shell=True were used, '; echo pwned' would execute a second command.
+        result = mr._run_validated(
+            [sys.executable, "-c", "import sys; print(repr(sys.argv[1]))", "; echo pwned"]
+        )
+        assert result.returncode == 0
+        # The metacharacter string must appear verbatim as the argument,
+        # proving no shell expansion occurred.
+        assert "'; echo pwned'" in result.stdout
