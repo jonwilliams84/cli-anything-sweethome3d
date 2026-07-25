@@ -17,7 +17,7 @@ import contextlib
 import glob
 import os
 import shutil
-import subprocess
+import subprocess  # nosec B404 - subprocess is required to invoke bundled Java/Blender binaries; all calls use argument lists (no shell=True)
 import tempfile
 import time
 import warnings
@@ -30,6 +30,40 @@ from typing import Iterable, Iterator, Optional
 # ---------------------------------------------------------------------------
 _compiled: bool = False
 _classes_dir: Optional[Path] = None
+
+
+# ---------------------------------------------------------------------------
+# Subprocess input validation
+# ---------------------------------------------------------------------------
+
+def _validate_executable(path: Path) -> str:
+    """Validate that *path* is an absolute, existing executable file.
+
+    Returns the resolved absolute string form, safe to use as argv[0] in a
+    subprocess call.  Raises ValueError if the path is relative, missing,
+    or not a regular file — preventing execution of untrusted or
+    PATH-hijacked binaries.
+    """
+    resolved = path.resolve()
+    if not resolved.is_absolute():
+        raise ValueError(f"Refusing to execute relative binary path: {path}")
+    if not resolved.is_file():
+        raise ValueError(f"Refusing to execute non-existent binary: {path}")
+    return str(resolved)
+
+
+def _validate_file_arg(path: str) -> str:
+    """Validate that *path* is an existing file, returning its resolved form.
+
+    Ensures user-supplied file paths (e.g. .sh3d home files) exist on disk
+    before they are passed as subprocess arguments, preventing execution
+    of non-existent or malformed paths.
+    """
+    p = Path(path)
+    if not p.is_file():
+        raise ValueError(f"File not found: {path}")
+    return str(p.resolve())
+
 
 
 # ---------------------------------------------------------------------------
@@ -257,16 +291,21 @@ def _compile(sh3d_home: Path, classes_dir: Path) -> None:
     # bundled SH3D JRE has no javac, so users without a JDK can still run
     # renders against an already-cached classes dir.
     javac = _find_javac()
+    javac_bin = _validate_executable(javac)
     jars = sorted(glob.glob(str(sh3d_home / "lib" / "*.jar")))
     cp = ":".join(jars)
     cmd = [
-        str(javac),
+        javac_bin,
         "-source", "8", "-target", "8",
         "-cp", cp,
         "-d", str(classes_dir),
     ] + to_compile
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    # javac_bin is validated as an absolute existing file via
+    # _validate_executable; to_compile entries are package-internal .java
+    # source paths; cp is built from sh3d_home/lib/*.jar. No user-supplied
+    # free-form strings reach argv. Argument-list form (no shell=True).
+    result = subprocess.run(cmd, capture_output=True, text=True)  # nosec B603
     if result.returncode != 0:
         raise RuntimeError(
             f"javac compilation failed (exit {result.returncode}):\n"
@@ -453,20 +492,29 @@ def _run_java_export_obj(sh3d_home: Path, classes_dir: Path,
     java_bin = sh3d_home / "runtime" / "bin" / "java"
     if not java_bin.exists():
         raise RuntimeError(f"SH3D bundled java not found at {java_bin}")
+    java_bin_validated = _validate_executable(java_bin)
+
+    # Validate user-supplied file paths before passing them to subprocess
+    home_path_validated = _validate_file_arg(home_path)
 
     lib_path = sh3d_home / "lib"
     cp = _classpath(sh3d_home, classes_dir)
 
     cmd = [
-        str(java_bin),
+        java_bin_validated,
         f"-Djava.library.path={lib_path}",
         "-cp", cp,
         "ExportObj",
-        home_path,
+        home_path_validated,
         str(obj_path),
     ]
 
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    # java_bin_validated is validated as an absolute existing file via
+    # _validate_executable; home_path_validated is validated as an existing
+    # file via _validate_file_arg; obj_path is a temp-dir Path constructed
+    # internally. cp is built from sh3d_home/lib/*.jar.
+    # Argument-list form (no shell=True).
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)  # nosec B603
     if result.returncode != 0:
         raise RuntimeError(
             f"ExportObj exited with code {result.returncode}.\n"

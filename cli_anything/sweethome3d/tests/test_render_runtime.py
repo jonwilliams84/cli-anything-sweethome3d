@@ -359,3 +359,47 @@ def test_top_down_ortho_scale_respects_aspect_ratio(tmp_path):
         f"Red square clipped vertically: covers only rows {y_min}-{y_max} "
         f"of {img.height}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Regression tests for subprocess input validation (B404/B603 fixes)
+# ---------------------------------------------------------------------------
+
+def test_validate_executable_rejects_nonexistent(tmp_path):
+    """_validate_executable must reject a path that does not exist on disk."""
+    from cli_anything.sweethome3d.core.render_runtime import _validate_executable
+
+    fake = tmp_path / "nonexistent_binary"
+    with pytest.raises(ValueError, match="non-existent"):
+        _validate_executable(fake)
+
+
+def test_validate_executable_accepts_real_file(tmp_path):
+    """_validate_executable must return the resolved absolute path for a real file."""
+    from cli_anything.sweethome3d.core.render_runtime import _validate_executable
+
+    real = tmp_path / "fake_javac"
+    real.write_text("#!/bin/sh\n")
+    result = _validate_executable(real)
+    assert result == str(real.resolve())
+    assert Path(result).is_absolute()
+
+
+def test_validate_file_arg_rejects_nonexistent(tmp_path):
+    """_validate_file_arg must reject a path that does not exist on disk."""
+    from cli_anything.sweethome3d.core.render_runtime import _validate_file_arg
+
+    fake = str(tmp_path / "nonexistent.sh3d")
+    with pytest.raises(ValueError, match="File not found"):
+        _validate_file_arg(fake)
+
+
+def test_validate_file_arg_accepts_real_file(tmp_path):
+    """_validate_file_arg must return the resolved absolute path for a real file."""
+    from cli_anything.sweethome3d.core.render_runtime import _validate_file_arg
+
+    real = tmp_path / "model.sh3d"
+    real.write_text("dummy content")
+    result = _validate_file_arg(str(real))
+    assert result == str(real.resolve())
+    assert Path(result).is_absolute()
