@@ -11,8 +11,7 @@ x-gaps in the wall path and otherwise mirrors the same shape.
 from __future__ import annotations
 
 import math
-import xml.etree.ElementTree as ET
-from defusedxml import ElementTree as DefusedET
+from defusedxml import ElementTree as ET
 from typing import Optional
 
 from cli_anything.sweethome3d.core.environment import set_environment
@@ -116,7 +115,7 @@ def svg_to_home(svg_path: str,
     path, then runs the same pipeline as ``svg_to_home_multi``. Kept
     for back-compat with users who haven't migrated to per-floor SVGs.
     """
-    tree = DefusedET.parse(svg_path)
+    tree = ET.parse(svg_path)
     root = tree.getroot()
     strip_ns(root)
 
@@ -728,7 +727,7 @@ def svg_to_home_multi(svg_files=None,
                               list[tuple[float, float, float, float]]]] = []
     canonical_centres: Optional[list[tuple[float, float]]] = None
     for i, (lvl_name, svg_path) in enumerate(pairs):
-        tree = DefusedET.parse(svg_path)
+        tree = ET.parse(svg_path)
         root = tree.getroot()
         strip_ns(root)
         unit_scale = (scales[i] if scales and i < len(scales)
