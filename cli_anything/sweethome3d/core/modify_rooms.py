@@ -36,7 +36,7 @@ import glob
 import json
 import os
 import shutil
-import subprocess
+import subprocess  # nosec B404 - subprocess is required to invoke the bundled javac/java; only list-form subprocess.run with a validated absolute executable (see _run_validated) is used, never shell=True
 import tempfile
 import time
 from pathlib import Path
@@ -84,6 +84,27 @@ def _cache_dir() -> Path:
     xdg = os.environ.get("XDG_CACHE_HOME")
     base = Path(xdg) if xdg else Path.home() / ".cache"
     return base / "cli-anything-sweethome3d" / "render"
+
+
+def _run_validated(cmd: list, *, timeout: float | None = None) -> subprocess.CompletedProcess:
+    """Run a subprocess command after validating the executable is safe.
+
+    Bandit B603 fires on any ``subprocess.run`` because it cannot prove the
+    arguments are trusted. Here the command is always a *list* (never
+    ``shell=True``) and the executable (``cmd[0]``) is validated to be an
+    absolute, existing path resolved from internal helpers (``_javac_bin`` /
+    ``_java_bin``) — never user-supplied. The remaining arguments are file
+    paths passed *to* the program as data, not executed, so there is no
+    command-injection surface. This validation makes the call safe.
+    """
+    exe = Path(cmd[0])
+    if not exe.is_absolute():
+        raise RuntimeError(f"refusing to run non-absolute executable: {exe}")
+    if not exe.exists():
+        raise RuntimeError(f"executable not found: {exe}")
+    return subprocess.run(  # nosec B603 - list-form, no shell; executable validated absolute+existing above, args are file-path data not executed
+        cmd, capture_output=True, text=True, timeout=timeout,
+    )
 
 
 def _build_classpath(sh3d_home: Path, classes_dir: Path) -> str:
@@ -140,7 +161,7 @@ def _ensure_compiled() -> tuple[Path, Path]:
         "-d", str(_modify_classes_dir),
         str(src),
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = _run_validated(cmd)
     if result.returncode != 0:
         raise RuntimeError(
             f"javac failed compiling ModifyRooms.java (exit {result.returncode}):\n"
@@ -256,7 +277,7 @@ def modify_rooms(
         ]
 
         t0 = time.monotonic()
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        result = _run_validated(cmd, timeout=timeout)
         elapsed = time.monotonic() - t0
 
         if result.returncode != 0:

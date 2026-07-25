@@ -11,7 +11,14 @@ from __future__ import annotations
 
 import math
 import os
-from xml.etree import ElementTree as ET
+
+# Harden the stdlib xml.etree against XML bombs / external-entity expansion
+# (bandit B405 mitigation). This module only *builds* SVG output via
+# Element/SubElement/tostring — it never parses untrusted XML input — so the
+# builder API from xml.etree.ElementTree is safe once the stdlib is defused.
+import defusedxml
+defusedxml.defuse_stdlib()
+from xml.etree import ElementTree as ET  # nosec B405 - builder-only use; stdlib defused via defuse_stdlib() above and no untrusted XML is parsed
 
 from cli_anything.sweethome3d.core.model import Home
 

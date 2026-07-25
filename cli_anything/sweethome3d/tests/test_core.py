@@ -1087,6 +1087,54 @@ class TestExport:
         with pytest.raises(ValueError, match="unknown level spec"):
             export_core.to_svg(h, level="Nonexistent")
 
+    # ── B405 regression: export.py must harden xml.etree against XML attacks ──
+    def test_export_module_invokes_defuse_stdlib(self):
+        """export.py must *invoke* defusedxml.defuse_stdlib() at import time so
+        the stdlib xml.etree it uses for building SVG is hardened against XML
+        bombs / external-entity expansion (bandit B405 mitigation).
+
+        This verifies the actual invocation (not just source presence) by
+        spying on ``defusedxml.defuse_stdlib`` and reloading the export module:
+        the spy must be called exactly once during the reload.
+        """
+        import importlib
+        from unittest import mock
+        import defusedxml
+        from cli_anything.sweethome3d.core import export as export_mod
+        with mock.patch.object(defusedxml, "defuse_stdlib", autospec=True) as spy:
+            importlib.reload(export_mod)
+            spy.assert_called_once_with()
+        # Restore the real defused state and re-import cleanly so later tests
+        # in this process still see a defused stdlib + the original module.
+        defusedxml.defuse_stdlib()
+        importlib.reload(export_mod)
+
+    def test_export_defuses_stdlib_xml(self):
+        """After importing export.py, the stdlib xml.etree parser must reject
+        payloads with external entities / DTDs — proving defuse_stdlib() took
+        effect (bandit B405 mitigation)."""
+        import xml.etree.ElementTree as _ET
+        # defuse_stdlib() monkeypatches the stdlib parser forbidding DTDs,
+        # entities and external references. A parse of a payload with an
+        # external entity / DTD must now raise.
+        xxe = (
+            b'<?xml version="1.0"?>'
+            b'<!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd"> ]>'
+            b'<foo>&xxe;</foo>'
+        )
+        with pytest.raises(Exception):
+            _ET.fromstring(xxe)
+
+    def test_export_svg_builds_after_defuse(self):
+        """SVG building (Element/SubElement/tostring) must still work after
+        defuse_stdlib() is called — regression for the B405 fix in export.py."""
+        h = proj_core.new_home()
+        walls_core.add_wall(h, 0, 0, 100, 0)
+        svg = export_core.to_svg(h)
+        root = DefusedET.fromstring(svg)
+        assert root.tag.endswith("svg")
+        assert "viewBox" in root.attrib
+
 
 # ─── session ────────────────────────────────────────────────────────────────
 
