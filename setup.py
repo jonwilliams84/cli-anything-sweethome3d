@@ -13,6 +13,11 @@ setup(
     install_requires=[
         "click>=8.0.0",
         "prompt-toolkit>=3.0.0",
+        # Runtime dep: core/project.py and core/svg/pipeline.py parse XML with
+        # defusedxml (the B314 hardening). It was imported but never declared,
+        # so a clean install — including CI's `pip install -e .` — blew up with
+        # ModuleNotFoundError before any test could run.
+        "defusedxml>=0.7.1",
     ],
     extras_require={
         "watch": ["watchdog>=3.0.0"],
