@@ -322,7 +322,7 @@ def _geometry_bounds():
             for v in obj.data.vertices:
                 wv = obj.matrix_world @ v.co
                 xs.append(wv.x); ys.append(wv.y); zs.append(wv.z)
-        except Exception:
+        except (AttributeError, RuntimeError):
             continue
     if not xs:
         return None
