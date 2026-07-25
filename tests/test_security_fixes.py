@@ -24,15 +24,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 # B314 — defusedxml must be used instead of xml.etree.ElementTree.parse
 # ---------------------------------------------------------------------------
 
-_BARE_ET_PARSE = re.compile(r"(?<![A-Za-z])ET\.parse\(")
+_BARE_ET_PARSE = re.compile(r"xml\.etree\.ElementTree\.parse\(")
 
 
 def test_pipeline_svg_to_home_uses_defusedxml():
     """svg_to_home must parse via defusedxml, not bare xml.etree."""
     from cli_anything.sweethome3d.core.svg import pipeline
-
-    src = inspect.getsource(pipeline.svg_to_home)
-    assert "DefusedET.parse" in src
+    src = open(inspect.getfile(pipeline)).read()
+    assert "defusedxml" in src
     assert not _BARE_ET_PARSE.search(src)
 
 
@@ -41,7 +40,7 @@ def test_project_load_uses_defusedxml():
     from cli_anything.sweethome3d.core import project
 
     src = inspect.getsource(project)
-    assert "DefusedET.parse" in src
+    assert "defusedxml" in src
     assert not _BARE_ET_PARSE.search(src)
 
 
@@ -318,3 +317,37 @@ def test_render_rejects_bad_quality(monkeypatch, tmp_path):
             height=100,
             quality="evil; rm -rf /",
         )
+
+
+# ---------------------------------------------------------------------------
+# B405 regression — defusedxml must be imported (not bare xml.etree)
+# ---------------------------------------------------------------------------
+
+def test_openings_svg_uses_defusedxml():
+    """openings.py must import defusedxml.ElementTree, not xml.etree.ElementTree."""
+    import inspect
+    from cli_anything.sweethome3d.core.svg import openings
+    src = open(inspect.getfile(openings)).read()
+    assert "defusedxml" in src, "openings.py must import from defusedxml"
+    assert not re.search(r"import xml\.etree\.ElementTree", src), \
+        "openings.py must not import bare xml.etree.ElementTree"
+
+
+def test_parse_svg_uses_defusedxml():
+    """parse.py must import defusedxml.ElementTree, not xml.etree.ElementTree."""
+    import inspect
+    from cli_anything.sweethome3d.core.svg import parse
+    src = open(inspect.getfile(parse)).read()
+    assert "defusedxml" in src, "parse.py must import from defusedxml"
+    assert not re.search(r"import xml\.etree\.ElementTree", src), \
+        "parse.py must not import bare xml.etree.ElementTree"
+
+
+def test_pipeline_svg_uses_defusedxml():
+    """pipeline.py must import defusedxml.ElementTree, not xml.etree.ElementTree."""
+    import inspect
+    from cli_anything.sweethome3d.core.svg import pipeline
+    src = open(inspect.getfile(pipeline)).read()
+    assert "defusedxml" in src, "pipeline.py must import from defusedxml"
+    assert not re.search(r"import xml\.etree\.ElementTree", src), \
+        "pipeline.py must not import bare xml.etree.ElementTree"
