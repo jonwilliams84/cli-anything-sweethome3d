@@ -89,3 +89,86 @@ def test_find_javac_bundled_path_under_cache_dir():
     candidate = cache / "jdk8u402-b06" / "bin" / "javac"
     assert "/tmp" not in str(candidate)
     assert str(cache) in str(candidate)
+
+
+# ---------------------------------------------------------------------------
+# B404 / B603 — shell-metacharacter guard in run_model (pdf_import.py)
+# ---------------------------------------------------------------------------
+
+def test_run_model_rejects_shell_metacharacters():
+    """run_model must refuse command tokens containing shell metacharacters."""
+    from cli_anything.sweethome3d.core.pdf_import import (
+        _validate_shell_safe,
+    )
+
+    dangerous = [
+        "python; echo pwned",
+        "python && echo pwned",
+        "python | cat",
+        "$(whoami)",
+        "`id`",
+        "python>out.txt",
+        "python<in.txt",
+        "python!x",
+        "python$x",
+        "python'name",
+        'python"name',
+    ]
+    for token in dangerous:
+        with pytest.raises(ValueError, match="metacharacter"):
+            _validate_shell_safe(token, "token")
+
+    # Safe paths with normal characters must pass
+    safe = [
+        "/usr/bin/python3",
+        "/home/user/scripts/my-model.py",
+        "/tmp/output.json",
+    ]
+    for token in safe:
+        _validate_shell_safe(token, "token")  # must not raise
+
+
+def test_run_model_validates_paths_for_metacharacters(tmp_path):
+    """run_model must reject paths containing shell metacharacters."""
+    from cli_anything.sweethome3d.core.pdf_import import (
+        _validate_shell_safe,
+    )
+
+    dangerous_paths = [
+        "/tmp/p lan.png",          # space
+        "/tmp/$(whoami).png",      # command substitution
+        "/tmp/a`id`b.png",         # backtick substitution
+        "/tmp/f;echo.sh",          # command chaining
+    ]
+    for path in dangerous_paths:
+        with pytest.raises(ValueError, match="metacharacter"):
+            _validate_shell_safe(path, "png_path")
+
+
+def test_run_model_validates_post_substitution_tokens(tmp_path):
+    """After {in}/{out} substitution the final argv must also be validated."""
+    from cli_anything.sweethome3d.core.pdf_import import (
+        _validate_shell_safe,
+    )
+
+    # Simulate: user writes a template like "python {in}; echo pwned" (broken template)
+    # After substitution, the whole thing is one token so shlex.split won't split it,
+    # but _validate_shell_safe catches the ";" before subprocess is called.
+    dangerous_template = ["python {in}; echo pwned"]
+    png = str(tmp_path / "plan.png")
+    out = str(tmp_path / "out.json")
+
+    with pytest.raises(ValueError, match="metacharacter"):
+        for token in dangerous_template:
+            _validate_shell_safe(token.replace("{in}", png), "substituted token")
+
+
+def test_run_model_validates_input_file_exists(tmp_path):
+    """run_model must refuse to run if the input PNG does not exist."""
+    from cli_anything.sweethome3d.core.pdf_import import run_model
+
+    png = tmp_path / "does-not-exist.png"
+    out = tmp_path / "out.json"
+
+    with pytest.raises(FileNotFoundError):
+        run_model(str(png), str(out), model_cmd=["echo", "unused"])
