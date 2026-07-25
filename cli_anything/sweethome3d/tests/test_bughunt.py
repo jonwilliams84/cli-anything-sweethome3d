@@ -82,8 +82,10 @@ class TestTextureWidthHeight:
         tree = proj_core.home_to_xml(h)
         tex = tree.find("room/texture")
         assert tex is not None
-        assert tex.get("width") is not None
-        assert tex.get("height") is not None
+        if tex.get("width") is None:
+            raise AssertionError("texture width attribute should not be None")
+        if tex.get("height") is None:
+            raise AssertionError("texture height attribute should not be None")
 
     def test_texture_without_dimensions_opens_in_sh3d(self):
         h = Home()
