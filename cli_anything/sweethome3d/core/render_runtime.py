@@ -607,7 +607,7 @@ def _render_gpu_photo(
         cmd += ["--view", view]
 
     t0 = time.monotonic()
-    res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s)
+    res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s)  # nosec B603 — cmd is a list (no shell), all variable inputs are validated: view is whitelisted to camera/top/iso (line 535), paths come from internal _find_blender()/_find_sh3d_home() lookups, numeric args are str()-cast ints
     elapsed = time.monotonic() - t0
 
     if res.returncode != 0:
@@ -767,7 +767,7 @@ def render(
         capture_output=True,
         text=True,
         timeout=timeout_s,
-    )
+    )  # nosec B603 — cmd is a list (no shell), java_engine is whitelisted to GpuRender/Render (line 728), quality is whitelisted to LOW/MEDIUM/HIGH (line 745), java_bin/lib_path come from internal _find_sh3d_home() lookups, numeric args are str()-cast ints
     elapsed = time.monotonic() - t0
 
     combined = result.stdout + result.stderr
