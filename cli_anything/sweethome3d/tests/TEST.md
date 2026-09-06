@@ -227,3 +227,38 @@ All commands round-trip through SH3D 7.x's `Home.xml` schema. The
 `render` group is exercised only via the `status` no-binary path; a true
 GUI render requires the Sweet Home 3D binary which is not present in CI.
 
+
+## Refine round 3 — in-process CLI coverage (2026-09-06)
+
+### Gap
+
+All prior CLI tests drove the binary via `subprocess`, so coverage never
+saw `sweethome3d_cli.py` (2,798 statements at 0%) and the repo sat at
+44.94% total coverage — only 0.94 pp above the 44% CI gate.
+
+### Change
+
+New suite `test_cli_inprocess.py`: 76 tests invoking the Click group
+directly with `click.testing.CliRunner`, one happy path + rollback/error
+path per command group (project, level, wall incl. split/join/baseboard,
+room, furniture incl. doors/windows/lights, catalog, textures, camera
+incl. stored viewpoints + sun time, dimension/label/compass/polyline,
+find, environment, export svg, print, group, material, sash, emitter,
+shelf, background, edit floor/wall/light/door, import svg, undo/redo via
+REPL, --dry-run, per-subcommand --json).
+
+### Result
+
+**611 passed, 23 skipped** — full gate (pytest + ruff check + ruff format
+--check + bandit -ll) exits 0.
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Total coverage | 44.94% | 65.35% |
+| `sweethome3d_cli.py` | 0% | 73% |
+| `utils/repl_skin.py` | 0% | 57% |
+
+Notes: one-shot invocations have no persistent undo stack (each command
+re-opens the file), so undo/redo is exercised through the REPL path.
+`render photo`/`watch` and the Blender engine still require external
+binaries and remain covered only by their no-binary error paths.
