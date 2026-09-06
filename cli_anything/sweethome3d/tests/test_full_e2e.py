@@ -39,7 +39,7 @@ class TestCLISubprocess:
     def test_version(self):
         r = self._run(["--version"])
         assert r.returncode == 0
-        assert "1.0.0" in r.stdout
+        assert "1.1.0" in r.stdout
 
     def test_project_new_json(self, tmp_path):
         out = str(tmp_path / "n.sh3d")

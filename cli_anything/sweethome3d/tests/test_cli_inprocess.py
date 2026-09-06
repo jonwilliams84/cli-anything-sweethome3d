@@ -138,7 +138,7 @@ class TestRoot:
     def test_version(self, runner):
         result = runner.invoke(cli, ["--version"])
         assert result.exit_code == 0
-        assert "1.0.0" in result.output
+        assert "1.1.0" in result.output
 
     def test_command_without_project_fails(self, runner):
         result = _fail(runner, ["wall", "list"])

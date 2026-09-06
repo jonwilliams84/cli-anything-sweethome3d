@@ -5,7 +5,7 @@ with open("cli_anything/sweethome3d/README.md") as f:
 
 setup(
     name="cli-anything-sweethome3d",
-    version="1.0.0",
+    version="1.1.0",
     description="CLI harness for Sweet Home 3D 7.x — interior design from the command line",
     long_description=long_description,
     long_description_content_type="text/markdown",
