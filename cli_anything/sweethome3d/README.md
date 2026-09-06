@@ -469,6 +469,11 @@ Run end-to-end tests against the installed CLI:
 CLI_ANYTHING_FORCE_INSTALLED=1 pytest cli_anything/sweethome3d/tests -v -s
 ```
 
+`test_cli_inprocess.py` drives the Click CLI directly via
+`click.testing.CliRunner` (no subprocess), so the command surface itself
+is measured by coverage — one happy-path and one error-path test per
+command group.
+
 ## License
 
 This harness is independently published under the MIT license.
